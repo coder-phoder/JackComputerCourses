@@ -1,7 +1,7 @@
 STRICT RULES — follow all of these at all times:
 
 BACKEND RULES:
-- db.js lives at backend/db.js (MongoDB connection only, no other logic)
+- db.js lives at backend/db/db.js (MongoDB connection only, no other logic)
 - All models go in backend/models/ named as <entity>.model.js
 - All controllers go in backend/controllers/ named as <entity>.controller.js
 - All routes go in backend/routes/ named as <entity>.routes.js

@@ -6,8 +6,12 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const adminRoutes = require('./routes/admin.routes');
 
-app.use(cors());
+app.use(cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -17,9 +21,42 @@ const connectToDb = require('./db/db');
 connectToDb();
 
 app.get('/', (req, res) => {
-    res.send('hello world');
+    res.status(200).json({
+        success: true,
+        message: 'Backend is running',
+        data: {}
+    });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+app.use('/admin', adminRoutes);
+
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: 'Route not found',
+        data: {}
+    });
 });
+
+app.use((error, req, res, next) => {
+    const statusCode = error.statusCode || error.status || 500;
+
+    res.status(statusCode).json({
+        success: false,
+        message: statusCode >= 500 ? 'Internal server error' : error.message,
+        data: {}
+    });
+});
+
+if (require.main === module) {
+    app.listen(PORT, (error) => {
+        if (error) {
+            console.log('error in server connection: ', error);
+            return;
+        }
+
+        console.log(`Server is running on port ${PORT}`);
+    });
+}
+
+module.exports = app;
