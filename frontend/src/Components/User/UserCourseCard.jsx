@@ -4,12 +4,17 @@ const getCount = (value) => {
   return Number.isFinite(count) && count > 0 ? count : 0
 }
 
-const UserCourseCard = ({ course }) => {
+const UserCourseCard = ({ course, playerUrl }) => {
   const description = course.shortDescription || course.description || 'Course details are not available.'
   const courseTags = [course.category, course.level, course.language].filter(Boolean)
 
   return (
-    <article className="flex h-full flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-md">
+    <a
+      href={playerUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="flex h-full flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-100"
+    >
       <div className="aspect-[16/9] overflow-hidden rounded-lg bg-slate-100">
         {course.thumbnailUrl ? (
           <img
@@ -69,7 +74,7 @@ const UserCourseCard = ({ course }) => {
           </div>
         ) : null}
       </div>
-    </article>
+    </a>
   )
 }
 

@@ -168,7 +168,11 @@ const UserCoursesPage = () => {
         ) : courses.length ? (
           <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {courses.map((course) => (
-              <UserCourseCard key={course._id} course={course} />
+              <UserCourseCard
+                key={course._id}
+                course={course}
+                playerUrl={`/user/courses/${course._id}/player`}
+              />
             ))}
           </section>
         ) : (
