@@ -47,7 +47,7 @@ const UserCourseSidebar = ({
   }
 
   return (
-    <aside className="flex h-[70vh] max-h-[680px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm lg:sticky lg:top-8 lg:h-[calc(100vh-4rem)] lg:max-h-[760px]">
+    <aside className="flex h-[70vh] max-h-170 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm lg:sticky lg:top-8 lg:h-[calc(100vh-4rem)] lg:max-h-190">
       <div className="shrink-0 border-b border-slate-200 px-5 py-4">
         <h2 className="text-lg font-bold text-slate-900">Chapters</h2>
         <p className="mt-1 text-sm text-slate-500">
