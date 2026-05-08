@@ -1,9 +1,15 @@
 import axios from 'axios'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../Context/AuthContext'
 
 const API_BASE_URL = 'http://localhost:4000'
+
+const getNavLinkClass = ({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold transition ${
+  isActive
+    ? 'bg-blue-50 text-blue-700'
+    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+}`
 
 const UserNavbar = () => {
   const navigate = useNavigate()
@@ -47,6 +53,14 @@ const UserNavbar = () => {
         </Link>
 
         <div className="flex items-center gap-4">
+          <div className="hidden items-center gap-2 sm:flex">
+            <NavLink to="/user/home" className={getNavLinkClass}>
+              Home
+            </NavLink>
+            <NavLink to="/user/courses" className={getNavLinkClass}>
+              Courses
+            </NavLink>
+          </div>
           {error ? (
             <span className="hidden text-sm font-medium text-red-600 sm:inline">
               {error}
@@ -61,6 +75,14 @@ const UserNavbar = () => {
             {loading ? 'Logging out...' : 'Logout'}
           </button>
         </div>
+      </div>
+      <div className="flex border-t border-slate-100 px-4 py-2 sm:hidden">
+        <NavLink to="/user/home" className={getNavLinkClass}>
+          Home
+        </NavLink>
+        <NavLink to="/user/courses" className={getNavLinkClass}>
+          Courses
+        </NavLink>
       </div>
       {error ? (
         <div className="border-t border-red-100 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 sm:hidden">

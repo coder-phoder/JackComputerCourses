@@ -3,6 +3,7 @@ import { AuthProvider } from './Context/AuthContext'
 import LandingPage from './Pages/Common/LandingPage'
 import LoginPage from './Pages/Common/LoginPage'
 import UserHomePage from './Pages/User/UserHomePage'
+import UserCoursesPage from './Pages/User/UserCoursesPage'
 import AdminHomePage from './Pages/Admin/AdminHomePage'
 import AdminAllUsers from './Pages/Admin/AdminAllUsers'
 import AdminCourses from './Pages/Admin/AdminCourses'
@@ -16,6 +17,7 @@ const App = () => {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/user/home" element={<UserHomePage />} />
+          <Route path="/user/courses" element={<UserCoursesPage />} />
           <Route path="/admin/home" element={<AdminHomePage />} />
           <Route path="/admin/users" element={<AdminAllUsers />} />
           <Route path="/admin/courses" element={<AdminCourses />} />
