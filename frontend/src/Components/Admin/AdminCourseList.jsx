@@ -8,7 +8,7 @@ const AdminCourseList = ({
   onEditCourse,
   onOpenCourse,
 }) => (
-  <section className="flex h-[70vh] min-h-[420px] max-h-[760px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+  <section className="flex h-[70vh] min-h-105 max-h-190 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
     <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-5">
       <h2 className="text-lg font-bold text-slate-900">All Courses</h2>
       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
