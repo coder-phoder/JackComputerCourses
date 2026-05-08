@@ -4,6 +4,7 @@ import LandingPage from './Pages/Common/LandingPage'
 import LoginPage from './Pages/Common/LoginPage'
 import UserHomePage from './Pages/User/UserHomePage'
 import AdminHomePage from './Pages/Admin/AdminHomePage'
+import AdminAllUsers from './Pages/Admin/AdminAllUsers'
 
 const App = () => {
   return (
@@ -14,6 +15,7 @@ const App = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/user/home" element={<UserHomePage />} />
           <Route path="/admin/home" element={<AdminHomePage />} />
+          <Route path="/admin/users" element={<AdminAllUsers />} />
         </Routes>
       </Router>
     </AuthProvider>
