@@ -21,7 +21,7 @@ const AdminCourseList = ({
         Loading courses...
       </div>
     ) : courses.length ? (
-      <div className="grid gap-4 p-4 lg:grid-cols-2">
+      <div className="space-y-4 p-4">
         {courses.map((course) => {
           const isEditing = editingCourseId === course._id
           const isDeleting = deletingCourseId === course._id
@@ -44,77 +44,79 @@ const AdminCourseList = ({
                   : 'border-slate-200 bg-white hover:border-indigo-200 hover:shadow-sm'
               }`}
             >
-              <div className="flex items-start gap-4">
-                {course.thumbnailUrl ? (
-                  <img
-                    src={course.thumbnailUrl}
-                    alt=""
-                    className="h-20 w-24 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="flex h-20 w-24 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-400">
-                    J
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="flex min-w-0 flex-1 items-start gap-4">
+                  {course.thumbnailUrl ? (
+                    <img
+                      src={course.thumbnailUrl}
+                      alt=""
+                      className="h-24 w-32 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-24 w-32 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-400">
+                      J
+                    </div>
+                  )}
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="min-w-0 truncate text-lg font-bold text-slate-900">
+                        {course.title}
+                      </h3>
+                      <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                        course.isPublished
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-amber-50 text-amber-700'
+                      }`}
+                      >
+                        {course.isPublished ? 'Published' : 'Draft'}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-sm text-slate-500">{course.slug}</p>
+                    <p className="mt-3 line-clamp-2 text-sm text-slate-600">
+                      {course.shortDescription || course.description}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+                      {course.category ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-1">{course.category}</span>
+                      ) : null}
+                      {course.level ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-1">{course.level}</span>
+                      ) : null}
+                      {course.language ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-1">{course.language}</span>
+                      ) : null}
+                    </div>
                   </div>
-                )}
+                </div>
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="min-w-0 truncate text-base font-bold text-slate-900">
-                      {course.title}
-                    </h3>
-                    <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                      course.isPublished
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-amber-50 text-amber-700'
-                    }`}
-                    >
-                      {course.isPublished ? 'Published' : 'Draft'}
-                    </span>
+                <div className="grid shrink-0 grid-cols-2 gap-3 text-sm sm:grid-cols-4 xl:w-[440px]">
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Price
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-800">{course.price}</p>
                   </div>
-                  <p className="mt-1 truncate text-sm text-slate-500">{course.slug}</p>
-                  <p className="mt-3 line-clamp-2 text-sm text-slate-600">
-                    {course.shortDescription || course.description}
-                  </p>
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Duration
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-800">{course.duration}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Chapters
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-800">{course.chapterCount || 0}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Access
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-800">{course.accessUserCount || 0}</p>
+                  </div>
                 </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Price
-                  </p>
-                  <p className="mt-1 font-semibold text-slate-800">{course.price}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Duration
-                  </p>
-                  <p className="mt-1 font-semibold text-slate-800">{course.duration}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Chapters
-                  </p>
-                  <p className="mt-1 font-semibold text-slate-800">{course.chapterCount || 0}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Access
-                  </p>
-                  <p className="mt-1 font-semibold text-slate-800">{course.accessUserCount || 0}</p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
-                {course.category ? (
-                  <span className="rounded-full bg-slate-100 px-2 py-1">{course.category}</span>
-                ) : null}
-                {course.level ? (
-                  <span className="rounded-full bg-slate-100 px-2 py-1">{course.level}</span>
-                ) : null}
-                {course.language ? (
-                  <span className="rounded-full bg-slate-100 px-2 py-1">{course.language}</span>
-                ) : null}
               </div>
 
               <div className="mt-5 flex justify-end gap-2">

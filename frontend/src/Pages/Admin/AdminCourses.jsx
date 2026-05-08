@@ -22,7 +22,6 @@ const emptyCourseForm = {
   tags: '',
   highlights: '',
   prerequisites: '',
-  allowedUserPhones: '',
   isPublished: false,
 }
 
@@ -55,7 +54,6 @@ const getCourseForm = (course) => ({
   tags: toListInput(course.tags),
   highlights: toListInput(course.highlights),
   prerequisites: toListInput(course.prerequisites),
-  allowedUserPhones: toListInput(course.allowedUserPhones),
   isPublished: Boolean(course.isPublished),
 })
 
@@ -99,7 +97,6 @@ const buildCoursePayload = (form, isEditing) => {
     tags: parseListInput(form.tags),
     highlights: parseListInput(form.highlights),
     prerequisites: parseListInput(form.prerequisites),
-    allowedUserPhones: parseListInput(form.allowedUserPhones),
     isPublished: Boolean(form.isPublished),
   }
 

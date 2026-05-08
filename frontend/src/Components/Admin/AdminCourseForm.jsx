@@ -203,22 +203,6 @@ const AdminCourseForm = ({
       </div>
 
       <div>
-        <label htmlFor="course-access" className="block text-sm font-medium text-slate-700">
-          Access Phones
-        </label>
-        <textarea
-          id="course-access"
-          name="allowedUserPhones"
-          rows="2"
-          value={courseForm.allowedUserPhones}
-          onChange={onChange}
-          disabled={saving}
-          className={textAreaClass}
-          placeholder="9876543210, 9876543211"
-        />
-      </div>
-
-      <div>
         <label htmlFor="course-tags" className="block text-sm font-medium text-slate-700">
           Tags
         </label>

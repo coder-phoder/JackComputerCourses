@@ -9,6 +9,7 @@ import AdminHomePage from './Pages/Admin/AdminHomePage'
 import AdminAllUsers from './Pages/Admin/AdminAllUsers'
 import AdminCourses from './Pages/Admin/AdminCourses'
 import Course from './Pages/Admin/Course'
+import CourseAccessPage from './Pages/Admin/CourseAccessPage'
 
 const App = () => {
   return (
@@ -23,6 +24,7 @@ const App = () => {
           <Route path="/admin/home" element={<AdminHomePage />} />
           <Route path="/admin/users" element={<AdminAllUsers />} />
           <Route path="/admin/courses" element={<AdminCourses />} />
+          <Route path="/admin/courses/:courseId/access" element={<CourseAccessPage />} />
           <Route path="/admin/courses/:courseId" element={<Course />} />
         </Routes>
       </Router>

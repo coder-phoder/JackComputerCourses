@@ -359,12 +359,18 @@ const Course = () => {
       <AdminNavbar />
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mb-6">
+        <div className="mb-6 flex flex-wrap gap-3">
           <Link
             to="/admin/courses"
             className="inline-flex rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700"
           >
             Back to courses
+          </Link>
+          <Link
+            to={`/admin/courses/${courseId}/access`}
+            className="inline-flex rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+          >
+            User Access
           </Link>
         </div>
 
