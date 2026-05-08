@@ -5,29 +5,50 @@ const UserCourseSidebar = ({
   selectedVideoKey,
   onSelectVideo,
 }) => {
-  const defaultOpenChapterId = useMemo(() => {
+  const activeChapterId = useMemo(() => {
+    const chapterWithSelectedVideo = chapters.find((chapter) => (
+      (chapter.videos || []).some((video) => video.id === selectedVideoKey)
+    ))
+
+    if (chapterWithSelectedVideo) {
+      return chapterWithSelectedVideo._id
+    }
+
     const selectedChapterId = selectedVideoKey.split(':')[0]
 
-    if (selectedChapterId) {
+    if (selectedChapterId && chapters.some((chapter) => chapter._id === selectedChapterId)) {
       return selectedChapterId
     }
 
     const firstChapterWithVideos = chapters.find((chapter) => chapter.videos?.length)
 
-    return firstChapterWithVideos?._id || ''
+    return firstChapterWithVideos?._id || chapters[0]?._id || ''
   }, [chapters, selectedVideoKey])
-  const [chapterOpenOverrides, setChapterOpenOverrides] = useState({})
+
+  const [browsedChapterId, setBrowsedChapterId] = useState('')
+  const browsedChapterExists = chapters.some((chapter) => chapter._id === browsedChapterId)
+  const openChapterId = browsedChapterExists ? browsedChapterId : activeChapterId
 
   const toggleChapter = (chapterId) => {
-    setChapterOpenOverrides((currentOpenChapters) => ({
-      ...currentOpenChapters,
-      [chapterId]: !(currentOpenChapters[chapterId] ?? chapterId === defaultOpenChapterId),
-    }))
+    setBrowsedChapterId((currentBrowsedChapterId) => {
+      const currentOpenChapterId = currentBrowsedChapterId || activeChapterId
+
+      if (currentOpenChapterId === chapterId || chapterId === activeChapterId) {
+        return ''
+      }
+
+      return chapterId
+    })
+  }
+
+  const handleSelectVideo = (videoKey) => {
+    setBrowsedChapterId('')
+    onSelectVideo(videoKey)
   }
 
   return (
-    <aside className="rounded-lg border border-slate-200 bg-white shadow-sm lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
-      <div className="border-b border-slate-200 px-5 py-4">
+    <aside className="flex h-[70vh] max-h-[680px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm lg:sticky lg:top-8 lg:h-[calc(100vh-4rem)] lg:max-h-[760px]">
+      <div className="shrink-0 border-b border-slate-200 px-5 py-4">
         <h2 className="text-lg font-bold text-slate-900">Chapters</h2>
         <p className="mt-1 text-sm text-slate-500">
           Select a lesson to start watching.
@@ -35,16 +56,18 @@ const UserCourseSidebar = ({
       </div>
 
       {chapters.length ? (
-        <div className="space-y-3 p-3">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
           {chapters.map((chapter, chapterIndex) => {
             const videos = chapter.videos || []
-            const isOpen = Boolean(chapterOpenOverrides[chapter._id] ?? chapter._id === defaultOpenChapterId)
+            const isOpen = chapter._id === openChapterId
+            const isActiveChapter = chapter._id === activeChapterId
 
             return (
               <section key={chapter._id} className="overflow-hidden rounded-lg border border-slate-200">
                 <button
                   type="button"
                   onClick={() => toggleChapter(chapter._id)}
+                  aria-expanded={isOpen}
                   className="flex w-full items-center justify-between gap-3 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
                 >
                   <span className="min-w-0">
@@ -56,7 +79,7 @@ const UserCourseSidebar = ({
                     </span>
                   </span>
                   <span className="shrink-0 text-xs font-semibold text-slate-500">
-                    {isOpen ? 'Hide' : `${videos.length || chapter.videoCount || 0} videos`}
+                    {isOpen ? (isActiveChapter ? 'Current' : 'Collapse') : `${videos.length || chapter.videoCount || 0} videos`}
                   </span>
                 </button>
 
@@ -71,7 +94,7 @@ const UserCourseSidebar = ({
                           <button
                             key={videoKey}
                             type="button"
-                            onClick={() => onSelectVideo(videoKey)}
+                            onClick={() => handleSelectVideo(videoKey)}
                             className={`flex w-full gap-3 rounded-lg p-2 text-left transition ${
                               isSelected
                                 ? 'bg-blue-50 ring-1 ring-blue-200'

@@ -2,7 +2,6 @@ import axios from 'axios'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import UserCourseSidebar from '../../Components/User/UserCourseSidebar'
-import UserNavbar from '../../Components/User/UserNavbar'
 import UserVideoPlayer from '../../Components/User/UserVideoPlayer'
 import { useAuth } from '../../Context/AuthContext'
 
@@ -153,8 +152,6 @@ const UserCoursePlayerPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      <UserNavbar />
-
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
