@@ -9,6 +9,7 @@ const {
     deleteUserByAdmin
 } = require('../controllers/admin.controller');
 const authAdmin = require('../middlewares/admin.middleware');
+const courseRoutes = require('./course.routes');
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.get('/users', authAdmin, getAllUsersByAdmin);
 router.post('/users', authAdmin, createUserByAdmin);
 router.patch('/users/:id', authAdmin, updateUserByAdmin);
 router.delete('/users/:id', authAdmin, deleteUserByAdmin);
+router.use('/courses', authAdmin, courseRoutes);
 
 module.exports = router;

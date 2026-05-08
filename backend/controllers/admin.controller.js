@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/user.model');
+const Course = require('../models/course.model');
 
 let cachedAdminPassword = null;
 let cachedAdminPasswordHash = null;
@@ -256,6 +257,8 @@ const updateUserByAdmin = async (req, res) => {
             });
         }
 
+        const oldPhone = user.phone;
+
         if (hasPhone) {
             const trimmedPhone = String(req.body.phone || '').trim();
 
@@ -298,6 +301,17 @@ const updateUserByAdmin = async (req, res) => {
         }
 
         await user.save();
+
+        if (hasPhone && oldPhone !== user.phone) {
+            await Course.updateMany(
+                { allowedUserPhones: oldPhone },
+                { $addToSet: { allowedUserPhones: user.phone } }
+            );
+            await Course.updateMany(
+                { allowedUserPhones: oldPhone },
+                { $pull: { allowedUserPhones: oldPhone } }
+            );
+        }
 
         return res.status(200).json({
             success: true,
@@ -342,6 +356,11 @@ const deleteUserByAdmin = async (req, res) => {
                 data: {}
             });
         }
+
+        await Course.updateMany(
+            { allowedUserPhones: user.phone },
+            { $pull: { allowedUserPhones: user.phone } }
+        );
 
         return res.status(200).json({
             success: true,
