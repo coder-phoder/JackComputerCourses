@@ -7,6 +7,14 @@ const User = require('../models/user.model');
 const YOUTUBE_PLAYLIST_ITEMS_URL = 'https://www.googleapis.com/youtube/v3/playlistItems';
 const YOUTUBE_VIDEOS_URL = 'https://www.googleapis.com/youtube/v3/videos';
 const YOUTUBE_PAGE_SIZE = 50;
+const LOCAL_CLIENT_ORIGINS = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:5175'
+];
 
 const isValidObjectId = (id) => (
     mongoose.Types.ObjectId.isValid(id)
@@ -20,6 +28,29 @@ const sendError = (res, statusCode, message) => res.status(statusCode).json({
     message,
     data: {}
 });
+
+const escapeHtmlAttribute = (value) => String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+const getClientOrigin = (value) => {
+    try {
+        return new URL(value).origin;
+    } catch (error) {
+        return '';
+    }
+};
+
+const getFrameAncestors = () => {
+    const configuredClientOrigin = getClientOrigin(process.env.CLIENT_URL || '');
+
+    return [...new Set([
+        configuredClientOrigin,
+        ...LOCAL_CLIENT_ORIGINS
+    ].filter(Boolean))].join(' ');
+};
 
 const slugify = (value) => String(value || '')
     .trim()
@@ -302,6 +333,75 @@ const formatChapterData = (chapter) => ({
     createdAt: chapter.createdAt,
     updatedAt: chapter.updatedAt
 });
+
+const getUserVideoKey = (chapter, video) => `${chapter._id.toString()}:${video.position}`;
+
+const formatUserVideoData = (chapter, video) => ({
+    id: getUserVideoKey(chapter, video),
+    title: video.title,
+    position: video.position,
+    duration: video.duration,
+    playerPath: `/user/courses/${chapter.courseId.toString()}/chapters/${chapter._id.toString()}/videos/${video.position}/embed`
+});
+
+const formatUserChapterData = (chapter) => ({
+    _id: chapter._id.toString(),
+    name: chapter.name,
+    order: chapter.order,
+    videoCount: chapter.videoCount,
+    videos: (chapter.videos || []).map((video) => formatUserVideoData(chapter, video))
+});
+
+const buildUserVideoEmbedUrl = (youtubeVideoId) => {
+    const params = new URLSearchParams({
+        controls: '1',
+        rel: '0',
+        modestbranding: '1',
+        iv_load_policy: '3',
+        playsinline: '1',
+        disablekb: '0',
+        fs: '1'
+    });
+
+    return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeVideoId)}?${params.toString()}`;
+};
+
+const buildUserVideoEmbedHtml = (embedUrl, title) => `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtmlAttribute(title || 'Course video')}</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #020617;
+      }
+
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe
+      src="${escapeHtmlAttribute(embedUrl)}"
+      title="${escapeHtmlAttribute(title || 'Course video')}"
+      loading="eager"
+      allow="accelerometer; autoplay; encrypted-media; fullscreen; gyroscope; picture-in-picture"
+      referrerpolicy="strict-origin-when-cross-origin"
+      sandbox="allow-scripts allow-same-origin allow-presentation"
+      allowfullscreen
+    ></iframe>
+  </body>
+</html>`;
 
 const getCourseCounts = async (courseIds) => {
     if (!courseIds.length) {
@@ -1126,11 +1226,90 @@ const getCourseByUser = async (req, res) => {
             message: 'Course fetched successfully',
             data: {
                 course: formatCourseData(course, counts),
-                chapters: chapters.map(formatChapterData)
+                chapters: chapters.map(formatUserChapterData)
             }
         });
     } catch (error) {
         return sendError(res, 500, 'Something went wrong while fetching course');
+    }
+};
+
+const getCourseVideoEmbedByUser = async (req, res) => {
+    try {
+        const { courseId, chapterId, videoPosition } = req.params;
+        const userPhone = normalizePhone(req.user?.phone);
+
+        if (!userPhone) {
+            return sendError(res, 401, 'Invalid user token');
+        }
+
+        const courseQuery = getUserCourseLookupQuery(courseId);
+
+        if (!courseQuery) {
+            return sendError(res, 400, 'Invalid course id or slug');
+        }
+
+        if (!isValidObjectId(chapterId)) {
+            return sendError(res, 400, 'Invalid chapter id');
+        }
+
+        const parsedVideoPosition = parseNonNegativeInteger(videoPosition);
+
+        if (parsedVideoPosition === null) {
+            return sendError(res, 400, 'Invalid video position');
+        }
+
+        const course = await Course.findOne({
+            ...courseQuery,
+            isPublished: true
+        });
+
+        if (!course) {
+            return sendError(res, 404, 'Course not found');
+        }
+
+        if (!courseUserHasAccess(course, userPhone)) {
+            return sendError(res, 403, 'You do not have access to this course');
+        }
+
+        const chapter = await Chapter.findOne({
+            _id: chapterId,
+            courseId: course._id
+        });
+
+        if (!chapter) {
+            return sendError(res, 404, 'Chapter not found');
+        }
+
+        const video = (chapter.videos || []).find((chapterVideo) => (
+            Number(chapterVideo.position) === parsedVideoPosition
+        ));
+
+        if (!video) {
+            return sendError(res, 404, 'Video not found');
+        }
+
+        const embedUrl = buildUserVideoEmbedUrl(video.youtubeVideoId);
+        const frameAncestors = getFrameAncestors();
+
+        return res
+            .status(200)
+            .set({
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-store',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Security-Policy': [
+                    "default-src 'none'",
+                    "base-uri 'none'",
+                    "form-action 'none'",
+                    "style-src 'unsafe-inline'",
+                    'frame-src https://www.youtube-nocookie.com https://www.youtube.com',
+                    frameAncestors ? `frame-ancestors 'self' ${frameAncestors}` : "frame-ancestors 'self'"
+                ].join('; ')
+            })
+            .send(buildUserVideoEmbedHtml(embedUrl, video.title));
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while loading video');
     }
 };
 
@@ -1151,6 +1330,7 @@ module.exports = {
     syncChapterVideosByAdmin,
     getCoursesByUser,
     getCourseByUser,
+    getCourseVideoEmbedByUser,
     normalizePhoneArray,
     courseUserHasAccess,
     parsePlaylistId,

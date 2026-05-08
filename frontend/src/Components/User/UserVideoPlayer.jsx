@@ -1,5 +1,7 @@
-const getEmbedUrl = (videoId) => (
-  `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1`
+const API_BASE_URL = 'http://localhost:4000'
+
+const getPlayerSrc = (playerPath) => (
+  playerPath?.startsWith('http') ? playerPath : `${API_BASE_URL}${playerPath || ''}`
 )
 
 const UserVideoPlayer = ({ course, selectedVideo }) => {
@@ -20,13 +22,14 @@ const UserVideoPlayer = ({ course, selectedVideo }) => {
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="aspect-video bg-slate-950">
         <iframe
-          key={video.youtubeVideoId}
-          src={getEmbedUrl(video.youtubeVideoId)}
+          key={video.playerPath}
+          src={getPlayerSrc(video.playerPath)}
           title={video.title}
           className="h-full w-full"
           loading="eager"
-          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+          allow="accelerometer; autoplay; encrypted-media; fullscreen; gyroscope; picture-in-picture"
           referrerPolicy="strict-origin-when-cross-origin"
+          sandbox="allow-scripts allow-same-origin allow-presentation"
           allowFullScreen
         />
       </div>

@@ -1,23 +1,27 @@
 import { useMemo, useState } from 'react'
 
-const getVideoKey = (chapter, video) => `${chapter._id}-${video.youtubeVideoId}-${video.position}`
-
 const UserCourseSidebar = ({
   chapters,
   selectedVideoKey,
   onSelectVideo,
 }) => {
-  const initialOpenChapters = useMemo(() => {
+  const defaultOpenChapterId = useMemo(() => {
+    const selectedChapterId = selectedVideoKey.split(':')[0]
+
+    if (selectedChapterId) {
+      return selectedChapterId
+    }
+
     const firstChapterWithVideos = chapters.find((chapter) => chapter.videos?.length)
 
-    return firstChapterWithVideos ? { [firstChapterWithVideos._id]: true } : {}
-  }, [chapters])
-  const [openChapters, setOpenChapters] = useState(initialOpenChapters)
+    return firstChapterWithVideos?._id || ''
+  }, [chapters, selectedVideoKey])
+  const [chapterOpenOverrides, setChapterOpenOverrides] = useState({})
 
   const toggleChapter = (chapterId) => {
-    setOpenChapters((currentOpenChapters) => ({
+    setChapterOpenOverrides((currentOpenChapters) => ({
       ...currentOpenChapters,
-      [chapterId]: !currentOpenChapters[chapterId],
+      [chapterId]: !(currentOpenChapters[chapterId] ?? chapterId === defaultOpenChapterId),
     }))
   }
 
@@ -34,7 +38,7 @@ const UserCourseSidebar = ({
         <div className="space-y-3 p-3">
           {chapters.map((chapter, chapterIndex) => {
             const videos = chapter.videos || []
-            const isOpen = Boolean(openChapters[chapter._id])
+            const isOpen = Boolean(chapterOpenOverrides[chapter._id] ?? chapter._id === defaultOpenChapterId)
 
             return (
               <section key={chapter._id} className="overflow-hidden rounded-lg border border-slate-200">
@@ -60,7 +64,7 @@ const UserCourseSidebar = ({
                   videos.length ? (
                     <div className="space-y-2 bg-white p-2">
                       {videos.map((video, videoIndex) => {
-                        const videoKey = getVideoKey(chapter, video)
+                        const videoKey = video.id
                         const isSelected = selectedVideoKey === videoKey
 
                         return (
@@ -74,18 +78,9 @@ const UserCourseSidebar = ({
                                 : 'hover:bg-slate-50'
                             }`}
                           >
-                            {video.thumbnailUrl ? (
-                              <img
-                                src={video.thumbnailUrl}
-                                alt=""
-                                className="h-14 w-20 shrink-0 rounded-md object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <span className="flex h-14 w-20 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-400">
-                                Video
-                              </span>
-                            )}
+                            <span className="flex h-14 w-20 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-400">
+                              Video
+                            </span>
                             <span className="min-w-0">
                               <span className="line-clamp-2 text-sm font-semibold text-slate-900">
                                 {video.title}

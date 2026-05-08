@@ -14,12 +14,10 @@ const getErrorMessage = (error, fallback) => (
 
 const isAuthError = (error) => [401].includes(error?.response?.status)
 
-const getVideoKey = (chapter, video) => `${chapter._id}-${video.youtubeVideoId}-${video.position}`
-
 const getPlayableVideos = (chapters) => (
   chapters.flatMap((chapter) => (
     (chapter.videos || []).map((video) => ({
-      key: getVideoKey(chapter, video),
+      key: video.id,
       chapter,
       video,
     }))
