@@ -66,6 +66,12 @@ const AdminNavbar = () => {
             >
               Users
             </NavLink>
+            <NavLink
+              to="/admin/courses"
+              className={getNavLinkClass}
+            >
+              Courses
+            </NavLink>
           </div>
           {error ? (
             <span className="hidden text-sm font-medium text-red-600 sm:inline">
@@ -88,6 +94,9 @@ const AdminNavbar = () => {
         </NavLink>
         <NavLink to="/admin/users" className={getNavLinkClass}>
           Users
+        </NavLink>
+        <NavLink to="/admin/courses" className={getNavLinkClass}>
+          Courses
         </NavLink>
       </div>
       {error ? (
