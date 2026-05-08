@@ -6,6 +6,7 @@ const AdminCourseList = ({
   saving,
   onDeleteCourse,
   onEditCourse,
+  onOpenCourse,
 }) => (
   <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
     <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
@@ -28,10 +29,19 @@ const AdminCourseList = ({
           return (
             <article
               key={course._id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onOpenCourse(course)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onOpenCourse(course)
+                }
+              }}
               className={`rounded-lg border p-4 transition ${
                 isEditing
                   ? 'border-indigo-300 bg-indigo-50/40'
-                  : 'border-slate-200 bg-white'
+                  : 'border-slate-200 bg-white hover:border-indigo-200 hover:shadow-sm'
               }`}
             >
               <div className="flex items-start gap-4">
@@ -110,7 +120,10 @@ const AdminCourseList = ({
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => onEditCourse(course)}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onEditCourse(course)
+                  }}
                   disabled={saving || Boolean(deletingCourseId)}
                   className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:text-slate-400"
                 >
@@ -118,7 +131,10 @@ const AdminCourseList = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onDeleteCourse(course)}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onDeleteCourse(course)
+                  }}
                   disabled={saving || isDeleting}
                   className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:text-red-300"
                 >

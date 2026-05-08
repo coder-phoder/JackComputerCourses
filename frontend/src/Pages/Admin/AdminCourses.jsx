@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import AdminCourseForm from '../../Components/Admin/AdminCourseForm'
 import AdminCourseList from '../../Components/Admin/AdminCourseList'
 import AdminNavbar from '../../Components/Admin/AdminNavbar'
@@ -111,6 +111,7 @@ const buildCoursePayload = (form, isEditing) => {
 }
 
 const AdminCourses = () => {
+  const navigate = useNavigate()
   const { auth, clearAuth, setAuth } = useAuth()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
@@ -333,6 +334,10 @@ const AdminCourses = () => {
     }
   }
 
+  const openCourse = (course) => {
+    navigate(`/admin/courses/${course._id}`)
+  }
+
   if (checkingAuth) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 font-sans">
@@ -387,6 +392,7 @@ const AdminCourses = () => {
             saving={saving}
             onDeleteCourse={handleDeleteCourse}
             onEditCourse={startEditingCourse}
+            onOpenCourse={openCourse}
           />
         </div>
       </main>
