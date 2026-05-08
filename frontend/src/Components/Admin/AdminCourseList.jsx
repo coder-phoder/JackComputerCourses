@@ -8,8 +8,8 @@ const AdminCourseList = ({
   onEditCourse,
   onOpenCourse,
 }) => (
-  <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-    <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+  <section className="flex h-[70vh] min-h-[420px] max-h-[760px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-5">
       <h2 className="text-lg font-bold text-slate-900">All Courses</h2>
       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
         {courses.length} total
@@ -17,11 +17,11 @@ const AdminCourseList = ({
     </div>
 
     {loadingCourses ? (
-      <div className="px-6 py-12 text-center text-sm font-semibold text-slate-500">
+      <div className="flex flex-1 items-center justify-center px-6 py-12 text-center text-sm font-semibold text-slate-500">
         Loading courses...
       </div>
     ) : courses.length ? (
-      <div className="space-y-4 p-4">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         {courses.map((course) => {
           const isEditing = editingCourseId === course._id
           const isDeleting = deletingCourseId === course._id
@@ -91,7 +91,7 @@ const AdminCourseList = ({
                   </div>
                 </div>
 
-                <div className="grid shrink-0 grid-cols-2 gap-3 text-sm sm:grid-cols-4 xl:w-[440px]">
+                <div className="grid shrink-0 grid-cols-2 gap-3 text-sm sm:grid-cols-4 xl:w-110">
                   <div className="rounded-lg bg-slate-50 px-3 py-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                       Price
@@ -148,7 +148,7 @@ const AdminCourseList = ({
         })}
       </div>
     ) : (
-      <div className="px-6 py-12 text-center text-sm font-semibold text-slate-500">
+      <div className="flex flex-1 items-center justify-center px-6 py-12 text-center text-sm font-semibold text-slate-500">
         No courses found.
       </div>
     )}

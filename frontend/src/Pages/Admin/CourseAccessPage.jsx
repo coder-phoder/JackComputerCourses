@@ -332,7 +332,7 @@ const CourseAccessPage = () => {
                 </div>
 
                 {availableUsers.length ? (
-                  <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto pr-1">
+                  <div className="mt-3 max-h-105 space-y-2 overflow-y-auto pr-1">
                     {availableUsers.map((user) => {
                       const addKey = `add:${normalizePhone(user.phone)}`
 
