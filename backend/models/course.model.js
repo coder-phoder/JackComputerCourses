@@ -69,6 +69,10 @@ const courseSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    isOpenToAll: {
+        type: Boolean,
+        default: false
+    },
     allowedUserPhones: {
         type: [String],
         default: [],
@@ -80,6 +84,6 @@ const courseSchema = new mongoose.Schema({
     timestamps: true
 });
 
-courseSchema.index({ isPublished: 1, allowedUserPhones: 1, createdAt: -1 });
+courseSchema.index({ isPublished: 1, isOpenToAll: 1, allowedUserPhones: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Course', courseSchema);

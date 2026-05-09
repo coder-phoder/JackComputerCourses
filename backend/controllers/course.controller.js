@@ -304,6 +304,7 @@ const formatCourseData = (course, counts = {}, options = {}) => {
         highlights: course.highlights || [],
         prerequisites: course.prerequisites || [],
         isPublished: course.isPublished,
+        isOpenToAll: Boolean(course.isOpenToAll),
         chapterCount: counts.chapterCount || 0,
         videoCount: counts.videoCount || 0,
         accessUserCount: (course.allowedUserPhones || []).length,
@@ -505,6 +506,10 @@ const buildCoursePayload = (body, options = {}) => {
         payload.isPublished = normalizeBoolean(body.isPublished);
     }
 
+    if (hasField(body, 'isOpenToAll')) {
+        payload.isOpenToAll = normalizeBoolean(body.isOpenToAll);
+    }
+
     if (isCreate && !payload.slug) {
         errors.push('Slug is required');
     }
@@ -574,7 +579,15 @@ const getUserCourseLookupQuery = (courseIdOrSlug) => {
 const courseUserHasAccess = (course, userPhone) => {
     const normalizedUserPhone = normalizePhone(userPhone);
 
-    return Boolean(normalizedUserPhone && (course.allowedUserPhones || [])
+    if (!normalizedUserPhone) {
+        return false;
+    }
+
+    if (course?.isOpenToAll) {
+        return true;
+    }
+
+    return Boolean((course.allowedUserPhones || [])
         .some((phone) => normalizePhone(phone) === normalizedUserPhone));
 };
 
@@ -1168,7 +1181,10 @@ const getCoursesByUser = async (req, res) => {
 
         const courses = await Course.find({
             isPublished: true,
-            allowedUserPhones: userPhone
+            $or: [
+                { isOpenToAll: true },
+                { allowedUserPhones: userPhone }
+            ]
         }).sort({ createdAt: -1 });
         const courseCounts = await getCourseCounts(courses.map((course) => course._id));
 

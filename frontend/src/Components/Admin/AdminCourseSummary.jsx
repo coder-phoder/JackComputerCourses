@@ -24,6 +24,11 @@ const AdminCourseSummary = ({ course }) => (
           >
             {course.isPublished ? 'Published' : 'Draft'}
           </span>
+          {course.isOpenToAll ? (
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+              Open to All
+            </span>
+          ) : null}
         </div>
         <p className="mt-2 text-sm font-medium text-slate-500">{course.slug}</p>
         <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
@@ -53,7 +58,9 @@ const AdminCourseSummary = ({ course }) => (
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Access
             </p>
-            <p className="mt-1 text-lg font-bold text-slate-900">{course.accessUserCount || 0}</p>
+            <p className="mt-1 text-lg font-bold text-slate-900">
+              {course.isOpenToAll ? 'All' : course.accessUserCount || 0}
+            </p>
           </div>
         </div>
       </div>

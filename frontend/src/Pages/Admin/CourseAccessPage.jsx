@@ -89,26 +89,32 @@ const CourseAccessPage = () => {
     }
 
     try {
-      const [accessResponse, usersResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/admin/courses/${courseId}/access`, {
-          withCredentials: true,
-        }),
-        axios.get(`${API_BASE_URL}/admin/users`, {
-          withCredentials: true,
-        }),
-      ])
+      const accessResponse = await axios.get(`${API_BASE_URL}/admin/courses/${courseId}/access`, {
+        withCredentials: true,
+      })
 
       if (!accessResponse.data?.success) {
         throw new Error(accessResponse.data?.message || 'Unable to fetch course access')
       }
 
-      if (!usersResponse.data?.success) {
-        throw new Error(usersResponse.data?.message || 'Unable to fetch users')
+      const accessData = accessResponse.data?.data || {}
+      let nextUsers = []
+
+      if (!accessData.course?.isOpenToAll) {
+        const usersResponse = await axios.get(`${API_BASE_URL}/admin/users`, {
+          withCredentials: true,
+        })
+
+        if (!usersResponse.data?.success) {
+          throw new Error(usersResponse.data?.message || 'Unable to fetch users')
+        }
+
+        nextUsers = usersResponse.data?.data?.users || []
       }
 
       if (shouldUpdate()) {
-        applyAccessData(accessResponse.data?.data)
-        setUsers(usersResponse.data?.data?.users || [])
+        applyAccessData(accessData)
+        setUsers(nextUsers)
       }
     } catch (fetchError) {
       if (shouldUpdate()) {
@@ -270,7 +276,7 @@ const CourseAccessPage = () => {
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
-              User Access
+              {course?.isOpenToAll ? 'Open to All' : 'User Access'}
             </p>
             <h1 className="mt-2 text-3xl font-bold text-slate-900">
               {course?.title || 'Course Access'}
@@ -301,6 +307,13 @@ const CourseAccessPage = () => {
         {loadingAccess ? (
           <section className="rounded-lg border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
             <p className="text-sm font-semibold text-slate-500">Loading course access...</p>
+          </section>
+        ) : course?.isOpenToAll ? (
+          <section className="rounded-lg border border-blue-100 bg-blue-50 px-6 py-12 text-center shadow-sm">
+            <h2 className="text-lg font-bold text-blue-900">Open to All</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-blue-800">
+              Every registered user can access this course. User Access is not needed.
+            </p>
           </section>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[380px_1fr]">

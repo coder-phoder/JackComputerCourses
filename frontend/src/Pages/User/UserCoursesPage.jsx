@@ -133,7 +133,7 @@ const UserCoursesPage = () => {
             </p>
             <h1 className="mt-2 text-3xl font-bold text-slate-900">My Courses</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-              Courses assigned to {auth.phone} are shown here.
+              Courses available to {auth.phone} are shown here.
             </p>
           </div>
 
@@ -177,9 +177,9 @@ const UserCoursesPage = () => {
           </section>
         ) : (
           <section className="rounded-lg border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">No courses assigned yet</h2>
+            <h2 className="text-lg font-bold text-slate-900">No courses available yet</h2>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-              Your assigned courses will appear here when an admin gives you access.
+              Available courses will appear here when they are published or assigned to you.
             </p>
           </section>
         )}

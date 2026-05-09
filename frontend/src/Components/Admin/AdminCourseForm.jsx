@@ -270,17 +270,31 @@ const AdminCourseForm = ({
           </div>
         ) : null}
 
-      <label className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-        <span className="text-sm font-semibold text-slate-700">Published</span>
-        <input
-          name="isPublished"
-          type="checkbox"
-          checked={courseForm.isPublished}
-          onChange={onChange}
-          disabled={saving}
-          className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
-        />
-      </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <span className="text-sm font-semibold text-slate-700">Published</span>
+          <input
+            name="isPublished"
+            type="checkbox"
+            checked={courseForm.isPublished}
+            onChange={onChange}
+            disabled={saving}
+            className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+          />
+        </label>
+
+        <label className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <span className="text-sm font-semibold text-slate-700">Open to All</span>
+          <input
+            name="isOpenToAll"
+            type="checkbox"
+            checked={courseForm.isOpenToAll}
+            onChange={onChange}
+            disabled={saving}
+            className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+          />
+        </label>
+      </div>
 
       <button
         type="submit"

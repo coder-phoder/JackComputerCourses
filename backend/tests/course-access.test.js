@@ -23,3 +23,13 @@ test('courseUserHasAccess allows only phones present on the course', () => {
     assert.equal(courseUserHasAccess(course, '0000000000'), false);
     assert.equal(courseUserHasAccess({ allowedUserPhones: [] }, '9876543210'), false);
 });
+
+test('courseUserHasAccess allows any website user for open courses', () => {
+    const course = {
+        isOpenToAll: true,
+        allowedUserPhones: []
+    };
+
+    assert.equal(courseUserHasAccess(course, '0000000000'), true);
+    assert.equal(courseUserHasAccess(course, ''), false);
+});

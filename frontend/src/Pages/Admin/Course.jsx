@@ -366,12 +366,14 @@ const Course = () => {
           >
             Back to courses
           </Link>
-          <Link
-            to={`/admin/courses/${courseId}/access`}
-            className="inline-flex rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-          >
-            User Access
-          </Link>
+          {course && !course.isOpenToAll ? (
+            <Link
+              to={`/admin/courses/${courseId}/access`}
+              className="inline-flex rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+            >
+              User Access
+            </Link>
+          ) : null}
         </div>
 
         {loadingCourse ? (
