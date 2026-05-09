@@ -41,9 +41,12 @@ const getAdminPasswordHash = async (adminPassword) => {
 
 const formatUserData = (user) => ({
     _id: user._id.toString(),
+    name: user.name || '',
     phone: user.phone,
     role: 'user'
 });
+
+const hasBodyField = (body, field) => Object.prototype.hasOwnProperty.call(body || {}, field);
 
 const isValidUserId = (id) => (
     mongoose.Types.ObjectId.isValid(id)
@@ -147,7 +150,7 @@ const getAdminProfile = async (req, res) => {
 
 const getAllUsersByAdmin = async (req, res) => {
     try {
-        const users = await User.find({}).select('phone').sort({ phone: 1 });
+        const users = await User.find({}).select('name phone').sort({ phone: 1 });
 
         return res.status(200).json({
             success: true,
@@ -165,23 +168,24 @@ const getAllUsersByAdmin = async (req, res) => {
 
 const createUserByAdmin = async (req, res) => {
     try {
-        const { phone, password } = req.body || {};
+        const { name, phone, password } = req.body || {};
 
-        if (!phone || !password) {
+        if (!name || !phone || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Phone and password are required',
+                message: 'Name, phone and password are required',
                 data: {}
             });
         }
 
+        const trimmedName = String(name).trim();
         const trimmedPhone = String(phone).trim();
         const userPassword = String(password);
 
-        if (!trimmedPhone || !userPassword) {
+        if (!trimmedName || !trimmedPhone || !userPassword) {
             return res.status(400).json({
                 success: false,
-                message: 'Phone and password are required',
+                message: 'Name, phone and password are required',
                 data: {}
             });
         }
@@ -198,6 +202,7 @@ const createUserByAdmin = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(userPassword, 10);
         const user = await User.create({
+            name: trimmedName,
             phone: trimmedPhone,
             password: hashedPassword
         });
@@ -236,13 +241,14 @@ const updateUserByAdmin = async (req, res) => {
             });
         }
 
-        const hasPhone = Object.prototype.hasOwnProperty.call(req.body || {}, 'phone');
-        const hasPassword = Object.prototype.hasOwnProperty.call(req.body || {}, 'password');
+        const hasName = hasBodyField(req.body, 'name');
+        const hasPhone = hasBodyField(req.body, 'phone');
+        const hasPassword = hasBodyField(req.body, 'password');
 
-        if (!hasPhone && !hasPassword) {
+        if (!hasName && !hasPhone && !hasPassword) {
             return res.status(400).json({
                 success: false,
-                message: 'Phone or password is required',
+                message: 'Name, phone or password is required',
                 data: {}
             });
         }
@@ -258,6 +264,20 @@ const updateUserByAdmin = async (req, res) => {
         }
 
         const oldPhone = user.phone;
+
+        if (hasName) {
+            const trimmedName = String(req.body.name || '').trim();
+
+            if (!trimmedName) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Name is required',
+                    data: {}
+                });
+            }
+
+            user.name = trimmedName;
+        }
 
         if (hasPhone) {
             const trimmedPhone = String(req.body.phone || '').trim();

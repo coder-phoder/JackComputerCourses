@@ -31,7 +31,7 @@ const authUser = async (req, res, next) => {
             });
         }
 
-        const user = await User.findById(decoded.id).select('phone');
+        const user = await User.findById(decoded.id).select('name phone');
 
         if (!user || String(user.phone).trim() !== String(decoded.phone).trim()) {
             return res.status(401).json({
@@ -42,6 +42,7 @@ const authUser = async (req, res, next) => {
         }
 
         req.user = {
+            name: user.name || '',
             phone: user.phone,
             role: 'user'
         };

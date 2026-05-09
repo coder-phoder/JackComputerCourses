@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required() {
+            return this.isNew;
+        },
+        trim: true
+    },
     phone: {
         type: String,
         required: true,

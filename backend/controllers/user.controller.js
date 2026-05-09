@@ -54,6 +54,7 @@ const loginUser = async (req, res) => {
         }
 
         const userData = {
+            name: user.name || '',
             phone: user.phone,
             role: 'user'
         };
