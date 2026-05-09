@@ -191,15 +191,19 @@ const UserCoursePlayerPage = () => {
           </section>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-            <UserCourseSidebar
-              chapters={chapters}
-              selectedVideoKey={selectedVideoKey}
-              onSelectVideo={setSelectedVideoKey}
-            />
-            <UserVideoPlayer
-              course={course}
-              selectedVideo={selectedVideo}
-            />
+            <div className="order-1 min-w-0 lg:order-2">
+              <UserVideoPlayer
+                course={course}
+                selectedVideo={selectedVideo}
+              />
+            </div>
+            <div className="order-2 lg:order-1">
+              <UserCourseSidebar
+                chapters={chapters}
+                selectedVideoKey={selectedVideoKey}
+                onSelectVideo={setSelectedVideoKey}
+              />
+            </div>
           </div>
         )}
       </main>

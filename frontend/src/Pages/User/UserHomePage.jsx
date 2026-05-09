@@ -10,6 +10,7 @@ const UserHomePage = () => {
   const { auth, clearAuth, setAuth } = useAuth()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
+  const [userName, setUserName] = useState('')
 
   useEffect(() => {
     let isActive = true
@@ -35,6 +36,7 @@ const UserHomePage = () => {
           phone: user.phone,
           token: null,
         })
+        setUserName(user.name || '')
         setIsAuthorized(true)
       } catch {
         if (!isActive) {
@@ -79,7 +81,7 @@ const UserHomePage = () => {
             User Dashboard
           </p>
           <h1 className="mt-3 text-3xl font-bold text-slate-900">
-            Welcome, {auth.phone}
+            Welcome, {userName || auth.phone}
           </h1>
           <p className="mt-3 max-w-2xl text-slate-600">
             You are logged in as a user. This is your course home page.

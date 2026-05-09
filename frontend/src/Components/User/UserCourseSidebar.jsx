@@ -26,23 +26,27 @@ const UserCourseSidebar = ({
   }, [chapters, selectedVideoKey])
 
   const [browsedChapterId, setBrowsedChapterId] = useState('')
+  const [collapsedActiveChapterId, setCollapsedActiveChapterId] = useState('')
   const browsedChapterExists = chapters.some((chapter) => chapter._id === browsedChapterId)
-  const openChapterId = browsedChapterExists ? browsedChapterId : activeChapterId
+  const activeChapterIsCollapsed = collapsedActiveChapterId === activeChapterId
+  const openChapterId = browsedChapterExists
+    ? browsedChapterId
+    : activeChapterIsCollapsed ? '' : activeChapterId
 
   const toggleChapter = (chapterId) => {
-    setBrowsedChapterId((currentBrowsedChapterId) => {
-      const currentOpenChapterId = currentBrowsedChapterId || activeChapterId
+    if (openChapterId === chapterId) {
+      setBrowsedChapterId('')
+      setCollapsedActiveChapterId(chapterId === activeChapterId ? chapterId : '')
+      return
+    }
 
-      if (currentOpenChapterId === chapterId || chapterId === activeChapterId) {
-        return ''
-      }
-
-      return chapterId
-    })
+    setCollapsedActiveChapterId('')
+    setBrowsedChapterId(chapterId === activeChapterId ? '' : chapterId)
   }
 
   const handleSelectVideo = (videoKey) => {
     setBrowsedChapterId('')
+    setCollapsedActiveChapterId('')
     onSelectVideo(videoKey)
   }
 
@@ -79,7 +83,7 @@ const UserCourseSidebar = ({
                     </span>
                   </span>
                   <span className="shrink-0 text-xs font-semibold text-slate-500">
-                    {isOpen ? (isActiveChapter ? 'Current' : 'Collapse') : `${videos.length || chapter.videoCount || 0} videos`}
+                    {isOpen ? 'Collapse' : isActiveChapter ? 'Current' : `${videos.length || chapter.videoCount || 0} videos`}
                   </span>
                 </button>
 
