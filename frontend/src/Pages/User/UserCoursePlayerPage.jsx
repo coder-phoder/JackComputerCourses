@@ -5,7 +5,7 @@ import UserCourseSidebar from '../../Components/User/UserCourseSidebar'
 import UserVideoPlayer from '../../Components/User/UserVideoPlayer'
 import { useAuth } from '../../Context/AuthContext'
 
-const API_BASE_URL = 'http://localhost:4000'
+const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
 const getErrorMessage = (error, fallback) => (
   error?.response?.data?.message || fallback

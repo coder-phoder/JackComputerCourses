@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../Context/AuthContext'
 
-const API_BASE_URL = 'http://localhost:4000'
+const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
 const getErrorMessage = (error) => (
   error?.response?.data?.message || 'Unable to login. Please try again.'

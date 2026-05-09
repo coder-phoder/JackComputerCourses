@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../Context/AuthContext'
 
-const API_BASE_URL = 'http://localhost:4000'
+const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
 const getNavLinkClass = ({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold transition ${
   isActive
