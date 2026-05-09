@@ -13,6 +13,105 @@ const userLoginCookieOptions = {
     maxAge: 24 * 60 * 60 * 1000
 };
 
+const formatUserData = (user) => ({
+    name: user.name || '',
+    phone: user.phone,
+    role: 'user'
+});
+
+const createUserToken = (user) => jwt.sign(
+    {
+        id: user._id.toString(),
+        phone: user.phone,
+        role: 'user'
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '1d' }
+);
+
+const registerUser = async (req, res) => {
+    try {
+        const { name, phone, password } = req.body || {};
+
+        if (!name || !phone || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name, phone and password are required',
+                data: {}
+            });
+        }
+
+        if (!process.env.JWT_SECRET) {
+            return res.status(500).json({
+                success: false,
+                message: 'User authentication is not configured',
+                data: {}
+            });
+        }
+
+        const trimmedName = String(name).trim();
+        const trimmedPhone = String(phone).trim();
+        const userPassword = String(password);
+
+        if (!trimmedName || !trimmedPhone || !userPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name, phone and password are required',
+                data: {}
+            });
+        }
+
+        if (userPassword.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 6 characters',
+                data: {}
+            });
+        }
+
+        const existingUser = await User.findOne({ phone: trimmedPhone });
+
+        if (existingUser) {
+            return res.status(409).json({
+                success: false,
+                message: 'User with this phone already exists',
+                data: {}
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(userPassword, 10);
+        const user = await User.create({
+            name: trimmedName,
+            phone: trimmedPhone,
+            password: hashedPassword
+        });
+        const token = createUserToken(user);
+
+        return res
+            .status(201)
+            .cookie('userToken', token, userLoginCookieOptions)
+            .json({
+                success: true,
+                message: 'User registered successfully',
+                data: { user: formatUserData(user) }
+            });
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                message: 'User with this phone already exists',
+                data: {}
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while registering user',
+            data: {}
+        });
+    }
+};
+
 const loginUser = async (req, res) => {
     try {
         const { phone, password } = req.body || {};
@@ -53,21 +152,7 @@ const loginUser = async (req, res) => {
             });
         }
 
-        const userData = {
-            name: user.name || '',
-            phone: user.phone,
-            role: 'user'
-        };
-
-        const token = jwt.sign(
-            {
-                id: user._id.toString(),
-                phone: user.phone,
-                role: 'user'
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '1d' }
-        );
+        const token = createUserToken(user);
 
         return res
             .status(200)
@@ -75,7 +160,7 @@ const loginUser = async (req, res) => {
             .json({
                 success: true,
                 message: 'User logged in successfully',
-                data: { user: userData }
+                data: { user: formatUserData(user) }
             });
     } catch (error) {
         return res.status(500).json({
@@ -122,6 +207,7 @@ const getUserProfile = async (req, res) => {
 };
 
 module.exports = {
+    registerUser,
     loginUser,
     logoutUser,
     getUserProfile

@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+    registerUser,
     loginUser,
     logoutUser,
     getUserProfile
@@ -13,6 +14,7 @@ const authUser = require('../middlewares/user.middleware');
 
 const router = express.Router();
 
+router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/logout', logoutUser);
 router.get('/profile', authUser, getUserProfile);

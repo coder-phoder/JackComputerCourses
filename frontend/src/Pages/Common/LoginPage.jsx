@@ -171,6 +171,13 @@ const LoginPage = () => {
               {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
+
+          <p className="mt-6 text-center text-sm text-slate-600">
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="font-semibold text-blue-600 transition hover:text-blue-700">
+              Sign up
+            </Link>
+          </p>
         </div>
       </div>
     </div>
