@@ -12,6 +12,14 @@ const getErrorMessage = (error, fallback) => (
 
 const normalizePhone = (value) => String(value || '').trim()
 
+const getUserName = (user) => String(user?.name || '').trim()
+
+const sortUsers = (first, second) => {
+  const nameComparison = getUserName(first).localeCompare(getUserName(second))
+
+  return nameComparison || first.phone.localeCompare(second.phone)
+}
+
 const parsePhoneInput = (value) => (
   String(value || '')
     .split(',')
@@ -45,17 +53,18 @@ const CourseAccessPage = () => {
 
         return matchingUser || {
           _id: normalizedPhone,
+          name: '',
           phone: normalizedPhone,
         }
       })
       .filter((user) => user.phone)
-      .sort((first, second) => first.phone.localeCompare(second.phone))
+      .sort(sortUsers)
   ), [accessPhones, users])
 
   const availableUsers = useMemo(() => (
     users
       .filter((user) => !accessPhoneSet.has(normalizePhone(user.phone)))
-      .sort((first, second) => first.phone.localeCompare(second.phone))
+      .sort(sortUsers)
   ), [accessPhoneSet, users])
 
   const applyAccessData = useCallback((data = {}) => {
@@ -335,15 +344,23 @@ const CourseAccessPage = () => {
                   <div className="mt-3 max-h-105 space-y-2 overflow-y-auto pr-1">
                     {availableUsers.map((user) => {
                       const addKey = `add:${normalizePhone(user.phone)}`
+                      const userName = getUserName(user)
 
                       return (
                         <div
                           key={user._id}
                           className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2"
                         >
-                          <span className="min-w-0 truncate text-sm font-semibold text-slate-800">
-                            {user.phone}
-                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900">
+                              {userName || user.phone}
+                            </p>
+                            {userName ? (
+                              <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
+                                {user.phone}
+                              </p>
+                            ) : null}
+                          </div>
                           <button
                             type="button"
                             onClick={() => grantAccess([user.phone], `Access granted to ${user.phone}.`)}
@@ -378,6 +395,9 @@ const CourseAccessPage = () => {
                     <thead className="bg-slate-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Name
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                           Phone
                         </th>
                         <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -388,11 +408,17 @@ const CourseAccessPage = () => {
                     <tbody className="divide-y divide-slate-200 bg-white">
                       {accessUsers.map((user) => {
                         const removeKey = `remove:${normalizePhone(user.phone)}`
+                        const userName = getUserName(user)
 
                         return (
                           <tr key={user._id}>
                             <td className="px-6 py-4 align-top">
                               <span className="text-sm font-semibold text-slate-900">
+                                {userName || 'Unknown user'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 align-top">
+                              <span className="text-sm font-semibold text-slate-700">
                                 {user.phone}
                               </span>
                             </td>

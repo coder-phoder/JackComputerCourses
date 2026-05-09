@@ -7,6 +7,7 @@ import { useAuth } from '../../Context/AuthContext'
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
 const emptyForm = {
+  name: '',
   phone: '',
   password: '',
 }
@@ -14,6 +15,14 @@ const emptyForm = {
 const getErrorMessage = (error, fallback) => (
   error?.response?.data?.message || fallback
 )
+
+const getUserName = (user) => String(user?.name || '').trim()
+
+const sortUsers = (first, second) => {
+  const nameComparison = getUserName(first).localeCompare(getUserName(second))
+
+  return nameComparison || first.phone.localeCompare(second.phone)
+}
 
 const AdminAllUsers = () => {
   const { auth, clearAuth, setAuth } = useAuth()
@@ -30,7 +39,7 @@ const AdminAllUsers = () => {
   const [deletingUserId, setDeletingUserId] = useState('')
 
   const sortedUsers = useMemo(
-    () => [...users].sort((first, second) => first.phone.localeCompare(second.phone)),
+    () => [...users].sort(sortUsers),
     [users],
   )
   const editingUser = useMemo(
@@ -144,9 +153,10 @@ const AdminAllUsers = () => {
     resetMessages()
 
     const phone = form.phone.trim()
+    const name = form.name.trim()
 
-    if (!phone || !form.password) {
-      setError('Phone and password are required.')
+    if (!name || !phone || !form.password) {
+      setError('Name, phone and password are required.')
       return
     }
 
@@ -154,6 +164,7 @@ const AdminAllUsers = () => {
 
     try {
       const response = await axios.post(`${API_BASE_URL}/admin/users`, {
+        name,
         phone,
         password: form.password,
       }, {
@@ -185,6 +196,7 @@ const AdminAllUsers = () => {
     resetMessages()
     setEditingUserId(user._id)
     setEditingForm({
+      name: getUserName(user),
       phone: user.phone,
       password: '',
     })
@@ -200,9 +212,10 @@ const AdminAllUsers = () => {
     resetMessages()
 
     const phone = editingForm.phone.trim()
+    const name = editingForm.name.trim()
 
-    if (!phone) {
-      setError('Phone is required.')
+    if (!name || !phone) {
+      setError('Name and phone are required.')
       return
     }
 
@@ -213,6 +226,10 @@ const AdminAllUsers = () => {
 
       if (phone) {
         payload.phone = phone
+      }
+
+      if (name) {
+        payload.name = name
       }
 
       if (editingForm.password) {
@@ -319,7 +336,9 @@ const AdminAllUsers = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900">Edit User</h2>
-                    <p className="mt-1 text-sm text-slate-500">{editingUser.phone}</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {getUserName(editingUser) || editingUser.phone}
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -332,6 +351,22 @@ const AdminAllUsers = () => {
                 </div>
 
                 <form onSubmit={handleUpdateUser} className="mt-6 space-y-4">
+                  <div>
+                    <label htmlFor="edit-name" className="block text-sm font-medium text-slate-700">
+                      Name
+                    </label>
+                    <input
+                      id="edit-name"
+                      name="name"
+                      type="text"
+                      value={editingForm.name}
+                      onChange={handleEditingFormChange}
+                      disabled={saving}
+                      className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 disabled:bg-slate-100"
+                      placeholder="Enter full name"
+                    />
+                  </div>
+
                   <div>
                     <label htmlFor="edit-phone" className="block text-sm font-medium text-slate-700">
                       Phone
@@ -378,6 +413,22 @@ const AdminAllUsers = () => {
                 <h2 className="text-lg font-bold text-slate-900">Create User</h2>
 
                 <form onSubmit={handleCreateUser} className="mt-6 space-y-4">
+                  <div>
+                    <label htmlFor="create-name" className="block text-sm font-medium text-slate-700">
+                      Name
+                    </label>
+                    <input
+                      id="create-name"
+                      name="name"
+                      type="text"
+                      value={form.name}
+                      onChange={handleFormChange}
+                      disabled={saving}
+                      className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 disabled:bg-slate-100"
+                      placeholder="Enter full name"
+                    />
+                  </div>
+
                   <div>
                     <label htmlFor="create-phone" className="block text-sm font-medium text-slate-700">
                       Phone
@@ -452,6 +503,9 @@ const AdminAllUsers = () => {
                   <thead className="bg-slate-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                         Phone
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -463,18 +517,24 @@ const AdminAllUsers = () => {
                     {sortedUsers.map((user) => {
                       const isEditing = editingUserId === user._id
                       const isDeleting = deletingUserId === user._id
+                      const userName = getUserName(user)
 
                       return (
                         <tr key={user._id} className={isEditing ? 'bg-indigo-50/40' : undefined}>
                           <td className="px-6 py-4 align-top">
                             <span className="text-sm font-semibold text-slate-900">
-                              {user.phone}
+                              {userName || 'Unnamed user'}
                             </span>
                             {isEditing ? (
                               <span className="ml-3 rounded-full bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-700">
                                 Editing
                               </span>
                             ) : null}
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <span className="text-sm font-semibold text-slate-700">
+                              {user.phone}
+                            </span>
                           </td>
                           <td className="px-6 py-4 align-top">
                             <div className="flex justify-end gap-2">
