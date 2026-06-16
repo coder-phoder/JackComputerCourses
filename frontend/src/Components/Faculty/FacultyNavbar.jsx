@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import ThemeToggle from '../Common/ThemeToggle'
@@ -17,6 +18,11 @@ const FacultyNavbar = () => {
   const { clearAuth } = useAuth()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false)
+  }
 
   const handleLogout = async () => {
     setLoading(true)
@@ -47,7 +53,7 @@ const FacultyNavbar = () => {
   return (
     <nav className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link to="/faculty/home" className="flex items-center gap-2">
+        <Link to="/faculty/home" onClick={closeMobileMenu} className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
             <span className="text-lg font-bold text-white">J</span>
           </div>
@@ -58,10 +64,10 @@ const FacultyNavbar = () => {
 
         <div className="flex items-center gap-4">
           <div className="hidden items-center gap-2 sm:flex">
-            <NavLink to="/faculty/home" className={getNavLinkClass}>
+            <NavLink to="/faculty/home" onClick={closeMobileMenu} className={getNavLinkClass}>
               Home
             </NavLink>
-            <NavLink to="/faculty/courses" className={getNavLinkClass}>
+            <NavLink to="/faculty/courses" onClick={closeMobileMenu} className={getNavLinkClass}>
               Courses
             </NavLink>
           </div>
@@ -75,20 +81,41 @@ const FacultyNavbar = () => {
             type="button"
             onClick={handleLogout}
             disabled={loading}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400 dark:disabled:bg-slate-700"
+            className="hidden rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400 dark:disabled:bg-slate-700 sm:inline-flex"
           >
             {loading ? 'Logging out...' : 'Logout'}
           </button>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((isOpen) => !isOpen)}
+            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={mobileMenuOpen}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus:ring-offset-slate-900 sm:hidden"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </div>
-      <div className="flex border-t border-slate-100 dark:border-slate-800 px-4 py-2 sm:hidden">
-        <NavLink to="/faculty/home" className={getNavLinkClass}>
-          Home
-        </NavLink>
-        <NavLink to="/faculty/courses" className={getNavLinkClass}>
-          Courses
-        </NavLink>
-      </div>
+      {mobileMenuOpen ? (
+        <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-4 sm:hidden">
+          <div className="grid gap-2">
+            <NavLink to="/faculty/home" onClick={closeMobileMenu} className={getNavLinkClass}>
+              Home
+            </NavLink>
+            <NavLink to="/faculty/courses" onClick={closeMobileMenu} className={getNavLinkClass}>
+              Courses
+            </NavLink>
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loading}
+              className="mt-2 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400 dark:disabled:bg-slate-700"
+            >
+              {loading ? 'Logging out...' : 'Logout'}
+            </button>
+          </div>
+        </div>
+      ) : null}
       {error ? (
         <div className="border-t border-red-100 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 sm:hidden">
           {error}
