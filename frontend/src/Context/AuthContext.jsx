@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import axios from 'axios'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
 const AuthContext = createContext(null)
 const AUTH_STORAGE_KEY = 'jackCoursesAuth'
@@ -58,6 +59,23 @@ export const AuthProvider = ({ children }) => {
     setAuthState(emptyAuth)
     localStorage.removeItem(AUTH_STORAGE_KEY)
   }, [])
+
+  useEffect(() => {
+    const interceptorId = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if ([401, 403].includes(error?.response?.status)) {
+          clearAuth()
+        }
+
+        return Promise.reject(error)
+      },
+    )
+
+    return () => {
+      axios.interceptors.response.eject(interceptorId)
+    }
+  }, [clearAuth])
 
   const value = useMemo(() => ({
     auth,

@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { getActiveAdminSessionId } = require('../controllers/admin.controller');
 
 const authAdmin = async (req, res, next) => {
     try {
@@ -24,7 +25,12 @@ const authAdmin = async (req, res, next) => {
 
         const decoded = jwt.verify(token, jwtSecret);
 
-        if (decoded.role !== 'admin' || String(decoded.phone).trim() !== String(adminPhone).trim()) {
+        if (
+            decoded.role !== 'admin'
+            || String(decoded.phone).trim() !== String(adminPhone).trim()
+            || !decoded.sessionId
+            || decoded.sessionId !== getActiveAdminSessionId()
+        ) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid admin token',

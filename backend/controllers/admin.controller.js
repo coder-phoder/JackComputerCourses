@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/user.model');
@@ -6,6 +7,7 @@ const Course = require('../models/course.model');
 
 let cachedAdminPassword = null;
 let cachedAdminPasswordHash = null;
+let activeAdminSessionId = null;
 
 const adminCookieOptions = {
     httpOnly: true,
@@ -37,6 +39,32 @@ const getAdminPasswordHash = async (adminPassword) => {
     }
 
     return cachedAdminPasswordHash;
+};
+
+const createSessionId = () => (
+    typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : crypto.randomBytes(32).toString('hex')
+);
+
+const clearCurrentAdminSession = (token, jwtSecret) => {
+    if (!token || !jwtSecret) {
+        return;
+    }
+
+    try {
+        const decoded = jwt.verify(token, jwtSecret);
+
+        if (
+            decoded.role === 'admin'
+            && decoded.sessionId
+            && decoded.sessionId === activeAdminSessionId
+        ) {
+            activeAdminSessionId = null;
+        }
+    } catch {
+        // Invalid or stale logout tokens should only clear the browser cookie.
+    }
 };
 
 const formatUserData = (user) => ({
@@ -87,14 +115,21 @@ const loginAdmin = async (req, res) => {
             });
         }
 
+        activeAdminSessionId = createSessionId();
+
         const admin = {
             phone: adminConfig.adminPhone,
             role: 'admin'
         };
 
-        const token = jwt.sign(admin, adminConfig.jwtSecret, {
-            expiresIn: '1d'
-        });
+        const token = jwt.sign(
+            {
+                ...admin,
+                sessionId: activeAdminSessionId
+            },
+            adminConfig.jwtSecret,
+            { expiresIn: '1d' }
+        );
 
         return res
             .status(200)
@@ -115,6 +150,8 @@ const loginAdmin = async (req, res) => {
 
 const logoutAdmin = async (req, res) => {
     try {
+        clearCurrentAdminSession(req.cookies?.adminToken, process.env.JWT_SECRET);
+
         return res
             .status(200)
             .clearCookie('adminToken', adminCookieOptions)
@@ -412,5 +449,6 @@ module.exports = {
     getAllUsersByAdmin,
     createUserByAdmin,
     updateUserByAdmin,
-    deleteUserByAdmin
+    deleteUserByAdmin,
+    getActiveAdminSessionId: () => activeAdminSessionId
 };

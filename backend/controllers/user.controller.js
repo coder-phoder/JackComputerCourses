@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
 
@@ -19,15 +20,46 @@ const formatUserData = (user) => ({
     role: 'user'
 });
 
+const createSessionId = () => (
+    typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : crypto.randomBytes(32).toString('hex')
+);
+
 const createUserToken = (user) => jwt.sign(
     {
         id: user._id.toString(),
         phone: user.phone,
-        role: 'user'
+        role: 'user',
+        sessionId: user.activeSessionId
     },
     process.env.JWT_SECRET,
     { expiresIn: '1d' }
 );
+
+const clearCurrentUserSession = async (token) => {
+    if (!token || !process.env.JWT_SECRET) {
+        return;
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        if (decoded.role !== 'user' || !decoded.id || !decoded.sessionId) {
+            return;
+        }
+
+        await User.updateOne(
+            {
+                _id: decoded.id,
+                activeSessionId: decoded.sessionId
+            },
+            { $set: { activeSessionId: null } }
+        );
+    } catch {
+        // Invalid or stale logout tokens should only clear the browser cookie.
+    }
+};
 
 const registerUser = async (req, res) => {
     try {
@@ -83,7 +115,8 @@ const registerUser = async (req, res) => {
         const user = await User.create({
             name: trimmedName,
             phone: trimmedPhone,
-            password: hashedPassword
+            password: hashedPassword,
+            activeSessionId: createSessionId()
         });
         const token = createUserToken(user);
 
@@ -132,7 +165,7 @@ const loginUser = async (req, res) => {
             });
         }
 
-        const user = await User.findOne({ phone: String(phone).trim() }).select('+password');
+        const user = await User.findOne({ phone: String(phone).trim() }).select('+password +activeSessionId');
 
         if (!user) {
             return res.status(401).json({
@@ -151,6 +184,9 @@ const loginUser = async (req, res) => {
                 data: {}
             });
         }
+
+        user.activeSessionId = createSessionId();
+        await user.save();
 
         const token = createUserToken(user);
 
@@ -173,6 +209,8 @@ const loginUser = async (req, res) => {
 
 const logoutUser = async (req, res) => {
     try {
+        await clearCurrentUserSession(req.cookies?.userToken);
+
         return res
             .status(200)
             .clearCookie('userToken', userCookieOptions)

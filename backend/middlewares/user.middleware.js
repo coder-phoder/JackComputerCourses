@@ -23,7 +23,7 @@ const authUser = async (req, res, next) => {
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        if (decoded.role !== 'user' || !decoded.id) {
+        if (decoded.role !== 'user' || !decoded.id || !decoded.sessionId) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid user token',
@@ -31,9 +31,13 @@ const authUser = async (req, res, next) => {
             });
         }
 
-        const user = await User.findById(decoded.id).select('name phone');
+        const user = await User.findById(decoded.id).select('name phone +activeSessionId');
 
-        if (!user || String(user.phone).trim() !== String(decoded.phone).trim()) {
+        if (
+            !user
+            || String(user.phone).trim() !== String(decoded.phone).trim()
+            || user.activeSessionId !== decoded.sessionId
+        ) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid user token',

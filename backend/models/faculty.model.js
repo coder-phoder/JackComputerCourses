@@ -16,6 +16,11 @@ const facultySchema = new mongoose.Schema({
         type: String,
         required: true,
         select: false
+    },
+    activeSessionId: {
+        type: String,
+        default: null,
+        select: false
     }
 });
 

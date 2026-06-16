@@ -23,7 +23,7 @@ const authFaculty = async (req, res, next) => {
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        if (decoded.role !== 'faculty' || !decoded.id) {
+        if (decoded.role !== 'faculty' || !decoded.id || !decoded.sessionId) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid faculty token',
@@ -31,9 +31,13 @@ const authFaculty = async (req, res, next) => {
             });
         }
 
-        const faculty = await Faculty.findById(decoded.id).select('name phone');
+        const faculty = await Faculty.findById(decoded.id).select('name phone +activeSessionId');
 
-        if (!faculty || String(faculty.phone).trim() !== String(decoded.phone).trim()) {
+        if (
+            !faculty
+            || String(faculty.phone).trim() !== String(decoded.phone).trim()
+            || faculty.activeSessionId !== decoded.sessionId
+        ) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid faculty token',

@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const Faculty = require('../models/faculty.model');
@@ -28,15 +29,46 @@ const isValidFacultyId = (id) => (
     && new mongoose.Types.ObjectId(id).toString() === String(id)
 );
 
+const createSessionId = () => (
+    typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : crypto.randomBytes(32).toString('hex')
+);
+
 const createFacultyToken = (faculty) => jwt.sign(
     {
         id: faculty._id.toString(),
         phone: faculty.phone,
-        role: 'faculty'
+        role: 'faculty',
+        sessionId: faculty.activeSessionId
     },
     process.env.JWT_SECRET,
     { expiresIn: '1d' }
 );
+
+const clearCurrentFacultySession = async (token) => {
+    if (!token || !process.env.JWT_SECRET) {
+        return;
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        if (decoded.role !== 'faculty' || !decoded.id || !decoded.sessionId) {
+            return;
+        }
+
+        await Faculty.updateOne(
+            {
+                _id: decoded.id,
+                activeSessionId: decoded.sessionId
+            },
+            { $set: { activeSessionId: null } }
+        );
+    } catch {
+        // Invalid or stale logout tokens should only clear the browser cookie.
+    }
+};
 
 const getAllFacultiesByAdmin = async (req, res) => {
     try {
@@ -287,7 +319,7 @@ const loginFaculty = async (req, res) => {
             });
         }
 
-        const faculty = await Faculty.findOne({ phone: trimmedPhone }).select('+password');
+        const faculty = await Faculty.findOne({ phone: trimmedPhone }).select('+password +activeSessionId');
 
         if (!faculty) {
             return res.status(401).json({
@@ -306,6 +338,9 @@ const loginFaculty = async (req, res) => {
                 data: {}
             });
         }
+
+        faculty.activeSessionId = createSessionId();
+        await faculty.save();
 
         const token = createFacultyToken(faculty);
 
@@ -328,6 +363,8 @@ const loginFaculty = async (req, res) => {
 
 const logoutFaculty = async (req, res) => {
     try {
+        await clearCurrentFacultySession(req.cookies?.facultyToken);
+
         return res
             .status(200)
             .clearCookie('facultyToken', facultyCookieOptions)
