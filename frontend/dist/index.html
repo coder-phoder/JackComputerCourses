@@ -5,8 +5,25 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>frontend</title>
-    <script type="module" crossorigin src="/assets/index-C4IeKGmj.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-B3H83tmo.css">
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('jackCoursesTheme')
+
+          if (theme !== 'light' && theme !== 'dark') {
+            theme = 'dark'
+          }
+
+          document.documentElement.classList.toggle('dark', theme === 'dark')
+          document.documentElement.style.colorScheme = theme
+        } catch {
+          document.documentElement.classList.add('dark')
+          document.documentElement.style.colorScheme = 'dark'
+        }
+      })()
+    </script>
+    <script type="module" crossorigin src="/assets/index-CoiqsrVm.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BPZnlQ65.css">
   </head>
   <body>
     <div id="root"></div>

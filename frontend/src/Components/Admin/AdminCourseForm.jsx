@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 disabled:bg-slate-100'
+const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800'
 const textAreaClass = `${inputClass} resize-y`
 
 const AdminCourseForm = ({
@@ -16,14 +16,14 @@ const AdminCourseForm = ({
   const [showAdditionalDetails, setShowAdditionalDetails] = useState(false)
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
             {editingCourse ? 'Edit Course' : 'Create Course'}
           </h2>
           {editingCourse ? (
-            <p className="mt-1 text-sm text-slate-500">{editingCourse.title}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{editingCourse.title}</p>
           ) : null}
         </div>
         {editingCourse ? (
@@ -31,7 +31,7 @@ const AdminCourseForm = ({
             type="button"
             onClick={onCancel}
             disabled={saving}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:text-slate-400"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-slate-400 dark:hover:border-slate-500 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
           >
             Cancel
           </button>
@@ -41,7 +41,7 @@ const AdminCourseForm = ({
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="course-title" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="course-title" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
               Title
             </label>
             <input
@@ -57,7 +57,7 @@ const AdminCourseForm = ({
           </div>
 
           <div>
-            <label htmlFor="course-slug" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="course-slug" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
               Slug
             </label>
             <input
@@ -75,7 +75,7 @@ const AdminCourseForm = ({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="course-duration" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="course-duration" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
               Duration (months)
             </label>
             <input
@@ -93,7 +93,7 @@ const AdminCourseForm = ({
           </div>
 
           <div>
-            <label htmlFor="course-price" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="course-price" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
               Price
             </label>
             <input
@@ -112,7 +112,7 @@ const AdminCourseForm = ({
         </div>
 
         <div>
-          <label htmlFor="course-short-description" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="course-short-description" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
             Short Description
           </label>
           <input
@@ -132,16 +132,16 @@ const AdminCourseForm = ({
           onClick={() => setShowAdditionalDetails((isOpen) => !isOpen)}
           disabled={saving}
           aria-expanded={showAdditionalDetails}
-          className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 transition hover:border-indigo-200 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:text-slate-400"
+          className="flex w-full items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100 transition hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
         >
           <span>Additional Details</span>
           <span className="text-lg leading-none">{showAdditionalDetails ? '-' : '+'}</span>
         </button>
 
         {showAdditionalDetails ? (
-          <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+          <div className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
             <div>
-          <label htmlFor="course-description" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="course-description" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
             Description
           </label>
           <textarea
@@ -157,7 +157,7 @@ const AdminCourseForm = ({
         </div>
 
             <div>
-              <label htmlFor="course-thumbnail" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="course-thumbnail" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Thumbnail URL
               </label>
               <input
@@ -174,7 +174,7 @@ const AdminCourseForm = ({
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <label htmlFor="course-category" className="block text-sm font-medium text-slate-700">
+                <label htmlFor="course-category" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                   Category
                 </label>
                 <input
@@ -190,7 +190,7 @@ const AdminCourseForm = ({
               </div>
 
               <div>
-                <label htmlFor="course-level" className="block text-sm font-medium text-slate-700">
+                <label htmlFor="course-level" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                   Level
                 </label>
                 <input
@@ -206,7 +206,7 @@ const AdminCourseForm = ({
               </div>
 
               <div>
-                <label htmlFor="course-language" className="block text-sm font-medium text-slate-700">
+                <label htmlFor="course-language" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                   Language
                 </label>
                 <input
@@ -223,7 +223,7 @@ const AdminCourseForm = ({
             </div>
 
             <div>
-              <label htmlFor="course-tags" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="course-tags" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Tags
               </label>
               <input
@@ -239,7 +239,7 @@ const AdminCourseForm = ({
             </div>
 
             <div>
-              <label htmlFor="course-highlights" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="course-highlights" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Highlights
               </label>
               <textarea
@@ -255,7 +255,7 @@ const AdminCourseForm = ({
             </div>
 
             <div>
-              <label htmlFor="course-prerequisites" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="course-prerequisites" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Prerequisites
               </label>
               <textarea
@@ -273,27 +273,27 @@ const AdminCourseForm = ({
         ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <span className="text-sm font-semibold text-slate-700">Published</span>
+        <label className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3">
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Published</span>
           <input
             name="isPublished"
             type="checkbox"
             checked={courseForm.isPublished}
             onChange={onChange}
             disabled={saving}
-            className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+            className="h-5 w-5 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
           />
         </label>
 
-        <label className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <span className="text-sm font-semibold text-slate-700">Open to All</span>
+        <label className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3">
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Open to All</span>
           <input
             name="isOpenToAll"
             type="checkbox"
             checked={courseForm.isOpenToAll}
             onChange={onChange}
             disabled={saving}
-            className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+            className="h-5 w-5 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
           />
         </label>
       </div>
@@ -308,13 +308,13 @@ const AdminCourseForm = ({
       </form>
 
       {error ? (
-        <p className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        <p className="mt-5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300">
           {error}
         </p>
       ) : null}
 
       {success ? (
-        <p className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+        <p className="mt-5 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
           {success}
         </p>
       ) : null}

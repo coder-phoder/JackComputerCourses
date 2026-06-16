@@ -344,8 +344,8 @@ const Course = () => {
 
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 font-sans">
-        <p className="text-sm font-semibold text-slate-600">Checking authentication...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 font-sans">
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Checking authentication...</p>
       </div>
     )
   }
@@ -355,14 +355,14 @@ const Course = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
       <AdminNavbar />
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-wrap gap-3">
           <Link
             to="/admin/courses"
-            className="inline-flex rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700"
+            className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300"
           >
             Back to courses
           </Link>
@@ -377,7 +377,7 @@ const Course = () => {
         </div>
 
         {loadingCourse ? (
-          <div className="rounded-lg border border-slate-200 bg-white px-6 py-12 text-center text-sm font-semibold text-slate-500">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
             Loading course...
           </div>
         ) : course ? (
@@ -409,7 +409,7 @@ const Course = () => {
             </div>
           </>
         ) : (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-6 py-12 text-center text-sm font-semibold text-red-700">
+          <div className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-6 py-12 text-center text-sm font-semibold text-red-700 dark:text-red-300">
             Course not found.
           </div>
         )}

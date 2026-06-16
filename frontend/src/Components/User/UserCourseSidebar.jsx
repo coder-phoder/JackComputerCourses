@@ -51,10 +51,10 @@ const UserCourseSidebar = ({
   }
 
   return (
-    <aside className="flex h-[70vh] max-h-170 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm lg:sticky lg:top-8 lg:h-[calc(100vh-4rem)] lg:max-h-190">
-      <div className="shrink-0 border-b border-slate-200 px-5 py-4">
-        <h2 className="text-lg font-bold text-slate-900">Chapters</h2>
-        <p className="mt-1 text-sm text-slate-500">
+    <aside className="flex h-[70vh] max-h-170 flex-col overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm lg:sticky lg:top-8 lg:h-[calc(100vh-4rem)] lg:max-h-190">
+      <div className="shrink-0 border-b border-slate-200 dark:border-slate-800 px-5 py-4">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Chapters</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Select a lesson to start watching.
         </p>
       </div>
@@ -67,29 +67,29 @@ const UserCourseSidebar = ({
             const isActiveChapter = chapter._id === activeChapterId
 
             return (
-              <section key={chapter._id} className="overflow-hidden rounded-lg border border-slate-200">
+              <section key={chapter._id} className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => toggleChapter(chapter._id)}
                   aria-expanded={isOpen}
-                  className="flex w-full items-center justify-between gap-3 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
+                  className="flex w-full items-center justify-between gap-3 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   <span className="min-w-0">
                     <span className="block text-xs font-semibold uppercase tracking-wide text-blue-600">
                       Chapter {chapterIndex + 1}
                     </span>
-                    <span className="mt-1 block truncate text-sm font-bold text-slate-900">
+                    <span className="mt-1 block truncate text-sm font-bold text-slate-900 dark:text-slate-100">
                       {chapter.name}
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs font-semibold text-slate-500">
+                  <span className="shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
                     {isOpen ? 'Collapse' : isActiveChapter ? 'Current' : `${videos.length || chapter.videoCount || 0} videos`}
                   </span>
                 </button>
 
                 {isOpen ? (
                   videos.length ? (
-                    <div className="space-y-2 bg-white p-2">
+                    <div className="space-y-2 bg-white dark:bg-slate-900 p-2">
                       {videos.map((video, videoIndex) => {
                         const videoKey = video.id
                         const isSelected = selectedVideoKey === videoKey
@@ -101,18 +101,18 @@ const UserCourseSidebar = ({
                             onClick={() => handleSelectVideo(videoKey)}
                             className={`flex w-full gap-3 rounded-lg p-2 text-left transition ${
                               isSelected
-                                ? 'bg-blue-50 ring-1 ring-blue-200'
-                                : 'hover:bg-slate-50'
+                                ? 'bg-blue-50 dark:bg-blue-950/40 ring-1 ring-blue-200 dark:ring-blue-800'
+                                : 'hover:bg-slate-50 dark:hover:bg-slate-800'
                             }`}
                           >
-                            <span className="flex h-14 w-20 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-400">
+                            <span className="flex h-14 w-20 shrink-0 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-400 dark:text-slate-500">
                               Video
                             </span>
                             <span className="min-w-0">
-                              <span className="line-clamp-2 text-sm font-semibold text-slate-900">
+                              <span className="line-clamp-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
                                 {video.title}
                               </span>
-                              <span className="mt-1 flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
+                              <span className="mt-1 flex flex-wrap gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
                                 <span>Lesson {videoIndex + 1}</span>
                                 {video.duration ? <span>{video.duration}</span> : null}
                               </span>
@@ -122,7 +122,7 @@ const UserCourseSidebar = ({
                       })}
                     </div>
                   ) : (
-                    <p className="bg-white px-4 py-3 text-sm font-semibold text-slate-500">
+                    <p className="bg-white dark:bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
                       No videos available.
                     </p>
                   )
@@ -132,7 +132,7 @@ const UserCourseSidebar = ({
           })}
         </div>
       ) : (
-        <p className="px-5 py-10 text-center text-sm font-semibold text-slate-500">
+        <p className="px-5 py-10 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
           No chapters available.
         </p>
       )}

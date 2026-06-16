@@ -142,7 +142,7 @@ const CourseSummary = ({ course }) => {
   const courseTags = [course.category, course.level, course.language].filter(Boolean)
 
   return (
-    <section className="mb-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="mb-6 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
         {course.thumbnailUrl ? (
           <img
@@ -151,76 +151,76 @@ const CourseSummary = ({ course }) => {
             className="h-36 w-full rounded-lg object-cover lg:w-56"
           />
         ) : (
-          <div className="flex h-36 w-full items-center justify-center rounded-lg bg-indigo-50 text-3xl font-bold text-indigo-200 lg:w-56">
+          <div className="flex h-36 w-full items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-3xl font-bold text-indigo-200 lg:w-56">
             J
           </div>
         )}
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-3xl font-bold text-slate-900">{course.title}</h1>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{course.title}</h1>
             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
               course.isPublished
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-amber-50 text-amber-700'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
+                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
             }`}
             >
               {course.isPublished ? 'Published' : 'Draft'}
             </span>
             {course.isOpenToAll ? (
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+              <span className="rounded-full bg-blue-50 dark:bg-blue-950/40 px-3 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
                 Open to All
               </span>
             ) : null}
           </div>
 
           {course.slug ? (
-            <p className="mt-2 text-sm font-medium text-slate-500">{course.slug}</p>
+            <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">{course.slug}</p>
           ) : null}
 
-          <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
             {course.shortDescription || course.description || 'Course details are not available.'}
           </p>
 
           <div className="mt-5 grid gap-3 text-sm sm:grid-cols-5">
-            <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
                 Price
               </p>
-              <p className="mt-1 text-lg font-bold text-slate-900">{getPriceLabel(course.price)}</p>
+              <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{getPriceLabel(course.price)}</p>
             </div>
-            <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
                 Duration
               </p>
-              <p className="mt-1 text-lg font-bold text-slate-900">{getDurationLabel(course)}</p>
+              <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{getDurationLabel(course)}</p>
             </div>
-            <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
                 Chapters
               </p>
-              <p className="mt-1 text-lg font-bold text-slate-900">{getCount(course.chapterCount)}</p>
+              <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{getCount(course.chapterCount)}</p>
             </div>
-            <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
                 Videos
               </p>
-              <p className="mt-1 text-lg font-bold text-slate-900">{getCount(course.videoCount)}</p>
+              <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{getCount(course.videoCount)}</p>
             </div>
-            <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
                 Access
               </p>
-              <p className="mt-1 text-lg font-bold text-slate-900">
+              <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
                 {course.isOpenToAll ? 'All' : getCount(course.accessUserCount)}
               </p>
             </div>
           </div>
 
           {courseTags.length ? (
-            <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+            <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
               {courseTags.map((tag, index) => (
-                <span key={`${tag}-${index}`} className="rounded-full bg-slate-100 px-2 py-1">
+                <span key={`${tag}-${index}`} className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1">
                   {tag}
                 </span>
               ))}
@@ -283,10 +283,10 @@ const FacultyCourseSidebar = ({
   }
 
   return (
-    <aside className="flex h-[70vh] max-h-170 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm lg:sticky lg:top-8 lg:h-[calc(100vh-4rem)] lg:max-h-190">
-      <div className="shrink-0 border-b border-slate-200 px-5 py-4">
-        <h2 className="text-lg font-bold text-slate-900">Chapters</h2>
-        <p className="mt-1 text-sm text-slate-500">
+    <aside className="flex h-[70vh] max-h-170 flex-col overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm lg:sticky lg:top-8 lg:h-[calc(100vh-4rem)] lg:max-h-190">
+      <div className="shrink-0 border-b border-slate-200 dark:border-slate-800 px-5 py-4">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Chapters</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Select a lesson to start watching.
         </p>
       </div>
@@ -299,29 +299,29 @@ const FacultyCourseSidebar = ({
             const isActiveChapter = chapter._id === activeChapterId
 
             return (
-              <section key={chapter._id} className="overflow-hidden rounded-lg border border-slate-200">
+              <section key={chapter._id} className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => toggleChapter(chapter._id)}
                   aria-expanded={isOpen}
-                  className="flex w-full items-center justify-between gap-3 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
+                  className="flex w-full items-center justify-between gap-3 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   <span className="min-w-0">
                     <span className="block text-xs font-semibold uppercase tracking-wide text-indigo-600">
                       Chapter {chapterIndex + 1}
                     </span>
-                    <span className="mt-1 block truncate text-sm font-bold text-slate-900">
+                    <span className="mt-1 block truncate text-sm font-bold text-slate-900 dark:text-slate-100">
                       {chapter.name}
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs font-semibold text-slate-500">
+                  <span className="shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
                     {isOpen ? 'Collapse' : isActiveChapter ? 'Current' : `${videos.length || chapter.videoCount || 0} videos`}
                   </span>
                 </button>
 
                 {isOpen ? (
                   videos.length ? (
-                    <div className="space-y-2 bg-white p-2">
+                    <div className="space-y-2 bg-white dark:bg-slate-900 p-2">
                       {videos.map((video, videoIndex) => {
                         const isSelected = selectedVideoKey === video.id
 
@@ -332,8 +332,8 @@ const FacultyCourseSidebar = ({
                             onClick={() => handleSelectVideo(video.id)}
                             className={`flex w-full gap-3 rounded-lg p-2 text-left transition ${
                               isSelected
-                                ? 'bg-indigo-50 ring-1 ring-indigo-200'
-                                : 'hover:bg-slate-50'
+                                ? 'bg-indigo-50 dark:bg-indigo-950/40 ring-1 ring-indigo-200 dark:ring-indigo-800'
+                                : 'hover:bg-slate-50 dark:hover:bg-slate-800'
                             }`}
                           >
                             {video.thumbnailUrl ? (
@@ -343,15 +343,15 @@ const FacultyCourseSidebar = ({
                                 className="h-14 w-20 shrink-0 rounded-md object-cover"
                               />
                             ) : (
-                              <span className="flex h-14 w-20 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-400">
+                              <span className="flex h-14 w-20 shrink-0 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-400 dark:text-slate-500">
                                 Video
                               </span>
                             )}
                             <span className="min-w-0">
-                              <span className="line-clamp-2 text-sm font-semibold text-slate-900">
+                              <span className="line-clamp-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
                                 {video.title}
                               </span>
-                              <span className="mt-1 flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
+                              <span className="mt-1 flex flex-wrap gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
                                 <span>Lesson {videoIndex + 1}</span>
                                 {video.duration ? <span>{video.duration}</span> : null}
                               </span>
@@ -361,7 +361,7 @@ const FacultyCourseSidebar = ({
                       })}
                     </div>
                   ) : (
-                    <p className="bg-white px-4 py-3 text-sm font-semibold text-slate-500">
+                    <p className="bg-white dark:bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
                       No videos available.
                     </p>
                   )
@@ -371,7 +371,7 @@ const FacultyCourseSidebar = ({
           })}
         </div>
       ) : (
-        <p className="px-5 py-10 text-center text-sm font-semibold text-slate-500">
+        <p className="px-5 py-10 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
           No chapters available.
         </p>
       )}
@@ -382,9 +382,9 @@ const FacultyCourseSidebar = ({
 const FacultyVideoPlayer = ({ course, selectedVideo }) => {
   if (!selectedVideo) {
     return (
-      <section className="rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <h2 className="text-xl font-bold text-slate-900">No videos available</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+      <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 text-center shadow-sm">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">No videos available</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-300">
           Videos will appear here after the course chapters are synced.
         </p>
       </section>
@@ -394,7 +394,7 @@ const FacultyVideoPlayer = ({ course, selectedVideo }) => {
   const { chapter, video } = selectedVideo
 
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+    <section className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
       {video.playerPath ? (
         <div className="aspect-video bg-slate-950">
           <iframe
@@ -410,8 +410,8 @@ const FacultyVideoPlayer = ({ course, selectedVideo }) => {
           />
         </div>
       ) : (
-        <div className="flex aspect-video items-center justify-center bg-slate-100 px-6 text-center">
-          <p className="text-sm font-semibold text-slate-500">
+        <div className="flex aspect-video items-center justify-center bg-slate-100 dark:bg-slate-800 px-6 text-center">
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
             Video preview unavailable.
           </p>
         </div>
@@ -421,15 +421,15 @@ const FacultyVideoPlayer = ({ course, selectedVideo }) => {
         <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
           {chapter.name}
         </p>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900">
+        <h1 className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
           {video.title}
         </h1>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
-          <span className="rounded-full bg-slate-100 px-3 py-1">
+        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+          <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1">
             {course?.title || 'Course'}
           </span>
           {video.duration ? (
-            <span className="rounded-full bg-slate-100 px-3 py-1">
+            <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1">
               {video.duration}
             </span>
           ) : null}
@@ -438,7 +438,7 @@ const FacultyVideoPlayer = ({ course, selectedVideo }) => {
               href={video.watchUrl}
               target="_blank"
               rel="noreferrer"
-              className="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700 transition hover:bg-indigo-100"
+              className="rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1 text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-100 dark:hover:bg-indigo-950/60"
             >
               Open video
             </a>
@@ -455,9 +455,9 @@ const DetailsList = ({ title, items }) => {
   }
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-      <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+    <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+      <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h2>
+      <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
         {items.map((item, index) => (
           <li key={`${item}-${index}`}>{item}</li>
         ))}
@@ -586,8 +586,8 @@ const FacultyCoursePage = () => {
 
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 font-sans">
-        <p className="text-sm font-semibold text-slate-600">Checking authentication...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 font-sans">
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Checking authentication...</p>
       </div>
     )
   }
@@ -597,14 +597,14 @@ const FacultyCoursePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
       <FacultyNavbar />
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-wrap gap-3">
           <Link
             to="/faculty/courses"
-            className="inline-flex rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700"
+            className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300"
           >
             Back to courses
           </Link>
@@ -612,16 +612,16 @@ const FacultyCoursePage = () => {
             type="button"
             onClick={() => fetchCourse()}
             disabled={loadingCourse}
-            className="inline-flex rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:text-slate-400"
+            className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
           >
             {loadingCourse ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
 
         {error ? (
-          <section className="rounded-lg border border-red-200 bg-red-50 px-6 py-10 text-center shadow-sm">
-            <h2 className="text-lg font-bold text-red-800">Course unavailable</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-red-700">
+          <section className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-6 py-10 text-center shadow-sm">
+            <h2 className="text-lg font-bold text-red-800 dark:text-red-200">Course unavailable</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-red-700 dark:text-red-300">
               {error}
             </p>
             <button
@@ -634,7 +634,7 @@ const FacultyCoursePage = () => {
             </button>
           </section>
         ) : loadingCourse ? (
-          <div className="rounded-lg border border-slate-200 bg-white px-6 py-12 text-center text-sm font-semibold text-slate-500">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
             Loading course...
           </div>
         ) : course ? (
@@ -659,9 +659,9 @@ const FacultyCoursePage = () => {
 
             <div className="mt-6 grid gap-6 lg:grid-cols-3">
               {course.description ? (
-                <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm lg:col-span-3">
-                  <h2 className="text-lg font-bold text-slate-900">Description</h2>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm lg:col-span-3">
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Description</h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
                     {course.description}
                   </p>
                 </section>
@@ -672,7 +672,7 @@ const FacultyCoursePage = () => {
             </div>
           </>
         ) : (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-6 py-12 text-center text-sm font-semibold text-red-700">
+          <div className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-6 py-12 text-center text-sm font-semibold text-red-700 dark:text-red-300">
             Course not found.
           </div>
         )}

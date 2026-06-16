@@ -111,8 +111,8 @@ const UserCoursesPage = () => {
 
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 font-sans">
-        <p className="text-sm font-semibold text-slate-600">Checking authentication...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 font-sans">
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Checking authentication...</p>
       </div>
     )
   }
@@ -122,7 +122,7 @@ const UserCoursesPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
       <UserNavbar />
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -131,8 +131,8 @@ const UserCoursesPage = () => {
             <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
               User Dashboard
             </p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-900">My Courses</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">My Courses</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
               Courses available to {auth.phone} are shown here.
             </p>
           </div>
@@ -141,20 +141,20 @@ const UserCoursesPage = () => {
             type="button"
             onClick={() => fetchCourses()}
             disabled={loadingCourses}
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400"
+            className="inline-flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-700 dark:hover:text-blue-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
           >
             {loadingCourses ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
 
         {error ? (
-          <div className="mb-6 flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-6 flex flex-col gap-3 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300 sm:flex-row sm:items-center sm:justify-between">
             <span>{error}</span>
             <button
               type="button"
               onClick={() => fetchCourses()}
               disabled={loadingCourses}
-              className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 transition hover:border-red-300 disabled:cursor-not-allowed disabled:text-red-300"
+              className="rounded-lg border border-red-200 dark:border-red-900/60 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300 transition hover:border-red-300 dark:hover:border-red-700 disabled:cursor-not-allowed disabled:text-red-300 dark:disabled:text-red-500"
             >
               Retry
             </button>
@@ -162,8 +162,8 @@ const UserCoursesPage = () => {
         ) : null}
 
         {loadingCourses ? (
-          <section className="rounded-lg border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
-            <p className="text-sm font-semibold text-slate-500">Loading your courses...</p>
+          <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center shadow-sm">
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Loading your courses...</p>
           </section>
         ) : courses.length ? (
           <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -176,9 +176,9 @@ const UserCoursesPage = () => {
             ))}
           </section>
         ) : (
-          <section className="rounded-lg border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">No courses available yet</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+          <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">No courses available yet</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-300">
               Available courses will appear here when they are published or assigned to you.
             </p>
           </section>

@@ -279,8 +279,8 @@ const CourseAccessPage = () => {
 
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 font-sans">
-        <p className="text-sm font-semibold text-slate-600">Checking authentication...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 font-sans">
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Checking authentication...</p>
       </div>
     )
   }
@@ -290,20 +290,20 @@ const CourseAccessPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
       <AdminNavbar />
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-wrap gap-3">
           <Link
             to={`/admin/courses/${courseId}`}
-            className="inline-flex rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700"
+            className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300"
           >
             Back to course
           </Link>
           <Link
             to="/admin/courses"
-            className="inline-flex rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700"
+            className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300"
           >
             Back to courses
           </Link>
@@ -314,7 +314,7 @@ const CourseAccessPage = () => {
             <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
               {course?.isOpenToAll ? 'Open to All' : 'User Access'}
             </p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-900">
+            <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">
               {course?.title || 'Course Access'}
             </h1>
           </div>
@@ -322,43 +322,43 @@ const CourseAccessPage = () => {
             type="button"
             onClick={() => fetchAccessData()}
             disabled={loadingAccess || Boolean(busyAccessKey)}
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:text-slate-400"
+            className="inline-flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
           >
             {loadingAccess ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
 
         {error ? (
-          <p className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <p className="mb-5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300">
             {error}
           </p>
         ) : null}
 
         {success ? (
-          <p className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <p className="mb-5 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
             {success}
           </p>
         ) : null}
 
         {loadingAccess ? (
-          <section className="rounded-lg border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
-            <p className="text-sm font-semibold text-slate-500">Loading course access...</p>
+          <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center shadow-sm">
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Loading course access...</p>
           </section>
         ) : course?.isOpenToAll ? (
-          <section className="rounded-lg border border-blue-100 bg-blue-50 px-6 py-12 text-center shadow-sm">
-            <h2 className="text-lg font-bold text-blue-900">Open to All</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-blue-800">
+          <section className="rounded-lg border border-blue-100 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 px-6 py-12 text-center shadow-sm">
+            <h2 className="text-lg font-bold text-blue-900 dark:text-blue-100">Open to All</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-blue-800 dark:text-blue-200">
               Every registered user can access this course. User Access is not needed.
             </p>
           </section>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-            <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900">Grant Access</h2>
+            <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Grant Access</h2>
 
               <form onSubmit={handleGrantSubmit} className="mt-5 space-y-4">
                 <div>
-                  <label htmlFor="access-phone" className="block text-sm font-medium text-slate-700">
+                  <label htmlFor="access-phone" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                     Phone
                   </label>
                   <input
@@ -367,7 +367,7 @@ const CourseAccessPage = () => {
                     value={phoneInput}
                     onChange={(event) => setPhoneInput(event.target.value)}
                     disabled={Boolean(busyAccessKey)}
-                    className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 disabled:bg-slate-100"
+                    className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                     placeholder="9876543210"
                   />
                 </div>
@@ -383,8 +383,8 @@ const CourseAccessPage = () => {
 
               <div className="mt-8">
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-bold text-slate-900">Available Users</h3>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Available Users</h3>
+                  <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {availableUsers.length}
                   </span>
                 </div>
@@ -398,14 +398,14 @@ const CourseAccessPage = () => {
                       return (
                         <div
                           key={user._id}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2"
+                          className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2"
                         >
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-900">
+                            <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
                               {userName || user.phone}
                             </p>
                             {userName ? (
-                              <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
+                              <p className="mt-0.5 truncate text-xs font-medium text-slate-500 dark:text-slate-400">
                                 {user.phone}
                               </p>
                             ) : null}
@@ -414,7 +414,7 @@ const CourseAccessPage = () => {
                             type="button"
                             onClick={() => grantAccess([user.phone], `Access granted to ${user.phone}.`)}
                             disabled={Boolean(busyAccessKey)}
-                            className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:text-indigo-300"
+                            className="rounded-lg border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50 dark:bg-indigo-950/40 px-3 py-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-100 dark:hover:bg-indigo-950/60 disabled:cursor-not-allowed disabled:text-indigo-300 dark:disabled:text-indigo-500"
                           >
                             {busyAccessKey === addKey ? 'Adding...' : 'Add'}
                           </button>
@@ -423,41 +423,41 @@ const CourseAccessPage = () => {
                     })}
                   </div>
                 ) : (
-                  <p className="mt-3 rounded-lg bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
+                  <p className="mt-3 rounded-lg bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
                     All existing users already have access.
                   </p>
                 )}
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-                <h2 className="text-lg font-bold text-slate-900">Users With Access</h2>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+            <section className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Users With Access</h2>
+                <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {accessUsers.length} total
                 </span>
               </div>
 
               {accessUsers.length ? (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
+                  <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+                    <thead className="bg-slate-50 dark:bg-slate-950">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                           Name
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                           Phone
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                           Access Ends
                         </th>
-                        <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                           Actions
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 bg-white">
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900">
                       {accessUsers.map((user) => {
                         const removeKey = `remove:${normalizePhone(user.phone)}`
                         const userName = getUserName(user)
@@ -466,22 +466,22 @@ const CourseAccessPage = () => {
                         return (
                           <tr key={user._id}>
                             <td className="px-6 py-4 align-top">
-                              <span className="text-sm font-semibold text-slate-900">
+                              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                                 {userName || 'Unknown user'}
                               </span>
                             </td>
                             <td className="px-6 py-4 align-top">
-                              <span className="text-sm font-semibold text-slate-700">
+                              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                                 {user.phone}
                               </span>
                             </td>
                             <td className="px-6 py-4 align-top">
                               <div className="flex flex-col gap-1">
-                                <span className="text-sm font-semibold text-slate-700">
+                                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                                   {accessEndDate || 'N/A'}
                                 </span>
                                 {user.isAccessExpired ? (
-                                  <span className="w-fit rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
+                                  <span className="w-fit rounded-full bg-red-50 dark:bg-red-950/40 px-2 py-0.5 text-xs font-semibold text-red-700 dark:text-red-300">
                                     Expired
                                   </span>
                                 ) : null}
@@ -493,7 +493,7 @@ const CourseAccessPage = () => {
                                   type="button"
                                   onClick={() => removeAccess(user.phone)}
                                   disabled={Boolean(busyAccessKey)}
-                                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:text-red-300"
+                                  className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300 transition hover:border-red-300 dark:hover:border-red-700 hover:bg-red-100 dark:hover:bg-red-950/60 disabled:cursor-not-allowed disabled:text-red-300 dark:disabled:text-red-500"
                                 >
                                   {busyAccessKey === removeKey ? 'Removing...' : 'Remove'}
                                 </button>
@@ -506,7 +506,7 @@ const CourseAccessPage = () => {
                   </table>
                 </div>
               ) : (
-                <div className="px-6 py-12 text-center text-sm font-semibold text-slate-500">
+                <div className="px-6 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
                   No users have access to this course yet.
                 </div>
               )}

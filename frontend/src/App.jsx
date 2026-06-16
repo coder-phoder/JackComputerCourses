@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './Context/AuthContext'
+import { ThemeProvider } from './Context/ThemeContext'
 import LandingPage from './Pages/Common/LandingPage'
 import LoginPage from './Pages/Common/LoginPage'
 import RegisterPage from './Pages/Common/RegisterPage'
@@ -19,25 +20,27 @@ import FacultyCoursePage from './Pages/Faculty/FacultyCoursePage'
 const App = () => {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/user/home" element={<UserHomePage />} />
-          <Route path="/user/courses" element={<UserCoursesPage />} />
-          <Route path="/user/courses/:courseId/player" element={<UserCoursePlayerPage />} />
-          <Route path="/faculty/home" element={<FacultyHomePage />} />
-          <Route path="/faculty/courses" element={<FacultyCoursesPage />} />
-          <Route path="/faculty/courses/:courseId" element={<FacultyCoursePage />} />
-          <Route path="/admin/home" element={<AdminHomePage />} />
-          <Route path="/admin/users" element={<AdminAllUsers />} />
-          <Route path="/admin/faculties" element={<AdminAllFaculties />} />
-          <Route path="/admin/courses" element={<AdminCourses />} />
-          <Route path="/admin/courses/:courseId/access" element={<CourseAccessPage />} />
-          <Route path="/admin/courses/:courseId" element={<Course />} />
-        </Routes>
-      </Router>
+      <ThemeProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/user/home" element={<UserHomePage />} />
+            <Route path="/user/courses" element={<UserCoursesPage />} />
+            <Route path="/user/courses/:courseId/player" element={<UserCoursePlayerPage />} />
+            <Route path="/faculty/home" element={<FacultyHomePage />} />
+            <Route path="/faculty/courses" element={<FacultyCoursesPage />} />
+            <Route path="/faculty/courses/:courseId" element={<FacultyCoursePage />} />
+            <Route path="/admin/home" element={<AdminHomePage />} />
+            <Route path="/admin/users" element={<AdminAllUsers />} />
+            <Route path="/admin/faculties" element={<AdminAllFaculties />} />
+            <Route path="/admin/courses" element={<AdminCourses />} />
+            <Route path="/admin/courses/:courseId/access" element={<CourseAccessPage />} />
+            <Route path="/admin/courses/:courseId" element={<Course />} />
+          </Routes>
+        </Router>
+      </ThemeProvider>
     </AuthProvider>
   )
 }

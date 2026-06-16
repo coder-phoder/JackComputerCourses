@@ -44,9 +44,9 @@ const UserCourseCard = ({ course, playerUrl }) => {
       href={playerUrl}
       target="_blank"
       rel="noreferrer"
-      className="flex h-full flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-100"
+      className="flex h-full flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
     >
-      <div className="aspect-video overflow-hidden rounded-lg bg-slate-100">
+      <div className="aspect-video overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
         {course.thumbnailUrl ? (
           <img
             src={course.thumbnailUrl}
@@ -54,51 +54,51 @@ const UserCourseCard = ({ course, playerUrl }) => {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-blue-50 text-4xl font-bold text-blue-200">
+          <div className="flex h-full w-full items-center justify-center bg-blue-50 dark:bg-blue-950/40 text-4xl font-bold text-blue-200">
             J
           </div>
         )}
       </div>
 
       <div className="mt-4 flex flex-1 flex-col">
-        <h2 className="line-clamp-2 text-lg font-bold text-slate-900">
+        <h2 className="line-clamp-2 text-lg font-bold text-slate-900 dark:text-slate-100">
           {course.title}
         </h2>
-        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
+        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
           {description}
         </p>
 
         <div className="mt-5 grid grid-cols-3 gap-2 text-sm">
-          <div className="rounded-lg bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               {accessDisplay.label}
             </p>
-            <p className="mt-1 font-semibold text-slate-800">
+            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
               {accessDisplay.value}
             </p>
           </div>
-          <div className="rounded-lg bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               Chapters
             </p>
-            <p className="mt-1 font-semibold text-slate-800">
+            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
               {getCount(course.chapterCount)}
             </p>
           </div>
-          <div className="rounded-lg bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               Videos
             </p>
-            <p className="mt-1 font-semibold text-slate-800">
+            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
               {getCount(course.videoCount)}
             </p>
           </div>
         </div>
 
         {courseTags.length ? (
-          <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+          <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
             {courseTags.map((tag, index) => (
-              <span key={`${tag}-${index}`} className="rounded-full bg-slate-100 px-2 py-1">
+              <span key={`${tag}-${index}`} className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1">
                 {tag}
               </span>
             ))}

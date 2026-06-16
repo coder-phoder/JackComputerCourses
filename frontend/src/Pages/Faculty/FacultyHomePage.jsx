@@ -61,8 +61,8 @@ const FacultyHomePage = () => {
 
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 font-sans">
-        <p className="text-sm font-semibold text-slate-600">Checking authentication...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 font-sans">
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Checking authentication...</p>
       </div>
     )
   }
@@ -72,18 +72,18 @@ const FacultyHomePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
       <FacultyNavbar />
 
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
             Faculty Dashboard
           </p>
-          <h1 className="mt-3 text-3xl font-bold text-slate-900">
+          <h1 className="mt-3 text-3xl font-bold text-slate-900 dark:text-slate-100">
             Welcome, {facultyName || auth.phone}
           </h1>
-          <p className="mt-3 max-w-2xl text-slate-600">
+          <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-300">
             You are logged in as a faculty member.
           </p>
           <div className="mt-6">

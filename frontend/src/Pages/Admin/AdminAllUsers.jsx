@@ -297,8 +297,8 @@ const AdminAllUsers = () => {
 
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 font-sans">
-        <p className="text-sm font-semibold text-slate-600">Checking authentication...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 font-sans">
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Checking authentication...</p>
       </div>
     )
   }
@@ -308,7 +308,7 @@ const AdminAllUsers = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
       <AdminNavbar />
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -317,26 +317,26 @@ const AdminAllUsers = () => {
             <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
               Admin Dashboard
             </p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-900">All Users</h1>
+            <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">All Users</h1>
           </div>
           <button
             type="button"
             onClick={fetchUsers}
             disabled={loadingUsers}
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:text-slate-400"
+            className="inline-flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
           >
             {loadingUsers ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_1fr]">
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
             {editingUser ? (
               <>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900">Edit User</h2>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Edit User</h2>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                       {getUserName(editingUser) || editingUser.phone}
                     </p>
                   </div>
@@ -344,7 +344,7 @@ const AdminAllUsers = () => {
                     type="button"
                     onClick={cancelEditingUser}
                     disabled={saving}
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:text-slate-400"
+                    className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-slate-400 dark:hover:border-slate-500 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
                   >
                     Cancel
                   </button>
@@ -352,7 +352,7 @@ const AdminAllUsers = () => {
 
                 <form onSubmit={handleUpdateUser} className="mt-6 space-y-4">
                   <div>
-                    <label htmlFor="edit-name" className="block text-sm font-medium text-slate-700">
+                    <label htmlFor="edit-name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                       Name
                     </label>
                     <input
@@ -362,13 +362,13 @@ const AdminAllUsers = () => {
                       value={editingForm.name}
                       onChange={handleEditingFormChange}
                       disabled={saving}
-                      className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 disabled:bg-slate-100"
+                      className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                       placeholder="Enter full name"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="edit-phone" className="block text-sm font-medium text-slate-700">
+                    <label htmlFor="edit-phone" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                       Phone
                     </label>
                     <input
@@ -378,13 +378,13 @@ const AdminAllUsers = () => {
                       value={editingForm.phone}
                       onChange={handleEditingFormChange}
                       disabled={saving}
-                      className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 disabled:bg-slate-100"
+                      className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                       placeholder="Enter phone number"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="edit-password" className="block text-sm font-medium text-slate-700">
+                    <label htmlFor="edit-password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                       New Password
                     </label>
                     <input
@@ -394,7 +394,7 @@ const AdminAllUsers = () => {
                       value={editingForm.password}
                       onChange={handleEditingFormChange}
                       disabled={saving}
-                      className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 disabled:bg-slate-100"
+                      className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                       placeholder="Leave blank to keep current password"
                     />
                   </div>
@@ -402,7 +402,7 @@ const AdminAllUsers = () => {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                    className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400 dark:disabled:bg-slate-700"
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>
@@ -410,11 +410,11 @@ const AdminAllUsers = () => {
               </>
             ) : (
               <>
-                <h2 className="text-lg font-bold text-slate-900">Create User</h2>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Create User</h2>
 
                 <form onSubmit={handleCreateUser} className="mt-6 space-y-4">
                   <div>
-                    <label htmlFor="create-name" className="block text-sm font-medium text-slate-700">
+                    <label htmlFor="create-name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                       Name
                     </label>
                     <input
@@ -424,13 +424,13 @@ const AdminAllUsers = () => {
                       value={form.name}
                       onChange={handleFormChange}
                       disabled={saving}
-                      className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 disabled:bg-slate-100"
+                      className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                       placeholder="Enter full name"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="create-phone" className="block text-sm font-medium text-slate-700">
+                    <label htmlFor="create-phone" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                       Phone
                     </label>
                     <input
@@ -440,13 +440,13 @@ const AdminAllUsers = () => {
                       value={form.phone}
                       onChange={handleFormChange}
                       disabled={saving}
-                      className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 disabled:bg-slate-100"
+                      className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                       placeholder="Enter phone number"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="create-password" className="block text-sm font-medium text-slate-700">
+                    <label htmlFor="create-password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                       Password
                     </label>
                     <input
@@ -456,7 +456,7 @@ const AdminAllUsers = () => {
                       value={form.password}
                       onChange={handleFormChange}
                       disabled={saving}
-                      className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 disabled:bg-slate-100"
+                      className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                       placeholder="Enter password"
                     />
                   </div>
@@ -473,66 +473,66 @@ const AdminAllUsers = () => {
             )}
 
             {error ? (
-              <p className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              <p className="mt-5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300">
                 {error}
               </p>
             ) : null}
 
             {success ? (
-              <p className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+              <p className="mt-5 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                 {success}
               </p>
             ) : null}
           </section>
 
-          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-              <h2 className="text-lg font-bold text-slate-900">Users</h2>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+          <section className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Users</h2>
+              <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                 {sortedUsers.length} total
               </span>
             </div>
 
             {loadingUsers ? (
-              <div className="px-6 py-12 text-center text-sm font-semibold text-slate-500">
+              <div className="px-6 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
                 Loading users...
               </div>
             ) : sortedUsers.length ? (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200">
-                  <thead className="bg-slate-50">
+                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+                  <thead className="bg-slate-50 dark:bg-slate-950">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Phone
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white">
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900">
                     {sortedUsers.map((user) => {
                       const isEditing = editingUserId === user._id
                       const isDeleting = deletingUserId === user._id
                       const userName = getUserName(user)
 
                       return (
-                        <tr key={user._id} className={isEditing ? 'bg-indigo-50/40' : undefined}>
+                        <tr key={user._id} className={isEditing ? 'bg-indigo-50/40 dark:bg-indigo-950/30' : undefined}>
                           <td className="px-6 py-4 align-top">
-                            <span className="text-sm font-semibold text-slate-900">
+                            <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                               {userName || 'Unnamed user'}
                             </span>
                             {isEditing ? (
-                              <span className="ml-3 rounded-full bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-700">
+                              <span className="ml-3 rounded-full bg-indigo-100 dark:bg-indigo-950/50 px-2 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
                                 Editing
                               </span>
                             ) : null}
                           </td>
                           <td className="px-6 py-4 align-top">
-                            <span className="text-sm font-semibold text-slate-700">
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                               {user.phone}
                             </span>
                           </td>
@@ -542,7 +542,7 @@ const AdminAllUsers = () => {
                                 type="button"
                                 onClick={() => startEditingUser(user)}
                                 disabled={saving || Boolean(deletingUserId)}
-                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                                className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
                               >
                                 {isEditing ? 'Selected' : 'Edit'}
                               </button>
@@ -550,7 +550,7 @@ const AdminAllUsers = () => {
                                 type="button"
                                 onClick={() => handleDeleteUser(user)}
                                 disabled={saving || isDeleting}
-                                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:text-red-300"
+                                className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300 transition hover:border-red-300 dark:hover:border-red-700 hover:bg-red-100 dark:hover:bg-red-950/60 disabled:cursor-not-allowed disabled:text-red-300 dark:disabled:text-red-500"
                               >
                                 {isDeleting ? 'Deleting...' : 'Delete'}
                               </button>
@@ -563,7 +563,7 @@ const AdminAllUsers = () => {
                 </table>
               </div>
             ) : (
-              <div className="px-6 py-12 text-center text-sm font-semibold text-slate-500">
+              <div className="px-6 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
                 No users found.
               </div>
             )}

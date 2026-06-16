@@ -350,8 +350,8 @@ const AdminCourses = () => {
 
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 font-sans">
-        <p className="text-sm font-semibold text-slate-600">Checking authentication...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 font-sans">
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Checking authentication...</p>
       </div>
     )
   }
@@ -361,7 +361,7 @@ const AdminCourses = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
       <AdminNavbar />
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -370,13 +370,13 @@ const AdminCourses = () => {
             <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
               Admin Dashboard
             </p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-900">Courses</h1>
+            <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">Courses</h1>
           </div>
           <button
             type="button"
             onClick={fetchCourses}
             disabled={loadingCourses}
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:text-slate-400"
+            className="inline-flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
           >
             {loadingCourses ? 'Refreshing...' : 'Refresh'}
           </button>

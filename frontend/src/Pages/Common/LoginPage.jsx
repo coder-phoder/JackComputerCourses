@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import ThemeToggle from '../../Components/Common/ThemeToggle'
 import { useAuth } from '../../Context/AuthContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
@@ -134,27 +135,30 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="relative min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
+      <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+        <ThemeToggle />
+      </div>
       <div className="mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
           <div className="mb-8 text-center">
             <Link to="/" className="inline-flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-tr from-blue-600 to-indigo-600">
                 <span className="text-xl font-bold text-white">J</span>
               </div>
-              <span className="text-2xl font-bold tracking-tight text-gray-900">
+              <span className="text-2xl font-bold tracking-tight text-gray-900 dark:text-slate-100">
                 Jack<span className="text-blue-600">Courses</span>
               </span>
             </Link>
-            <h1 className="mt-8 text-3xl font-bold text-slate-900">Login</h1>
-            <p className="mt-2 text-sm text-slate-600">
+            <h1 className="mt-8 text-3xl font-bold text-slate-900 dark:text-slate-100">Login</h1>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               Use your registered phone number and password.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="phone" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Phone
               </label>
               <input
@@ -162,14 +166,14 @@ const LoginPage = () => {
                 type="tel"
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
-                className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
                 placeholder="Enter phone number"
                 disabled={loading}
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Password
               </label>
               <input
@@ -177,14 +181,14 @@ const LoginPage = () => {
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
                 placeholder="Enter password"
                 disabled={loading}
               />
             </div>
 
             {error ? (
-              <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              <p className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300">
                 {error}
               </p>
             ) : null}
@@ -198,9 +202,9 @@ const LoginPage = () => {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-slate-600">
+          <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="font-semibold text-blue-600 transition hover:text-blue-700">
+            <Link to="/register" className="font-semibold text-blue-600 transition hover:text-blue-700 dark:hover:text-blue-300">
               Sign up
             </Link>
           </p>

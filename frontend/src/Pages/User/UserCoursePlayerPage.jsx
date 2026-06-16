@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
+import ThemeToggle from '../../Components/Common/ThemeToggle'
 import UserCourseSidebar from '../../Components/User/UserCourseSidebar'
 import UserVideoPlayer from '../../Components/User/UserVideoPlayer'
 import { useAuth } from '../../Context/AuthContext'
@@ -171,8 +172,8 @@ const UserCoursePlayerPage = () => {
 
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 font-sans">
-        <p className="text-sm font-semibold text-slate-600">Checking authentication...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 font-sans">
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Checking authentication...</p>
       </div>
     )
   }
@@ -182,32 +183,35 @@ const UserCoursePlayerPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
               Course Player
             </p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-900">
+            <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">
               {course?.title || 'Loading course...'}
             </h1>
             {accessText ? (
-              <p className="mt-2 text-sm font-semibold text-slate-600">{accessText}</p>
+              <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{accessText}</p>
             ) : null}
           </div>
-          <Link
-            to="/user/courses"
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700"
-          >
-            My Courses
-          </Link>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Link
+              to="/user/courses"
+              className="inline-flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-700 dark:hover:text-blue-300"
+            >
+              My Courses
+            </Link>
+          </div>
         </div>
 
         {error ? (
-          <section className="rounded-lg border border-red-200 bg-red-50 px-6 py-10 text-center shadow-sm">
-            <h2 className="text-lg font-bold text-red-800">Course unavailable</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-red-700">
+          <section className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-6 py-10 text-center shadow-sm">
+            <h2 className="text-lg font-bold text-red-800 dark:text-red-200">Course unavailable</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-red-700 dark:text-red-300">
               {error}
             </p>
             <button
@@ -220,8 +224,8 @@ const UserCoursePlayerPage = () => {
             </button>
           </section>
         ) : loadingCourse ? (
-          <section className="rounded-lg border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
-            <p className="text-sm font-semibold text-slate-500">Loading course player...</p>
+          <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center shadow-sm">
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Loading course player...</p>
           </section>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
