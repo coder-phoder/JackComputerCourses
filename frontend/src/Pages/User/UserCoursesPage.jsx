@@ -1,6 +1,11 @@
 import axios from 'axios'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import CourseCatalogControls from '../../Components/Common/CourseCatalogControls'
+import {
+  defaultCourseCatalogFilters,
+  getFilteredSortedCourses,
+} from '../../Components/Common/courseCatalogFilters'
 import UserCourseCard from '../../Components/User/UserCourseCard'
 import UserNavbar from '../../Components/User/UserNavbar'
 import { useAuth } from '../../Context/AuthContext'
@@ -18,8 +23,14 @@ const UserCoursesPage = () => {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [courses, setCourses] = useState([])
+  const [courseFilters, setCourseFilters] = useState(defaultCourseCatalogFilters)
   const [loadingCourses, setLoadingCourses] = useState(true)
   const [error, setError] = useState('')
+
+  const filteredCourses = useMemo(
+    () => getFilteredSortedCourses(courses, courseFilters),
+    [courses, courseFilters],
+  )
 
   const fetchCourses = useCallback(async (options = {}) => {
     const shouldUpdate = options.shouldUpdate || (() => true)
@@ -161,20 +172,39 @@ const UserCoursesPage = () => {
           </div>
         ) : null}
 
+        {!loadingCourses && courses.length ? (
+          <CourseCatalogControls
+            accent="blue"
+            courses={courses}
+            filters={courseFilters}
+            resultCount={filteredCourses.length}
+            onFiltersChange={setCourseFilters}
+          />
+        ) : null}
+
         {loadingCourses ? (
           <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center shadow-sm">
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Loading your courses...</p>
           </section>
         ) : courses.length ? (
-          <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {courses.map((course) => (
-              <UserCourseCard
-                key={course._id}
-                course={course}
-                playerUrl={`/user/courses/${course._id}/player`}
-              />
-            ))}
-          </section>
+          filteredCourses.length ? (
+            <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredCourses.map((course) => (
+                <UserCourseCard
+                  key={course._id}
+                  course={course}
+                  playerUrl={`/user/courses/${course._id}/player`}
+                />
+              ))}
+            </section>
+          ) : (
+            <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">No matching courses</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-300">
+                Adjust your search, filters, or sorting to find a course.
+              </p>
+            </section>
+          )
         ) : (
           <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center shadow-sm">
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">No courses available yet</h2>

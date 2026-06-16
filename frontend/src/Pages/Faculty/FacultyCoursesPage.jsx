@@ -1,6 +1,11 @@
 import axios from 'axios'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import CourseCatalogControls from '../../Components/Common/CourseCatalogControls'
+import {
+  defaultCourseCatalogFilters,
+  getFilteredSortedCourses,
+} from '../../Components/Common/courseCatalogFilters'
 import FacultyCourseCard from '../../Components/Faculty/FacultyCourseCard'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import { useAuth } from '../../Context/AuthContext'
@@ -18,14 +23,13 @@ const FacultyCoursesPage = () => {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [courses, setCourses] = useState([])
+  const [courseFilters, setCourseFilters] = useState(defaultCourseCatalogFilters)
   const [loadingCourses, setLoadingCourses] = useState(true)
   const [error, setError] = useState('')
 
-  const sortedCourses = useMemo(
-    () => [...courses].sort((first, second) => (
-      new Date(second.createdAt || 0) - new Date(first.createdAt || 0)
-    )),
-    [courses],
+  const filteredCourses = useMemo(
+    () => getFilteredSortedCourses(courses, courseFilters),
+    [courses, courseFilters],
   )
 
   const fetchCourses = useCallback(async (options = {}) => {
@@ -168,20 +172,38 @@ const FacultyCoursesPage = () => {
           </div>
         ) : null}
 
+        {!loadingCourses && courses.length ? (
+          <CourseCatalogControls
+            courses={courses}
+            filters={courseFilters}
+            resultCount={filteredCourses.length}
+            onFiltersChange={setCourseFilters}
+          />
+        ) : null}
+
         {loadingCourses ? (
           <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center shadow-sm">
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Loading courses...</p>
           </section>
-        ) : sortedCourses.length ? (
-          <section className="grid gap-5 lg:grid-cols-2">
-            {sortedCourses.map((course) => (
-              <FacultyCourseCard
-                key={course._id}
-                course={course}
-                detailUrl={`/faculty/courses/${course._id}`}
-              />
-            ))}
-          </section>
+        ) : courses.length ? (
+          filteredCourses.length ? (
+            <section className="grid gap-5 lg:grid-cols-2">
+              {filteredCourses.map((course) => (
+                <FacultyCourseCard
+                  key={course._id}
+                  course={course}
+                  detailUrl={`/faculty/courses/${course._id}`}
+                />
+              ))}
+            </section>
+          ) : (
+            <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">No matching courses</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-300">
+                Adjust your search, filters, or sorting to find a course.
+              </p>
+            </section>
+          )
         ) : (
           <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center shadow-sm">
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">No courses available yet</h2>

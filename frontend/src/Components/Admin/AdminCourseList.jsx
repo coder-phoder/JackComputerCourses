@@ -6,13 +6,14 @@ const AdminCourseList = ({
   courses,
   deletingCourseId,
   editingCourseId,
+  emptyMessage = 'No courses found.',
   loadingCourses,
   saving,
   onDeleteCourse,
   onEditCourse,
   onOpenCourse,
 }) => (
-  <section className="flex h-[70vh] min-h-105 max-h-190 flex-col overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+  <section className="flex flex-col overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm xl:h-[70vh] xl:min-h-[420px] xl:max-h-[760px]">
     <div className="flex shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
       <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">All Courses</h2>
       <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -29,6 +30,7 @@ const AdminCourseList = ({
         {courses.map((course) => {
           const isEditing = editingCourseId === course._id
           const isDeleting = deletingCourseId === course._id
+          const accessCount = course.isOpenToAll ? 'All' : course.accessUserCount || 0
 
           return (
             <article
@@ -49,15 +51,15 @@ const AdminCourseList = ({
               }`}
             >
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="flex min-w-0 flex-1 items-start gap-4">
+                <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-start">
                   {course.thumbnailUrl ? (
                     <img
                       src={course.thumbnailUrl}
                       alt=""
-                      className="h-24 w-32 shrink-0 rounded-lg object-cover"
+                      className="aspect-video w-full shrink-0 rounded-lg object-cover sm:h-24 sm:w-32"
                     />
                   ) : (
-                    <div className="flex h-24 w-32 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-bold text-slate-400 dark:text-slate-500">
+                    <div className="flex aspect-video w-full shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-bold text-slate-400 dark:text-slate-500 sm:h-24 sm:w-32">
                       J
                     </div>
                   )}
@@ -115,17 +117,15 @@ const AdminCourseList = ({
                   </div>
                   <div className="rounded-lg bg-slate-50 dark:bg-slate-950 px-3 py-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                      Chapters
+                      Videos
                     </p>
-                    <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">{course.chapterCount || 0}</p>
+                    <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">{course.videoCount || 0}</p>
                   </div>
                   <div className="rounded-lg bg-slate-50 dark:bg-slate-950 px-3 py-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
                       Access
                     </p>
-                    <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
-                      {course.isOpenToAll ? 'All' : course.accessUserCount || 0}
-                    </p>
+                    <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">{accessCount}</p>
                   </div>
                 </div>
               </div>
@@ -160,7 +160,7 @@ const AdminCourseList = ({
       </div>
     ) : (
       <div className="flex flex-1 items-center justify-center px-6 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
-        No courses found.
+        {emptyMessage}
       </div>
     )}
   </section>

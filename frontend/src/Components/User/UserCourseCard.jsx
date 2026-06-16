@@ -68,8 +68,8 @@ const UserCourseCard = ({ course, playerUrl }) => {
           {description}
         </p>
 
-        <div className="mt-5 grid grid-cols-3 gap-2 text-sm">
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+        <div className="mt-5 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+          <div className="col-span-2 rounded-lg bg-slate-50 dark:bg-slate-950 p-3 sm:col-span-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               {accessDisplay.label}
             </p>

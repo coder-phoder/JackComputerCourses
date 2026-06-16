@@ -4,6 +4,11 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import AdminCourseForm from '../../Components/Admin/AdminCourseForm'
 import AdminCourseList from '../../Components/Admin/AdminCourseList'
 import AdminNavbar from '../../Components/Admin/AdminNavbar'
+import CourseCatalogControls from '../../Components/Common/CourseCatalogControls'
+import {
+  defaultCourseCatalogFilters,
+  getFilteredSortedCourses,
+} from '../../Components/Common/courseCatalogFilters'
 import { useAuth } from '../../Context/AuthContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
@@ -125,6 +130,7 @@ const AdminCourses = () => {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [courses, setCourses] = useState([])
+  const [courseFilters, setCourseFilters] = useState(defaultCourseCatalogFilters)
   const [loadingCourses, setLoadingCourses] = useState(true)
   const [courseForm, setCourseForm] = useState(emptyCourseForm)
   const [editingCourseId, setEditingCourseId] = useState('')
@@ -133,11 +139,9 @@ const AdminCourses = () => {
   const [saving, setSaving] = useState(false)
   const [deletingCourseId, setDeletingCourseId] = useState('')
 
-  const sortedCourses = useMemo(
-    () => [...courses].sort((first, second) => (
-      new Date(second.createdAt || 0) - new Date(first.createdAt || 0)
-    )),
-    [courses],
+  const filteredCourses = useMemo(
+    () => getFilteredSortedCourses(courses, courseFilters),
+    [courses, courseFilters],
   )
   const editingCourse = useMemo(
     () => courses.find((course) => course._id === editingCourseId) || null,
@@ -382,6 +386,15 @@ const AdminCourses = () => {
           </button>
         </div>
 
+        {!loadingCourses && courses.length ? (
+          <CourseCatalogControls
+            courses={courses}
+            filters={courseFilters}
+            resultCount={filteredCourses.length}
+            onFiltersChange={setCourseFilters}
+          />
+        ) : null}
+
         <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
           <AdminCourseForm
             courseForm={courseForm}
@@ -395,9 +408,10 @@ const AdminCourses = () => {
           />
 
           <AdminCourseList
-            courses={sortedCourses}
+            courses={filteredCourses}
             deletingCourseId={deletingCourseId}
             editingCourseId={editingCourseId}
+            emptyMessage={courses.length ? 'No courses match your search or filters.' : 'No courses found.'}
             loadingCourses={loadingCourses}
             saving={saving}
             onDeleteCourse={handleDeleteCourse}
