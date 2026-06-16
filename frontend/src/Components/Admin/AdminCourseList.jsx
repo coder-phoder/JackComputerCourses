@@ -13,7 +13,7 @@ const AdminCourseList = ({
   onEditCourse,
   onOpenCourse,
 }) => (
-  <section className="flex flex-col overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm xl:h-[70vh] xl:min-h-[420px] xl:max-h-[760px]">
+  <section className="flex flex-col overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm xl:h-[70vh] xl:min-h-105 xl:max-h-190">
     <div className="flex shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
       <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">All Courses</h2>
       <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">

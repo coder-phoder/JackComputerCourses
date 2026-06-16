@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import RoleProfileShowcase from '../../Components/Common/RoleProfileShowcase'
 import UserNavbar from '../../Components/User/UserNavbar'
 import { useAuth } from '../../Context/AuthContext'
 
@@ -10,7 +11,7 @@ const UserHomePage = () => {
   const { auth, clearAuth, setAuth } = useAuth()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
-  const [userName, setUserName] = useState('')
+  const [userProfile, setUserProfile] = useState(null)
 
   useEffect(() => {
     let isActive = true
@@ -36,7 +37,7 @@ const UserHomePage = () => {
           phone: user.phone,
           token: null,
         })
-        setUserName(user.name || '')
+        setUserProfile(user)
         setIsAuthorized(true)
       } catch {
         if (!isActive) {
@@ -76,17 +77,7 @@ const UserHomePage = () => {
       <UserNavbar />
 
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-            User Dashboard
-          </p>
-          <h1 className="mt-3 text-3xl font-bold text-slate-900 dark:text-slate-100">
-            Welcome, {userName || auth.phone}
-          </h1>
-          <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-300">
-            You are logged in as a user. This is your course home page.
-          </p>
-        </section>
+        <RoleProfileShowcase role="user" profile={userProfile || auth} />
       </main>
     </div>
   )

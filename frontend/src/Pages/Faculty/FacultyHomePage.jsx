@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useEffect, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
+import RoleProfileShowcase from '../../Components/Common/RoleProfileShowcase'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import { useAuth } from '../../Context/AuthContext'
 
@@ -10,7 +11,7 @@ const FacultyHomePage = () => {
   const { auth, clearAuth, setAuth } = useAuth()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
-  const [facultyName, setFacultyName] = useState('')
+  const [facultyProfile, setFacultyProfile] = useState(null)
 
   useEffect(() => {
     let isActive = true
@@ -36,7 +37,7 @@ const FacultyHomePage = () => {
           phone: faculty.phone,
           token: null,
         })
-        setFacultyName(faculty.name || '')
+        setFacultyProfile(faculty)
         setIsAuthorized(true)
       } catch {
         if (!isActive) {
@@ -76,25 +77,7 @@ const FacultyHomePage = () => {
       <FacultyNavbar />
 
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
-            Faculty Dashboard
-          </p>
-          <h1 className="mt-3 text-3xl font-bold text-slate-900 dark:text-slate-100">
-            Welcome, {facultyName || auth.phone}
-          </h1>
-          <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-300">
-            You are logged in as a faculty member.
-          </p>
-          <div className="mt-6">
-            <Link
-              to="/faculty/courses"
-              className="inline-flex rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              View Courses
-            </Link>
-          </div>
-        </section>
+        <RoleProfileShowcase role="faculty" profile={facultyProfile || auth} />
       </main>
     </div>
   )
