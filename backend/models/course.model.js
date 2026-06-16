@@ -1,5 +1,26 @@
 const mongoose = require('mongoose');
 
+const isPositiveNumberString = (value) => {
+    const numberValue = Number(value);
+
+    return Number.isFinite(numberValue) && numberValue > 0;
+};
+
+const accessGrantSchema = new mongoose.Schema({
+    phone: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    grantedAt: {
+        type: Date,
+        required: true,
+        default: Date.now
+    }
+}, {
+    _id: false
+});
+
 const courseSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -15,8 +36,14 @@ const courseSchema = new mongoose.Schema({
     },
     duration: {
         type: String,
-        required: true,
-        trim: true
+        trim: true,
+        default: '',
+        validate: {
+            validator(value) {
+                return this.isOpenToAll || isPositiveNumberString(value);
+            },
+            message: 'Duration must be a positive number of months'
+        }
     },
     price: {
         type: Number,
@@ -79,11 +106,16 @@ const courseSchema = new mongoose.Schema({
         set: (phones) => [...new Set((phones || [])
             .map((phone) => String(phone || '').trim())
             .filter(Boolean))]
+    },
+    accessGrants: {
+        type: [accessGrantSchema],
+        default: []
     }
 }, {
     timestamps: true
 });
 
 courseSchema.index({ isPublished: 1, isOpenToAll: 1, allowedUserPhones: 1, createdAt: -1 });
+courseSchema.index({ 'accessGrants.phone': 1 });
 
 module.exports = mongoose.model('Course', courseSchema);

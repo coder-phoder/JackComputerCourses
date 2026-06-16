@@ -1,3 +1,7 @@
+const getDurationLabel = (course) => (
+  course.isOpenToAll || !course.duration ? 'N/A' : `${course.duration} mo`
+)
+
 const AdminCourseList = ({
   courses,
   deletingCourseId,
@@ -107,7 +111,7 @@ const AdminCourseList = ({
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                       Duration
                     </p>
-                    <p className="mt-1 font-semibold text-slate-800">{course.duration}</p>
+                    <p className="mt-1 font-semibold text-slate-800">{getDurationLabel(course)}</p>
                   </div>
                   <div className="rounded-lg bg-slate-50 px-3 py-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">

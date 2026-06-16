@@ -76,17 +76,19 @@ const AdminCourseForm = ({
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="course-duration" className="block text-sm font-medium text-slate-700">
-              Duration
+              Duration (months)
             </label>
             <input
               id="course-duration"
               name="duration"
-              type="text"
+              type="number"
+              min="0.01"
+              step="0.01"
               value={courseForm.duration}
               onChange={onChange}
-              disabled={saving}
+              disabled={saving || courseForm.isOpenToAll}
               className={inputClass}
-              placeholder="8 weeks"
+              placeholder={courseForm.isOpenToAll ? 'Not needed' : '3'}
             />
           </div>
 

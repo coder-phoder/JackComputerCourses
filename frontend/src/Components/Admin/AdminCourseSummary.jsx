@@ -1,3 +1,7 @@
+const getDurationLabel = (course) => (
+  course.isOpenToAll || !course.duration ? 'N/A' : `${course.duration} mo`
+)
+
 const AdminCourseSummary = ({ course }) => (
   <section className="mb-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
     <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
@@ -52,7 +56,7 @@ const AdminCourseSummary = ({ course }) => (
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Duration
             </p>
-            <p className="mt-1 text-lg font-bold text-slate-900">{course.duration}</p>
+            <p className="mt-1 text-lg font-bold text-slate-900">{getDurationLabel(course)}</p>
           </div>
           <div className="rounded-lg bg-slate-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">

@@ -4,9 +4,40 @@ const getCount = (value) => {
   return Number.isFinite(count) && count > 0 ? count : 0
 }
 
+const formatAccessDate = (value) => {
+  const dateValue = String(value || '').slice(0, 10)
+  const [year, month, day] = dateValue.split('-').map(Number)
+
+  if (!year || !month || !day) {
+    return ''
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, day)))
+}
+
+const getAccessDisplay = (course) => {
+  if (course.isOpenToAll) {
+    return {
+      label: 'Access',
+      value: 'Open to all',
+    }
+  }
+
+  return {
+    label: 'Access Ends',
+    value: formatAccessDate(course.accessEndsOn || course.accessEndsAt) || 'N/A',
+  }
+}
+
 const UserCourseCard = ({ course, playerUrl }) => {
   const description = course.shortDescription || course.description || 'Course details are not available.'
   const courseTags = [course.category, course.level, course.language].filter(Boolean)
+  const accessDisplay = getAccessDisplay(course)
 
   return (
     <a
@@ -40,10 +71,10 @@ const UserCourseCard = ({ course, playerUrl }) => {
         <div className="mt-5 grid grid-cols-3 gap-2 text-sm">
           <div className="rounded-lg bg-slate-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Duration
+              {accessDisplay.label}
             </p>
-            <p className="mt-1 truncate font-semibold text-slate-800">
-              {course.duration || 'N/A'}
+            <p className="mt-1 font-semibold text-slate-800">
+              {accessDisplay.value}
             </p>
           </div>
           <div className="rounded-lg bg-slate-50 p-3">

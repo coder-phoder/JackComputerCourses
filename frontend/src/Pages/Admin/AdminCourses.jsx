@@ -44,7 +44,7 @@ const parseListInput = (value) => (
 const getCourseForm = (course) => ({
   title: course.title || '',
   slug: course.slug || '',
-  duration: course.duration || '',
+  duration: course.isOpenToAll ? '' : course.duration || '',
   price: Number.isFinite(Number(course.price)) ? String(course.price) : '',
   shortDescription: course.shortDescription || '',
   description: course.description || '',
@@ -65,6 +65,7 @@ const buildCoursePayload = (form, isEditing) => {
   const duration = form.duration.trim()
   const description = form.description.trim()
   const price = Number(form.price)
+  const isOpenToAll = Boolean(form.isOpenToAll)
 
   if (!title) {
     return { error: 'Title is required.' }
@@ -74,8 +75,16 @@ const buildCoursePayload = (form, isEditing) => {
     return { error: 'Slug is required.' }
   }
 
-  if (!duration) {
+  if (!isOpenToAll && !duration) {
     return { error: 'Duration is required.' }
+  }
+
+  if (!isOpenToAll) {
+    const durationMonths = Number(duration)
+
+    if (!Number.isFinite(durationMonths) || durationMonths <= 0) {
+      return { error: 'Duration must be a positive number of months.' }
+    }
   }
 
   if (!Number.isFinite(price) || price < 0) {
@@ -88,7 +97,7 @@ const buildCoursePayload = (form, isEditing) => {
 
   const payload = {
     title,
-    duration,
+    duration: isOpenToAll ? '' : String(Number(duration)),
     price,
     description,
     shortDescription: form.shortDescription.trim(),
@@ -100,7 +109,7 @@ const buildCoursePayload = (form, isEditing) => {
     highlights: parseListInput(form.highlights),
     prerequisites: parseListInput(form.prerequisites),
     isPublished: Boolean(form.isPublished),
-    isOpenToAll: Boolean(form.isOpenToAll),
+    isOpenToAll,
   }
 
   if (slug) {
@@ -223,6 +232,7 @@ const AdminCourses = () => {
 
     setCourseForm((currentForm) => ({
       ...currentForm,
+      ...(name === 'isOpenToAll' && checked ? { duration: '' } : {}),
       [name]: type === 'checkbox' ? checked : value,
     }))
   }

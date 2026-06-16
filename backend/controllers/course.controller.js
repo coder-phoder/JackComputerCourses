@@ -15,6 +15,8 @@ const LOCAL_CLIENT_ORIGINS = [
     'http://127.0.0.1:5174',
     'http://127.0.0.1:5175'
 ];
+const DAYS_PER_COURSE_MONTH = 30;
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const isValidObjectId = (id) => (
     mongoose.Types.ObjectId.isValid(id)
@@ -107,6 +109,16 @@ const parseNonNegativeNumber = (value) => {
     const numberValue = Number(value);
 
     if (!Number.isFinite(numberValue) || numberValue < 0) {
+        return null;
+    }
+
+    return numberValue;
+};
+
+const parsePositiveNumber = (value) => {
+    const numberValue = Number(value);
+
+    if (!Number.isFinite(numberValue) || numberValue <= 0) {
         return null;
     }
 
@@ -287,12 +299,258 @@ const buildVideoSnapshots = async (playlistId) => {
     }
 };
 
+const parseCourseDurationMonths = (value) => {
+    const rawValue = String(value ?? '').trim();
+
+    if (!rawValue) {
+        return null;
+    }
+
+    return parsePositiveNumber(rawValue);
+};
+
+const formatDurationMonths = (value) => {
+    const durationMonths = parseCourseDurationMonths(value);
+
+    return durationMonths === null ? '' : String(durationMonths);
+};
+
+const getCourseDurationMonths = (course) => parseCourseDurationMonths(course?.duration);
+
+const getCourseDurationDays = (durationMonths) => {
+    const parsedDurationMonths = parseCourseDurationMonths(durationMonths);
+
+    return parsedDurationMonths === null
+        ? null
+        : Math.ceil(parsedDurationMonths * DAYS_PER_COURSE_MONTH);
+};
+
+const getCourseDurationValidationMessage = (duration, isOpenToAll) => {
+    if (isOpenToAll) {
+        return '';
+    }
+
+    return parseCourseDurationMonths(duration) === null
+        ? 'Duration must be a positive number of months'
+        : '';
+};
+
+const parseDateValue = (value) => {
+    const date = new Date(value);
+
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getUtcStartOfDay = (value) => {
+    const date = parseDateValue(value);
+
+    if (!date) {
+        return null;
+    }
+
+    return new Date(Date.UTC(
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        date.getUTCDate()
+    ));
+};
+
+const addDays = (date, days) => new Date(date.getTime() + (days * MILLISECONDS_PER_DAY));
+
+const formatDateOnly = (value) => {
+    const date = parseDateValue(value);
+
+    return date ? date.toISOString().slice(0, 10) : '';
+};
+
+const getFallbackGrantedAt = (course) => (
+    parseDateValue(course?.createdAt)
+    || parseDateValue(course?.updatedAt)
+    || new Date()
+);
+
+const getCourseAccessGrants = (course) => {
+    const grantMap = new Map();
+    const fallbackGrantedAt = getFallbackGrantedAt(course);
+
+    (course?.accessGrants || []).forEach((grant) => {
+        const phone = normalizePhone(grant?.phone);
+
+        if (!phone || grantMap.has(phone)) {
+            return;
+        }
+
+        grantMap.set(phone, {
+            phone,
+            grantedAt: parseDateValue(grant?.grantedAt) || fallbackGrantedAt
+        });
+    });
+
+    (course?.allowedUserPhones || []).forEach((phoneValue) => {
+        const phone = normalizePhone(phoneValue);
+
+        if (!phone || grantMap.has(phone)) {
+            return;
+        }
+
+        grantMap.set(phone, {
+            phone,
+            grantedAt: fallbackGrantedAt
+        });
+    });
+
+    return [...grantMap.values()];
+};
+
+const buildCourseAccessGrants = (course, phones, options = {}) => {
+    const normalizedPhones = normalizePhoneArray(phones);
+    const grantedAt = parseDateValue(options.grantedAt) || new Date();
+    const resetPhones = new Set(normalizePhoneArray(options.resetPhones));
+    const existingGrantMap = new Map(getCourseAccessGrants(course)
+        .map((grant) => [grant.phone, grant]));
+
+    return normalizedPhones.map((phone) => {
+        const existingGrant = existingGrantMap.get(phone);
+        const shouldResetGrantDate = options.resetAll
+            || resetPhones.has(phone)
+            || !existingGrant;
+
+        return {
+            phone,
+            grantedAt: shouldResetGrantDate ? grantedAt : existingGrant.grantedAt
+        };
+    });
+};
+
+const setCourseAccessPhones = (course, phones, options = {}) => {
+    const allowedUserPhones = normalizePhoneArray(phones);
+
+    course.allowedUserPhones = allowedUserPhones;
+    course.accessGrants = buildCourseAccessGrants(course, allowedUserPhones, options);
+};
+
+const addCourseAccessPhones = (course, phones) => {
+    const phonesToGrant = normalizePhoneArray(phones);
+    const currentPhones = getCourseAccessGrants(course).map((grant) => grant.phone);
+
+    setCourseAccessPhones(
+        course,
+        [...currentPhones, ...phonesToGrant],
+        {
+            grantedAt: new Date(),
+            resetPhones: phonesToGrant
+        }
+    );
+};
+
+const removeCourseAccessPhones = (course, phones) => {
+    const phonesToRemove = new Set(normalizePhoneArray(phones));
+    const nextPhones = getCourseAccessGrants(course)
+        .map((grant) => grant.phone)
+        .filter((phone) => !phonesToRemove.has(phone));
+
+    setCourseAccessPhones(course, nextPhones);
+};
+
+const getCourseAccessGrant = (course, userPhone) => {
+    const normalizedUserPhone = normalizePhone(userPhone);
+
+    if (!normalizedUserPhone) {
+        return null;
+    }
+
+    return getCourseAccessGrants(course)
+        .find((grant) => grant.phone === normalizedUserPhone) || null;
+};
+
+const getCourseAccessWindow = (course, userPhone, now = new Date()) => {
+    const normalizedUserPhone = normalizePhone(userPhone);
+
+    if (!normalizedUserPhone) {
+        return null;
+    }
+
+    if (course?.isOpenToAll) {
+        return {
+            type: 'open',
+            startsAt: null,
+            startsOn: '',
+            endsAt: null,
+            endsOn: '',
+            durationMonths: null,
+            durationDays: null,
+            isExpired: false
+        };
+    }
+
+    const accessGrant = getCourseAccessGrant(course, normalizedUserPhone);
+
+    if (!accessGrant) {
+        return null;
+    }
+
+    const durationMonths = getCourseDurationMonths(course);
+    const durationDays = getCourseDurationDays(durationMonths);
+    const startsAt = getUtcStartOfDay(accessGrant.grantedAt);
+
+    if (!durationDays || !startsAt) {
+        return null;
+    }
+
+    const endsAt = addDays(startsAt, durationDays);
+    const currentTime = parseDateValue(now) || new Date();
+
+    return {
+        type: 'assigned',
+        startsAt,
+        startsOn: formatDateOnly(startsAt),
+        endsAt,
+        endsOn: formatDateOnly(endsAt),
+        durationMonths,
+        durationDays,
+        isExpired: currentTime.getTime() >= endsAt.getTime()
+    };
+};
+
+const formatAccessWindowData = (accessWindow) => ({
+    accessType: accessWindow?.type || '',
+    accessStartsAt: accessWindow?.startsAt || null,
+    accessStartsOn: accessWindow?.startsOn || '',
+    accessEndsAt: accessWindow?.endsAt || null,
+    accessEndsOn: accessWindow?.endsOn || '',
+    accessDurationMonths: accessWindow?.durationMonths || null,
+    accessDurationDays: accessWindow?.durationDays || null,
+    isAccessExpired: Boolean(accessWindow?.isExpired)
+});
+
+const formatCourseAccessGrant = (course, grant, now = new Date()) => ({
+    phone: grant.phone,
+    grantedAt: grant.grantedAt,
+    grantedOn: formatDateOnly(grant.grantedAt),
+    ...formatAccessWindowData(getCourseAccessWindow(course, grant.phone, now))
+});
+
+const formatCourseAccessResponse = (course) => {
+    const accessGrants = getCourseAccessGrants(course);
+
+    return {
+        allowedUserPhones: accessGrants.map((grant) => grant.phone),
+        accessGrants: accessGrants.map((grant) => formatCourseAccessGrant(course, grant)),
+        course: formatCourseData(course, {}, { includeAccessList: true })
+    };
+};
+
 const formatCourseData = (course, counts = {}, options = {}) => {
+    const accessGrants = getCourseAccessGrants(course);
+    const durationMonths = getCourseDurationMonths(course);
+    const durationDays = getCourseDurationDays(durationMonths);
     const courseData = {
         _id: course._id.toString(),
         title: course.title,
         slug: course.slug,
-        duration: course.duration,
+        duration: course.duration || '',
+        durationMonths,
+        durationDays,
         price: course.price,
         description: course.description,
         shortDescription: course.shortDescription,
@@ -307,13 +565,23 @@ const formatCourseData = (course, counts = {}, options = {}) => {
         isOpenToAll: Boolean(course.isOpenToAll),
         chapterCount: counts.chapterCount || 0,
         videoCount: counts.videoCount || 0,
-        accessUserCount: (course.allowedUserPhones || []).length,
+        accessUserCount: accessGrants.length,
         createdAt: course.createdAt,
         updatedAt: course.updatedAt
     };
 
     if (options.includeAccessList) {
-        courseData.allowedUserPhones = course.allowedUserPhones || [];
+        courseData.allowedUserPhones = accessGrants.map((grant) => grant.phone);
+        courseData.accessGrants = accessGrants.map((grant) => (
+            formatCourseAccessGrant(course, grant, options.now)
+        ));
+    }
+
+    if (options.includeUserAccess) {
+        Object.assign(
+            courseData,
+            formatAccessWindowData(getCourseAccessWindow(course, options.userPhone, options.now))
+        );
     }
 
     return courseData;
@@ -445,12 +713,14 @@ const buildCoursePayload = (body, options = {}) => {
     }
 
     if (isCreate || hasField(body, 'duration')) {
-        const duration = String(body.duration || '').trim();
+        const duration = String(body.duration ?? '').trim();
 
         if (!duration) {
-            errors.push('Duration is required');
+            payload.duration = '';
+        } else if (parseCourseDurationMonths(duration) === null) {
+            errors.push('Duration must be a positive number of months');
         } else {
-            payload.duration = duration;
+            payload.duration = formatDurationMonths(duration);
         }
     }
 
@@ -576,7 +846,7 @@ const getUserCourseLookupQuery = (courseIdOrSlug) => {
     return slug ? { slug } : null;
 };
 
-const courseUserHasAccess = (course, userPhone) => {
+const courseUserHasAccess = (course, userPhone, options = {}) => {
     const normalizedUserPhone = normalizePhone(userPhone);
 
     if (!normalizedUserPhone) {
@@ -587,8 +857,9 @@ const courseUserHasAccess = (course, userPhone) => {
         return true;
     }
 
-    return Boolean((course.allowedUserPhones || [])
-        .some((phone) => normalizePhone(phone) === normalizedUserPhone));
+    const accessWindow = getCourseAccessWindow(course, normalizedUserPhone, options.now);
+
+    return Boolean(accessWindow && !accessWindow.isExpired);
 };
 
 const getNextChapterOrder = async (courseId) => {
@@ -633,6 +904,15 @@ const createCourseByAdmin = async (req, res) => {
             return sendError(res, 400, errors[0]);
         }
 
+        const durationError = getCourseDurationValidationMessage(
+            payload.duration,
+            Boolean(payload.isOpenToAll)
+        );
+
+        if (durationError) {
+            return sendError(res, 400, durationError);
+        }
+
         const slugAvailable = await ensureCourseSlugAvailable(payload.slug);
 
         if (!slugAvailable) {
@@ -645,6 +925,12 @@ const createCourseByAdmin = async (req, res) => {
             if (missingPhones.length) {
                 return sendMissingUserPhonesError(res, missingPhones);
             }
+
+            payload.accessGrants = buildCourseAccessGrants(
+                {},
+                payload.allowedUserPhones,
+                { resetAll: true }
+            );
         }
 
         const course = await Course.create(payload);
@@ -736,6 +1022,21 @@ const updateCourseByAdmin = async (req, res) => {
             }
         }
 
+        const nextIsOpenToAll = hasField(payload, 'isOpenToAll')
+            ? payload.isOpenToAll
+            : Boolean(course.isOpenToAll);
+        const nextDuration = hasField(payload, 'duration') ? payload.duration : course.duration;
+        const durationError = getCourseDurationValidationMessage(nextDuration, nextIsOpenToAll);
+
+        if (durationError) {
+            return sendError(res, 400, durationError);
+        }
+
+        if (hasField(payload, 'allowedUserPhones')) {
+            setCourseAccessPhones(course, payload.allowedUserPhones);
+            delete payload.allowedUserPhones;
+        }
+
         Object.assign(course, payload);
         await course.save();
 
@@ -770,10 +1071,7 @@ const getCourseAccessByAdmin = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: 'Course access fetched successfully',
-            data: {
-                allowedUserPhones: course.allowedUserPhones || [],
-                course: formatCourseData(course, {}, { includeAccessList: true })
-            }
+            data: formatCourseAccessResponse(course)
         });
     } catch (error) {
         return sendError(res, 500, 'Something went wrong while fetching course access');
@@ -807,16 +1105,13 @@ const replaceCourseAccessByAdmin = async (req, res) => {
             return sendMissingUserPhonesError(res, missingPhones);
         }
 
-        course.allowedUserPhones = allowedUserPhones;
+        setCourseAccessPhones(course, allowedUserPhones);
         await course.save();
 
         return res.status(200).json({
             success: true,
             message: 'Course access updated successfully',
-            data: {
-                allowedUserPhones: course.allowedUserPhones || [],
-                course: formatCourseData(course, {}, { includeAccessList: true })
-            }
+            data: formatCourseAccessResponse(course)
         });
     } catch (error) {
         return sendError(res, 500, 'Something went wrong while updating course access');
@@ -849,19 +1144,13 @@ const addCourseAccessByAdmin = async (req, res) => {
             return sendMissingUserPhonesError(res, missingPhones);
         }
 
-        course.allowedUserPhones = normalizePhoneArray([
-            ...(course.allowedUserPhones || []),
-            ...phones
-        ]);
+        addCourseAccessPhones(course, phones);
         await course.save();
 
         return res.status(200).json({
             success: true,
             message: 'Course access added successfully',
-            data: {
-                allowedUserPhones: course.allowedUserPhones || [],
-                course: formatCourseData(course, {}, { includeAccessList: true })
-            }
+            data: formatCourseAccessResponse(course)
         });
     } catch (error) {
         return sendError(res, 500, 'Something went wrong while adding course access');
@@ -888,18 +1177,13 @@ const removeCourseAccessByAdmin = async (req, res) => {
             return sendError(res, 404, 'Course not found');
         }
 
-        const phonesToRemove = new Set(phones);
-        course.allowedUserPhones = (course.allowedUserPhones || [])
-            .filter((phone) => !phonesToRemove.has(normalizePhone(phone)));
+        removeCourseAccessPhones(course, phones);
         await course.save();
 
         return res.status(200).json({
             success: true,
             message: 'Course access removed successfully',
-            data: {
-                allowedUserPhones: course.allowedUserPhones || [],
-                course: formatCourseData(course, {}, { includeAccessList: true })
-            }
+            data: formatCourseAccessResponse(course)
         });
     } catch (error) {
         return sendError(res, 500, 'Something went wrong while removing course access');
@@ -1183,18 +1467,24 @@ const getCoursesByUser = async (req, res) => {
             isPublished: true,
             $or: [
                 { isOpenToAll: true },
-                { allowedUserPhones: userPhone }
+                { allowedUserPhones: userPhone },
+                { 'accessGrants.phone': userPhone }
             ]
         }).sort({ createdAt: -1 });
-        const courseCounts = await getCourseCounts(courses.map((course) => course._id));
+        const accessibleCourses = courses.filter((course) => courseUserHasAccess(course, userPhone));
+        const courseCounts = await getCourseCounts(accessibleCourses.map((course) => course._id));
 
         return res.status(200).json({
             success: true,
             message: 'Courses fetched successfully',
             data: {
-                courses: courses.map((course) => formatCourseData(
+                courses: accessibleCourses.map((course) => formatCourseData(
                     course,
-                    courseCounts.get(course._id.toString()) || {}
+                    courseCounts.get(course._id.toString()) || {},
+                    {
+                        includeUserAccess: true,
+                        userPhone
+                    }
                 ))
             }
         });
@@ -1241,7 +1531,10 @@ const getCourseByUser = async (req, res) => {
             success: true,
             message: 'Course fetched successfully',
             data: {
-                course: formatCourseData(course, counts),
+                course: formatCourseData(course, counts, {
+                    includeUserAccess: true,
+                    userPhone
+                }),
                 chapters: chapters.map(formatUserChapterData)
             }
         });
@@ -1349,6 +1642,9 @@ module.exports = {
     getCourseVideoEmbedByUser,
     normalizePhoneArray,
     courseUserHasAccess,
+    parseCourseDurationMonths,
+    getCourseDurationDays,
+    getCourseAccessWindow,
     parsePlaylistId,
     buildVideoSnapshots
 };

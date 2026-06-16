@@ -331,6 +331,11 @@ const updateUserByAdmin = async (req, res) => {
                 { allowedUserPhones: oldPhone },
                 { $pull: { allowedUserPhones: oldPhone } }
             );
+            await Course.updateMany(
+                { 'accessGrants.phone': oldPhone },
+                { $set: { 'accessGrants.$[grant].phone': user.phone } },
+                { arrayFilters: [{ 'grant.phone': oldPhone }] }
+            );
         }
 
         return res.status(200).json({
@@ -380,6 +385,10 @@ const deleteUserByAdmin = async (req, res) => {
         await Course.updateMany(
             { allowedUserPhones: user.phone },
             { $pull: { allowedUserPhones: user.phone } }
+        );
+        await Course.updateMany(
+            { 'accessGrants.phone': user.phone },
+            { $pull: { accessGrants: { phone: user.phone } } }
         );
 
         return res.status(200).json({

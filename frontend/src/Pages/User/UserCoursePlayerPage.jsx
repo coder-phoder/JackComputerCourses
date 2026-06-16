@@ -23,6 +23,36 @@ const getPlayableVideos = (chapters) => (
   ))
 )
 
+const formatAccessDate = (value) => {
+  const dateValue = String(value || '').slice(0, 10)
+  const [year, month, day] = dateValue.split('-').map(Number)
+
+  if (!year || !month || !day) {
+    return ''
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, day)))
+}
+
+const getAccessText = (course) => {
+  if (!course) {
+    return ''
+  }
+
+  if (course.isOpenToAll) {
+    return 'Open to all'
+  }
+
+  const accessEndDate = formatAccessDate(course.accessEndsOn || course.accessEndsAt)
+
+  return accessEndDate ? `Access ends ${accessEndDate}` : ''
+}
+
 const UserCoursePlayerPage = () => {
   const { courseId } = useParams()
   const { auth, clearAuth, setAuth } = useAuth()
@@ -38,6 +68,7 @@ const UserCoursePlayerPage = () => {
   const selectedVideo = useMemo(() => (
     playableVideos.find((videoItem) => videoItem.key === selectedVideoKey) || null
   ), [playableVideos, selectedVideoKey])
+  const accessText = getAccessText(course)
 
   const fetchCourse = useCallback(async (options = {}) => {
     const shouldUpdate = options.shouldUpdate || (() => true)
@@ -161,6 +192,9 @@ const UserCoursePlayerPage = () => {
             <h1 className="mt-2 text-3xl font-bold text-slate-900">
               {course?.title || 'Loading course...'}
             </h1>
+            {accessText ? (
+              <p className="mt-2 text-sm font-semibold text-slate-600">{accessText}</p>
+            ) : null}
           </div>
           <Link
             to="/user/courses"

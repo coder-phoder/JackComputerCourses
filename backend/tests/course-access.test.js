@@ -3,7 +3,10 @@ const assert = require('node:assert/strict');
 
 const {
     normalizePhoneArray,
-    courseUserHasAccess
+    courseUserHasAccess,
+    parseCourseDurationMonths,
+    getCourseDurationDays,
+    getCourseAccessWindow
 } = require('../controllers/course.controller');
 
 test('normalizePhoneArray trims, splits comma lists, and removes duplicates', () => {
@@ -15,13 +18,20 @@ test('normalizePhoneArray trims, splits comma lists, and removes duplicates', ()
 
 test('courseUserHasAccess allows only phones present on the course', () => {
     const course = {
-        allowedUserPhones: ['9876543210', ' +91 99999 99999 ']
+        duration: '3',
+        allowedUserPhones: ['9876543210', ' +91 99999 99999 '],
+        accessGrants: [
+            { phone: '9876543210', grantedAt: new Date('2026-01-01T10:00:00.000Z') },
+            { phone: '+91 99999 99999', grantedAt: new Date('2026-01-01T10:00:00.000Z') }
+        ]
     };
 
-    assert.equal(courseUserHasAccess(course, '9876543210'), true);
-    assert.equal(courseUserHasAccess(course, '+91 99999 99999'), true);
-    assert.equal(courseUserHasAccess(course, '0000000000'), false);
-    assert.equal(courseUserHasAccess({ allowedUserPhones: [] }, '9876543210'), false);
+    const now = new Date('2026-03-31T23:59:59.999Z');
+
+    assert.equal(courseUserHasAccess(course, '9876543210', { now }), true);
+    assert.equal(courseUserHasAccess(course, '+91 99999 99999', { now }), true);
+    assert.equal(courseUserHasAccess(course, '0000000000', { now }), false);
+    assert.equal(courseUserHasAccess({ duration: '3', allowedUserPhones: [] }, '9876543210', { now }), false);
 });
 
 test('courseUserHasAccess allows any website user for open courses', () => {
@@ -32,4 +42,35 @@ test('courseUserHasAccess allows any website user for open courses', () => {
 
     assert.equal(courseUserHasAccess(course, '0000000000'), true);
     assert.equal(courseUserHasAccess(course, ''), false);
+});
+
+test('course duration accepts only positive month values and converts them to days', () => {
+    assert.equal(parseCourseDurationMonths('3'), 3);
+    assert.equal(parseCourseDurationMonths('1.5'), 1.5);
+    assert.equal(parseCourseDurationMonths('0'), null);
+    assert.equal(parseCourseDurationMonths('8 weeks'), null);
+    assert.equal(getCourseDurationDays('1.5'), 45);
+    assert.equal(getCourseDurationDays('0.1'), 3);
+    assert.equal(getCourseDurationDays('0.01'), 1);
+});
+
+test('course access expires at midnight after the converted duration days', () => {
+    const course = {
+        duration: '3',
+        accessGrants: [
+            { phone: '9876543210', grantedAt: new Date('2026-01-01T10:00:00.000Z') }
+        ]
+    };
+
+    const accessWindow = getCourseAccessWindow(course, '9876543210', new Date('2026-03-31T12:00:00.000Z'));
+
+    assert.equal(accessWindow.startsOn, '2026-01-01');
+    assert.equal(accessWindow.endsOn, '2026-04-01');
+    assert.equal(accessWindow.endsAt.toISOString(), '2026-04-01T00:00:00.000Z');
+    assert.equal(courseUserHasAccess(course, '9876543210', {
+        now: new Date('2026-03-31T23:59:59.999Z')
+    }), true);
+    assert.equal(courseUserHasAccess(course, '9876543210', {
+        now: new Date('2026-04-01T00:00:00.000Z')
+    }), false);
 });
