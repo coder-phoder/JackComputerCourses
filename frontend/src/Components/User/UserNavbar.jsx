@@ -29,6 +29,9 @@ const UserNavbar = () => {
         axios.post(`${API_BASE_URL}/admin/logout`, {}, {
           withCredentials: true,
         }),
+        axios.post(`${API_BASE_URL}/faculty/logout`, {}, {
+          withCredentials: true,
+        }),
       ])
 
       clearAuth()

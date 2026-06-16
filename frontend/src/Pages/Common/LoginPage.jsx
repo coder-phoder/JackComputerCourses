@@ -41,12 +41,27 @@ const LoginPage = () => {
     return response.data.data?.user
   }
 
+  const loginFaculty = async (credentials) => {
+    const response = await axios.post(`${API_BASE_URL}/faculty/login`, credentials, {
+      withCredentials: true,
+    })
+
+    if (!response.data?.success) {
+      throw new Error(response.data?.message || 'Faculty login failed')
+    }
+
+    return response.data.data?.faculty
+  }
+
   const clearExistingSessions = async () => {
     await Promise.all([
       axios.post(`${API_BASE_URL}/admin/logout`, {}, {
         withCredentials: true,
       }),
       axios.post(`${API_BASE_URL}/user/logout`, {}, {
+        withCredentials: true,
+      }),
+      axios.post(`${API_BASE_URL}/faculty/logout`, {}, {
         withCredentials: true,
       }),
     ])
@@ -100,7 +115,18 @@ const LoginPage = () => {
         })
         navigate('/user/home')
       } catch (userLoginError) {
-        setError(getErrorMessage(userLoginError))
+        try {
+          const faculty = await loginFaculty(credentials)
+
+          setAuth({
+            role: 'faculty',
+            phone: faculty?.phone || trimmedPhone,
+            token: null,
+          })
+          navigate('/faculty/home')
+        } catch (facultyLoginError) {
+          setError(getErrorMessage(facultyLoginError || userLoginError))
+        }
       }
     } finally {
       setLoading(false)

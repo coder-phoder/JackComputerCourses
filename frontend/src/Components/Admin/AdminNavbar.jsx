@@ -29,6 +29,9 @@ const AdminNavbar = () => {
         axios.post(`${API_BASE_URL}/user/logout`, {}, {
           withCredentials: true,
         }),
+        axios.post(`${API_BASE_URL}/faculty/logout`, {}, {
+          withCredentials: true,
+        }),
       ])
 
       clearAuth()
@@ -67,6 +70,12 @@ const AdminNavbar = () => {
               Users
             </NavLink>
             <NavLink
+              to="/admin/faculties"
+              className={getNavLinkClass}
+            >
+              Faculties
+            </NavLink>
+            <NavLink
               to="/admin/courses"
               className={getNavLinkClass}
             >
@@ -94,6 +103,9 @@ const AdminNavbar = () => {
         </NavLink>
         <NavLink to="/admin/users" className={getNavLinkClass}>
           Users
+        </NavLink>
+        <NavLink to="/admin/faculties" className={getNavLinkClass}>
+          Faculties
         </NavLink>
         <NavLink to="/admin/courses" className={getNavLinkClass}>
           Courses
