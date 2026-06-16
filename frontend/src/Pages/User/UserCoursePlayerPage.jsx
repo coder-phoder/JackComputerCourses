@@ -2,6 +2,7 @@ import axios from 'axios'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import ThemeToggle from '../../Components/Common/ThemeToggle'
+import UserCodePlayground from '../../Components/User/UserCodePlayground'
 import UserCourseSidebar from '../../Components/User/UserCourseSidebar'
 import UserVideoPlayer from '../../Components/User/UserVideoPlayer'
 import { useAuth } from '../../Context/AuthContext'
@@ -64,6 +65,8 @@ const UserCoursePlayerPage = () => {
   const [loadingCourse, setLoadingCourse] = useState(true)
   const [error, setError] = useState('')
   const [selectedVideoKey, setSelectedVideoKey] = useState('')
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isCodeSidebarCollapsed, setIsCodeSidebarCollapsed] = useState(true)
 
   const playableVideos = useMemo(() => getPlayableVideos(chapters), [chapters])
   const selectedVideo = useMemo(() => (
@@ -183,21 +186,21 @@ const UserCoursePlayerPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
+    <div className="h-screen overflow-hidden bg-slate-50 font-sans dark:bg-slate-950">
+      <main className="mx-auto flex h-full max-w-[1800px] flex-col overflow-hidden px-4 py-4 sm:px-5 lg:px-6">
+        <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
               Course Player
             </p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">
+            <h1 className="mt-1 truncate text-2xl font-bold text-slate-900 dark:text-slate-100">
               {course?.title || 'Loading course...'}
             </h1>
             {accessText ? (
-              <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{accessText}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{accessText}</p>
             ) : null}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             <ThemeToggle />
             <Link
               to="/user/courses"
@@ -209,7 +212,7 @@ const UserCoursePlayerPage = () => {
         </div>
 
         {error ? (
-          <section className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-6 py-10 text-center shadow-sm">
+          <section className="min-h-0 flex-1 rounded-lg border border-red-200 bg-red-50 px-6 py-10 text-center shadow-sm dark:border-red-900/60 dark:bg-red-950/40">
             <h2 className="text-lg font-bold text-red-800 dark:text-red-200">Course unavailable</h2>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-red-700 dark:text-red-300">
               {error}
@@ -224,22 +227,40 @@ const UserCoursePlayerPage = () => {
             </button>
           </section>
         ) : loadingCourse ? (
-          <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center shadow-sm">
+          <section className="min-h-0 flex-1 rounded-lg border border-slate-200 bg-white px-6 py-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Loading course player...</p>
           </section>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-            <div className="order-1 min-w-0 lg:order-2">
-              <UserVideoPlayer
-                course={course}
-                selectedVideo={selectedVideo}
-              />
-            </div>
-            <div className="order-2 lg:order-1">
+          <div className={`grid min-h-0 flex-1 gap-4 ${
+            isSidebarCollapsed
+              ? isCodeSidebarCollapsed
+                ? 'lg:grid-cols-[80px_minmax(0,1fr)] xl:grid-cols-[80px_minmax(0,1fr)_72px]'
+                : 'lg:grid-cols-[80px_minmax(0,1fr)] xl:grid-cols-[80px_minmax(0,1fr)_minmax(420px,0.8fr)]'
+              : isCodeSidebarCollapsed
+                ? 'lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_72px]'
+                : 'lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_minmax(420px,0.8fr)]'
+          }`}
+          >
+            <div className="order-2 min-h-0 lg:order-1">
               <UserCourseSidebar
                 chapters={chapters}
                 selectedVideoKey={selectedVideoKey}
                 onSelectVideo={setSelectedVideoKey}
+                isCollapsed={isSidebarCollapsed}
+                onToggleCollapse={() => setIsSidebarCollapsed((currentValue) => !currentValue)}
+              />
+            </div>
+            <UserVideoPlayer
+              course={course}
+              selectedVideo={selectedVideo}
+              className="order-1 min-h-[320px] lg:order-2 xl:min-h-0"
+            />
+            <div className="order-3 hidden min-h-0 xl:block">
+              <UserCodePlayground
+                courseId={courseId}
+                selectedVideoKey={selectedVideoKey}
+                isCollapsed={isCodeSidebarCollapsed}
+                onToggleCollapse={() => setIsCodeSidebarCollapsed((currentValue) => !currentValue)}
               />
             </div>
           </div>
