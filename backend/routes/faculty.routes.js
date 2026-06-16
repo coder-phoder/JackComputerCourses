@@ -4,6 +4,11 @@ const {
     logoutFaculty,
     getFacultyProfile
 } = require('../controllers/faculty.controller');
+const {
+    getCoursesByFaculty,
+    getCourseByFaculty,
+    getCourseVideoEmbedByFaculty
+} = require('../controllers/course.controller');
 const authFaculty = require('../middlewares/faculty.middleware');
 
 const router = express.Router();
@@ -11,5 +16,12 @@ const router = express.Router();
 router.post('/login', loginFaculty);
 router.post('/logout', logoutFaculty);
 router.get('/profile', authFaculty, getFacultyProfile);
+router.get('/courses', authFaculty, getCoursesByFaculty);
+router.get(
+    '/courses/:courseId/chapters/:chapterId/videos/:videoPosition/embed',
+    authFaculty,
+    getCourseVideoEmbedByFaculty
+);
+router.get('/courses/:courseId', authFaculty, getCourseByFaculty);
 
 module.exports = router;

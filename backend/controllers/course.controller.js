@@ -621,6 +621,24 @@ const formatUserChapterData = (chapter) => ({
     videos: (chapter.videos || []).map((video) => formatUserVideoData(chapter, video))
 });
 
+const formatFacultyVideoData = (chapter, video) => ({
+    id: getUserVideoKey(chapter, video),
+    title: video.title,
+    position: video.position,
+    duration: video.duration,
+    thumbnailUrl: video.thumbnailUrl,
+    watchUrl: video.watchUrl,
+    playerPath: `/faculty/courses/${chapter.courseId.toString()}/chapters/${chapter._id.toString()}/videos/${video.position}/embed`
+});
+
+const formatFacultyChapterData = (chapter) => ({
+    _id: chapter._id.toString(),
+    name: chapter.name,
+    order: chapter.order,
+    videoCount: chapter.videoCount,
+    videos: (chapter.videos || []).map((video) => formatFacultyVideoData(chapter, video))
+});
+
 const buildUserVideoEmbedUrl = (youtubeVideoId) => {
     const params = new URLSearchParams({
         controls: '1',
@@ -1622,6 +1640,140 @@ const getCourseVideoEmbedByUser = async (req, res) => {
     }
 };
 
+const getCoursesByFaculty = async (req, res) => {
+    try {
+        if (!req.faculty?._id) {
+            return sendError(res, 401, 'Invalid faculty token');
+        }
+
+        const courses = await Course.find({}).sort({ createdAt: -1 });
+        const courseCounts = await getCourseCounts(courses.map((course) => course._id));
+
+        return res.status(200).json({
+            success: true,
+            message: 'Courses fetched successfully',
+            data: {
+                courses: courses.map((course) => formatCourseData(
+                    course,
+                    courseCounts.get(course._id.toString()) || {}
+                ))
+            }
+        });
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while fetching courses');
+    }
+};
+
+const getCourseByFaculty = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+
+        if (!req.faculty?._id) {
+            return sendError(res, 401, 'Invalid faculty token');
+        }
+
+        const courseQuery = getUserCourseLookupQuery(courseId);
+
+        if (!courseQuery) {
+            return sendError(res, 400, 'Invalid course id or slug');
+        }
+
+        const course = await Course.findOne(courseQuery);
+
+        if (!course) {
+            return sendError(res, 404, 'Course not found');
+        }
+
+        const chapters = await Chapter.find({ courseId: course._id }).sort({ order: 1, createdAt: 1 });
+        const counts = {
+            chapterCount: chapters.length,
+            videoCount: chapters.reduce((total, chapter) => total + chapter.videoCount, 0)
+        };
+
+        return res.status(200).json({
+            success: true,
+            message: 'Course fetched successfully',
+            data: {
+                course: formatCourseData(course, counts),
+                chapters: chapters.map(formatFacultyChapterData)
+            }
+        });
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while fetching course');
+    }
+};
+
+const getCourseVideoEmbedByFaculty = async (req, res) => {
+    try {
+        const { courseId, chapterId, videoPosition } = req.params;
+
+        if (!req.faculty?._id) {
+            return sendError(res, 401, 'Invalid faculty token');
+        }
+
+        const courseQuery = getUserCourseLookupQuery(courseId);
+
+        if (!courseQuery) {
+            return sendError(res, 400, 'Invalid course id or slug');
+        }
+
+        if (!isValidObjectId(chapterId)) {
+            return sendError(res, 400, 'Invalid chapter id');
+        }
+
+        const parsedVideoPosition = parseNonNegativeInteger(videoPosition);
+
+        if (parsedVideoPosition === null) {
+            return sendError(res, 400, 'Invalid video position');
+        }
+
+        const course = await Course.findOne(courseQuery);
+
+        if (!course) {
+            return sendError(res, 404, 'Course not found');
+        }
+
+        const chapter = await Chapter.findOne({
+            _id: chapterId,
+            courseId: course._id
+        });
+
+        if (!chapter) {
+            return sendError(res, 404, 'Chapter not found');
+        }
+
+        const video = (chapter.videos || []).find((chapterVideo) => (
+            Number(chapterVideo.position) === parsedVideoPosition
+        ));
+
+        if (!video?.youtubeVideoId) {
+            return sendError(res, 404, 'Video not found');
+        }
+
+        const embedUrl = buildUserVideoEmbedUrl(video.youtubeVideoId);
+        const frameAncestors = getFrameAncestors();
+
+        return res
+            .status(200)
+            .set({
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-store',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Security-Policy': [
+                    "default-src 'none'",
+                    "base-uri 'none'",
+                    "form-action 'none'",
+                    "style-src 'unsafe-inline'",
+                    'frame-src https://www.youtube-nocookie.com https://www.youtube.com',
+                    frameAncestors ? `frame-ancestors 'self' ${frameAncestors}` : "frame-ancestors 'self'"
+                ].join('; ')
+            })
+            .send(buildUserVideoEmbedHtml(embedUrl, video.title));
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while loading video');
+    }
+};
+
 module.exports = {
     getAllCoursesByAdmin,
     createCourseByAdmin,
@@ -1640,6 +1792,9 @@ module.exports = {
     getCoursesByUser,
     getCourseByUser,
     getCourseVideoEmbedByUser,
+    getCoursesByFaculty,
+    getCourseByFaculty,
+    getCourseVideoEmbedByFaculty,
     normalizePhoneArray,
     courseUserHasAccess,
     parseCourseDurationMonths,

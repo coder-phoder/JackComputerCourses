@@ -13,6 +13,8 @@ import AdminCourses from './Pages/Admin/AdminCourses'
 import Course from './Pages/Admin/Course'
 import CourseAccessPage from './Pages/Admin/CourseAccessPage'
 import FacultyHomePage from './Pages/Faculty/FacultyHomePage'
+import FacultyCoursesPage from './Pages/Faculty/FacultyCoursesPage'
+import FacultyCoursePage from './Pages/Faculty/FacultyCoursePage'
 
 const App = () => {
   return (
@@ -26,6 +28,8 @@ const App = () => {
           <Route path="/user/courses" element={<UserCoursesPage />} />
           <Route path="/user/courses/:courseId/player" element={<UserCoursePlayerPage />} />
           <Route path="/faculty/home" element={<FacultyHomePage />} />
+          <Route path="/faculty/courses" element={<FacultyCoursesPage />} />
+          <Route path="/faculty/courses/:courseId" element={<FacultyCoursePage />} />
           <Route path="/admin/home" element={<AdminHomePage />} />
           <Route path="/admin/users" element={<AdminAllUsers />} />
           <Route path="/admin/faculties" element={<AdminAllFaculties />} />

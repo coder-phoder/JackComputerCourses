@@ -139,7 +139,7 @@ const LoginPage = () => {
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="mb-8 text-center">
             <Link to="/" className="inline-flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-tr from-blue-600 to-indigo-600">
                 <span className="text-xl font-bold text-white">J</span>
               </div>
               <span className="text-2xl font-bold tracking-tight text-gray-900">
