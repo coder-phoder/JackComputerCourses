@@ -27,13 +27,46 @@ const parsePhoneInput = (value) => (
     .filter(Boolean)
 )
 
+const formatAccessDate = (value) => {
+  const dateValue = String(value || '').slice(0, 10)
+  const [year, month, day] = dateValue.split('-').map(Number)
+
+  if (!year || !month || !day) {
+    return ''
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, day)))
+}
+
+const buildAccessGrantList = (data = {}) => {
+  const accessGrants = Array.isArray(data.accessGrants) ? data.accessGrants : []
+
+  if (accessGrants.length) {
+    return accessGrants
+      .map((grant) => ({
+        ...grant,
+        phone: normalizePhone(grant?.phone),
+      }))
+      .filter((grant) => grant.phone)
+  }
+
+  return (data.allowedUserPhones || [])
+    .map((phone) => ({ phone: normalizePhone(phone) }))
+    .filter((grant) => grant.phone)
+}
+
 const CourseAccessPage = () => {
   const { courseId } = useParams()
   const { auth, clearAuth, setAuth } = useAuth()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [course, setCourse] = useState(null)
-  const [accessPhones, setAccessPhones] = useState([])
+  const [accessGrants, setAccessGrants] = useState([])
   const [users, setUsers] = useState([])
   const [loadingAccess, setLoadingAccess] = useState(true)
   const [phoneInput, setPhoneInput] = useState('')
@@ -42,24 +75,27 @@ const CourseAccessPage = () => {
   const [success, setSuccess] = useState('')
 
   const accessPhoneSet = useMemo(() => (
-    new Set(accessPhones.map(normalizePhone).filter(Boolean))
-  ), [accessPhones])
+    new Set(accessGrants.map((grant) => normalizePhone(grant.phone)).filter(Boolean))
+  ), [accessGrants])
 
   const accessUsers = useMemo(() => (
-    accessPhones
-      .map((phone) => {
-        const normalizedPhone = normalizePhone(phone)
+    accessGrants
+      .map((grant) => {
+        const normalizedPhone = normalizePhone(grant.phone)
         const matchingUser = users.find((user) => normalizePhone(user.phone) === normalizedPhone)
 
-        return matchingUser || {
-          _id: normalizedPhone,
-          name: '',
-          phone: normalizedPhone,
+        return {
+          _id: matchingUser?._id || normalizedPhone,
+          name: matchingUser?.name || '',
+          phone: matchingUser?.phone || normalizedPhone,
+          accessEndsAt: grant.accessEndsAt || null,
+          accessEndsOn: grant.accessEndsOn || '',
+          isAccessExpired: Boolean(grant.isAccessExpired),
         }
       })
       .filter((user) => user.phone)
       .sort(sortUsers)
-  ), [accessPhones, users])
+  ), [accessGrants, users])
 
   const availableUsers = useMemo(() => (
     users
@@ -68,7 +104,7 @@ const CourseAccessPage = () => {
   ), [accessPhoneSet, users])
 
   const applyAccessData = useCallback((data = {}) => {
-    setAccessPhones(data.allowedUserPhones || [])
+    setAccessGrants(buildAccessGrantList(data))
 
     if (data.course) {
       setCourse(data.course)
@@ -413,6 +449,9 @@ const CourseAccessPage = () => {
                         <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                           Phone
                         </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Access Ends
+                        </th>
                         <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                           Actions
                         </th>
@@ -422,6 +461,7 @@ const CourseAccessPage = () => {
                       {accessUsers.map((user) => {
                         const removeKey = `remove:${normalizePhone(user.phone)}`
                         const userName = getUserName(user)
+                        const accessEndDate = formatAccessDate(user.accessEndsOn || user.accessEndsAt)
 
                         return (
                           <tr key={user._id}>
@@ -434,6 +474,18 @@ const CourseAccessPage = () => {
                               <span className="text-sm font-semibold text-slate-700">
                                 {user.phone}
                               </span>
+                            </td>
+                            <td className="px-6 py-4 align-top">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-sm font-semibold text-slate-700">
+                                  {accessEndDate || 'N/A'}
+                                </span>
+                                {user.isAccessExpired ? (
+                                  <span className="w-fit rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
+                                    Expired
+                                  </span>
+                                ) : null}
+                              </div>
                             </td>
                             <td className="px-6 py-4 align-top">
                               <div className="flex justify-end">
