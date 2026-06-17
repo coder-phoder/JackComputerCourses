@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
 import { io } from 'socket.io-client'
-import { Play, Square, RotateCcw, AlertTriangle, Terminal as TerminalIcon } from 'lucide-react'
+import { Play, Square, RotateCcw, AlertTriangle, Settings, Terminal as TerminalIcon } from 'lucide-react'
 import UserNavbar from '../../Components/User/UserNavbar'
 import { useAuth } from '../../Context/AuthContext'
 import { useTheme } from '../../Context/ThemeContext'
@@ -56,6 +56,29 @@ const UserIdePage = () => {
   
   const terminalRef = useRef(null)
   const inputRef = useRef(null)
+
+  const [fontSize, setFontSize] = useState(() => {
+    const saved = localStorage.getItem('jack_ide_font_size')
+    return saved ? parseInt(saved, 10) : 18
+  })
+
+  const [showSettings, setShowSettings] = useState(false)
+
+  const handleIncreaseFont = () => {
+    setFontSize((prev) => {
+      const next = Math.min(24, prev + 1)
+      localStorage.setItem('jack_ide_font_size', next)
+      return next
+    })
+  }
+
+  const handleDecreaseFont = () => {
+    setFontSize((prev) => {
+      const next = Math.max(10, prev - 1)
+      localStorage.setItem('jack_ide_font_size', next)
+      return next
+    })
+  }
 
   // Auth Verification
   useEffect(() => {
@@ -261,6 +284,50 @@ const UserIdePage = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* IDE Settings Popover */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowSettings(!showSettings)}
+                  title="IDE Settings"
+                  className="h-9 w-9 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center justify-center"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+                {showSettings && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowSettings(false)} />
+                    <div className="absolute right-0 mt-2 w-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 p-4 shadow-xl z-20">
+                      <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 select-none">
+                        Editor Settings
+                      </h3>
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-350 select-none">Font Size</span>
+                        <div className="flex items-center gap-1 border border-slate-250 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 rounded px-1.5 py-0.5">
+                          <button
+                            type="button"
+                            onClick={handleDecreaseFont}
+                            className="w-5 h-5 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition select-none"
+                          >
+                            -
+                          </button>
+                          <span className="text-xs font-mono text-slate-750 dark:text-slate-250 font-semibold select-none w-8 text-center">
+                            {fontSize}px
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleIncreaseFont}
+                            className="w-5 h-5 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition select-none"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={handleResetCode}
@@ -304,7 +371,7 @@ const UserIdePage = () => {
               value={code}
               onChange={(value) => setCode(value || '')}
               options={{
-                fontSize: 14,
+                fontSize: fontSize,
                 fontFamily: "'Fira Code', 'Courier New', Courier, monospace",
                 minimap: { enabled: false },
                 automaticLayout: true,

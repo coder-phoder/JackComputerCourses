@@ -65,8 +65,56 @@ const UserCoursePlayerPage = () => {
   const [loadingCourse, setLoadingCourse] = useState(true)
   const [error, setError] = useState('')
   const [selectedVideoKey, setSelectedVideoKey] = useState('')
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
   const [isCodeSidebarCollapsed, setIsCodeSidebarCollapsed] = useState(true)
+  const [ideWidth, setIdeWidth] = useState(480)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const handleMouseDown = (e) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleMouseMove = (e) => {
+      const containerElement = document.getElementById('workspace-container')
+      if (containerElement) {
+        const rect = containerElement.getBoundingClientRect()
+        const newWidth = rect.right - e.clientX
+        if (newWidth > 320 && newWidth < rect.width - 400) {
+          setIdeWidth(newWidth)
+        }
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
+
+  useEffect(() => {
+    if (isDragging) {
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    } else {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    return () => {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isDragging])
 
   const playableVideos = useMemo(() => getPlayableVideos(chapters), [chapters])
   const selectedVideo = useMemo(() => (
@@ -233,12 +281,8 @@ const UserCoursePlayerPage = () => {
         ) : (
           <div className={`grid min-h-0 flex-1 gap-4 ${
             isSidebarCollapsed
-              ? isCodeSidebarCollapsed
-                ? 'lg:grid-cols-[80px_minmax(0,1fr)] xl:grid-cols-[80px_minmax(0,1fr)_72px]'
-                : 'lg:grid-cols-[80px_minmax(0,1fr)] xl:grid-cols-[80px_minmax(0,1fr)_minmax(420px,0.8fr)]'
-              : isCodeSidebarCollapsed
-                ? 'lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_72px]'
-                : 'lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_minmax(420px,0.8fr)]'
+              ? 'lg:grid-cols-[80px_minmax(0,1fr)]'
+              : 'lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)]'
           }`}
           >
             <div className="order-2 min-h-0 lg:order-1">
@@ -250,18 +294,38 @@ const UserCoursePlayerPage = () => {
                 onToggleCollapse={() => setIsSidebarCollapsed((currentValue) => !currentValue)}
               />
             </div>
-            <UserVideoPlayer
-              course={course}
-              selectedVideo={selectedVideo}
-              className="order-1 min-h-[320px] lg:order-2 xl:min-h-0"
-            />
-            <div className="order-3 hidden min-h-0 xl:block">
-              <UserCodePlayground
-                courseId={courseId}
-                selectedVideoKey={selectedVideoKey}
-                isCollapsed={isCodeSidebarCollapsed}
-                onToggleCollapse={() => setIsCodeSidebarCollapsed((currentValue) => !currentValue)}
+
+            {/* Resizable main workspace (Video Player + Monaco IDE Sidebar) */}
+            <div 
+              id="workspace-container"
+              className="order-1 min-h-[320px] lg:order-2 flex flex-col xl:flex-row min-w-0 min-h-0 gap-4 relative overflow-hidden"
+            >
+              <UserVideoPlayer
+                course={course}
+                selectedVideo={selectedVideo}
+                className="flex-1 min-w-0 xl:min-h-0"
               />
+
+              {!isCodeSidebarCollapsed && (
+                <div
+                  onMouseDown={handleMouseDown}
+                  className={`hidden xl:block w-1.5 hover:w-2 hover:bg-blue-500 cursor-col-resize select-none self-stretch transition-all duration-150 rounded ${
+                    isDragging ? 'bg-blue-600 w-2' : 'bg-slate-200 dark:bg-slate-800'
+                  }`}
+                />
+              )}
+
+              <div 
+                className="shrink-0 min-h-0 xl:block"
+                style={isCodeSidebarCollapsed ? { width: '72px' } : { width: `${ideWidth}px` }}
+              >
+                <UserCodePlayground
+                  courseId={courseId}
+                  selectedVideoKey={selectedVideoKey}
+                  isCollapsed={isCodeSidebarCollapsed}
+                  onToggleCollapse={() => setIsCodeSidebarCollapsed((currentValue) => !currentValue)}
+                />
+              </div>
             </div>
           </div>
         )}
