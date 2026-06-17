@@ -30,6 +30,28 @@ const AdminNotes = () => {
   
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [activePreviewFile, setActivePreviewFile] = useState(null)
+
+  // Esc key closes modal & body scroll lock
+  useEffect(() => {
+    if (activePreviewFile) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setActivePreviewFile(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = 'unset'
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activePreviewFile])
 
   const resetMessages = () => {
     setError('')
@@ -530,7 +552,16 @@ const AdminNotes = () => {
                         {notes.files.map((file) => (
                           <div
                             key={file.fileId}
-                            className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 p-3 transition hover:border-indigo-100 hover:shadow-sm"
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setActivePreviewFile(file)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                setActivePreviewFile(file)
+                              }
+                            }}
+                            className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 p-3 transition hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-slate-100/50 dark:hover:bg-slate-950/40 hover:shadow-sm cursor-pointer"
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="shrink-0">{getFileIcon(file.mimeType)}</div>
@@ -543,14 +574,27 @@ const AdminNotes = () => {
                                 </p>
                               </div>
                             </div>
-                            <a
-                              href={file.webViewLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ml-4 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700"
-                            >
-                              View File
-                            </a>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setActivePreviewFile(file)
+                                }}
+                                className="rounded-lg bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-100 dark:hover:bg-indigo-900/40 cursor-pointer"
+                              >
+                                Preview
+                              </button>
+                              <a
+                                href={file.webViewLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700"
+                              >
+                                Open Tab
+                              </a>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -576,6 +620,56 @@ const AdminNotes = () => {
           </div>
         )}
       </main>
+
+      {/* Dynamic Iframe Preview Modal */}
+      {activePreviewFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 overflow-hidden">
+          {/* Backdrop overlay */}
+          <div
+            className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm transition-opacity duration-300 ease-out cursor-pointer"
+            onClick={() => setActivePreviewFile(null)}
+          />
+
+          {/* Modal content panel */}
+          <div 
+            style={{ width: '95vw', maxWidth: '1200px', height: '90vh' }}
+            className="relative z-10 flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden transition-all duration-300 transform scale-100 animate-in fade-in zoom-in-95 ease-out"
+          >
+            {/* Header */}
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4 bg-slate-50 dark:bg-slate-900/50">
+              <div className="min-w-0 pr-4">
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 truncate" title={activePreviewFile.name}>
+                  {activePreviewFile.name}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5 select-none">
+                  {activePreviewFile.mimeType.split('/').pop()?.toUpperCase()} Document
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActivePreviewFile(null)}
+                className="rounded-lg p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition hover:bg-slate-200/50 dark:hover:bg-slate-800 cursor-pointer"
+                aria-label="Close Preview"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Embedded Iframe */}
+            <div className="flex-1 min-h-0 bg-slate-950 relative">
+              <iframe
+                src={`https://drive.google.com/file/d/${activePreviewFile.fileId}/preview`}
+                title={activePreviewFile.name}
+                className="w-full h-full border-0"
+                style={{ display: 'block', width: '100%', height: '100%' }}
+                allow="autoplay"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
