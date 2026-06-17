@@ -563,6 +563,7 @@ const formatCourseData = (course, counts = {}, options = {}) => {
         prerequisites: course.prerequisites || [],
         isPublished: course.isPublished,
         isOpenToAll: Boolean(course.isOpenToAll),
+        showIde: Boolean(course.showIde),
         chapterCount: counts.chapterCount || 0,
         videoCount: counts.videoCount || 0,
         accessUserCount: accessGrants.length,
@@ -796,6 +797,10 @@ const buildCoursePayload = (body, options = {}) => {
 
     if (hasField(body, 'isOpenToAll')) {
         payload.isOpenToAll = normalizeBoolean(body.isOpenToAll);
+    }
+
+    if (hasField(body, 'showIde')) {
+        payload.showIde = normalizeBoolean(body.showIde);
     }
 
     if (isCreate && !payload.slug) {

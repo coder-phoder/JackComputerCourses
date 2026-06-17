@@ -100,6 +100,10 @@ const courseSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    showIde: {
+        type: Boolean,
+        default: false
+    },
     allowedUserPhones: {
         type: [String],
         default: [],

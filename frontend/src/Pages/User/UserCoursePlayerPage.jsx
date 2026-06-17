@@ -306,7 +306,7 @@ const UserCoursePlayerPage = () => {
                 className="flex-1 min-w-0 xl:min-h-0"
               />
 
-              {!isCodeSidebarCollapsed && (
+              {course?.showIde && !isCodeSidebarCollapsed && (
                 <div
                   onMouseDown={handleMouseDown}
                   className={`hidden xl:block w-1.5 hover:w-2 hover:bg-blue-500 cursor-col-resize select-none self-stretch transition-all duration-150 rounded ${
@@ -315,17 +315,19 @@ const UserCoursePlayerPage = () => {
                 />
               )}
 
-              <div 
-                className="shrink-0 min-h-0 xl:block"
-                style={isCodeSidebarCollapsed ? { width: '72px' } : { width: `${ideWidth}px` }}
-              >
-                <UserCodePlayground
-                  courseId={courseId}
-                  selectedVideoKey={selectedVideoKey}
-                  isCollapsed={isCodeSidebarCollapsed}
-                  onToggleCollapse={() => setIsCodeSidebarCollapsed((currentValue) => !currentValue)}
-                />
-              </div>
+              {course?.showIde && (
+                <div 
+                  className="shrink-0 min-h-0 xl:block"
+                  style={isCodeSidebarCollapsed ? { width: '72px' } : { width: `${ideWidth}px` }}
+                >
+                  <UserCodePlayground
+                    courseId={courseId}
+                    selectedVideoKey={selectedVideoKey}
+                    isCollapsed={isCodeSidebarCollapsed}
+                    onToggleCollapse={() => setIsCodeSidebarCollapsed((currentValue) => !currentValue)}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}

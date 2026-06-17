@@ -272,7 +272,7 @@ const AdminCourseForm = ({
           </div>
         ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <label className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3">
           <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Published</span>
           <input
@@ -291,6 +291,18 @@ const AdminCourseForm = ({
             name="isOpenToAll"
             type="checkbox"
             checked={courseForm.isOpenToAll}
+            onChange={onChange}
+            disabled={saving}
+            className="h-5 w-5 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+          />
+        </label>
+
+        <label className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3">
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Show IDE</span>
+          <input
+            name="showIde"
+            type="checkbox"
+            checked={courseForm.showIde}
             onChange={onChange}
             disabled={saving}
             className="h-5 w-5 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"

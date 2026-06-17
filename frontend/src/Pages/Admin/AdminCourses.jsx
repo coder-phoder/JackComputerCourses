@@ -29,6 +29,7 @@ const emptyCourseForm = {
   prerequisites: '',
   isPublished: false,
   isOpenToAll: false,
+  showIde: false,
 }
 
 const getErrorMessage = (error, fallback) => (
@@ -62,6 +63,7 @@ const getCourseForm = (course) => ({
   prerequisites: toListInput(course.prerequisites),
   isPublished: Boolean(course.isPublished),
   isOpenToAll: Boolean(course.isOpenToAll),
+  showIde: Boolean(course.showIde),
 })
 
 const buildCoursePayload = (form, isEditing) => {
@@ -115,6 +117,7 @@ const buildCoursePayload = (form, isEditing) => {
     prerequisites: parseListInput(form.prerequisites),
     isPublished: Boolean(form.isPublished),
     isOpenToAll,
+    showIde: Boolean(form.showIde),
   }
 
   if (slug) {
