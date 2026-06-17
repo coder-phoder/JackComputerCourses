@@ -14,6 +14,7 @@ import AdminAllFaculties from './Pages/Admin/AdminAllFaculties'
 import AdminCourses from './Pages/Admin/AdminCourses'
 import Course from './Pages/Admin/Course'
 import CourseAccessPage from './Pages/Admin/CourseAccessPage'
+import AdminNotes from './Pages/Admin/AdminNotes'
 import FacultyHomePage from './Pages/Faculty/FacultyHomePage'
 import FacultyCoursesPage from './Pages/Faculty/FacultyCoursesPage'
 import FacultyCoursePage from './Pages/Faculty/FacultyCoursePage'
@@ -39,6 +40,7 @@ const App = () => {
             <Route path="/admin/faculties" element={<AdminAllFaculties />} />
             <Route path="/admin/courses" element={<AdminCourses />} />
             <Route path="/admin/courses/:courseId/access" element={<CourseAccessPage />} />
+            <Route path="/admin/courses/:courseId/notes" element={<AdminNotes />} />
             <Route path="/admin/courses/:courseId" element={<Course />} />
           </Routes>
         </Router>

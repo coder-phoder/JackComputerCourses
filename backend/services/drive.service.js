@@ -50,7 +50,9 @@ const fetchFolderFiles = async (folderId) => {
                 key: apiKey,
                 fields: 'files(id, name, mimeType, webViewLink, iconLink)',
                 orderBy: 'name',
-                pageSize: 1000
+                pageSize: 1000,
+                supportsAllDrives: true,
+                includeItemsFromAllDrives: true
             }
         });
 
@@ -64,8 +66,13 @@ const fetchFolderFiles = async (folderId) => {
             iconLink: file.iconLink || ''
         }));
     } catch (error) {
-        const apiMessage = error.response?.data?.error?.message;
-        const errorMessage = apiMessage || error.message || 'Failed to fetch files from Google Drive';
+        const apiMessage = error.response?.data?.error?.message || '';
+        let errorMessage = apiMessage || error.message || 'Failed to fetch files from Google Drive';
+
+        if (errorMessage.includes('google.apps.drive.v3.DriveFiles.List') || errorMessage.toLowerCase().includes('blocked')) {
+            errorMessage = 'Google Drive API is not enabled or is restricted on your API key. Please go to Google Cloud Console, enable the "Google Drive API" for your project, and check "API restrictions" under your Credentials to ensure the Google Drive API is allowed.';
+        }
+
         throw new Error(errorMessage);
     }
 };

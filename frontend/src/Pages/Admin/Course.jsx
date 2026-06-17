@@ -374,6 +374,14 @@ const Course = () => {
               User Access
             </Link>
           ) : null}
+          {course ? (
+            <Link
+              to={`/admin/courses/${courseId}/notes`}
+              className="inline-flex rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
+            >
+              Manage Notes
+            </Link>
+          ) : null}
         </div>
 
         {loadingCourse ? (
