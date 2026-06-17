@@ -1,53 +1,40 @@
-import axios from 'axios'
-import { useEffect, useMemo, useState } from 'react'
-import { Code2, PanelRightClose, PanelRightOpen, Play, RotateCcw, Terminal } from 'lucide-react'
+import { useEffect, useMemo, useState, useRef } from 'react'
+import { Code2, PanelRightClose, PanelRightOpen, Play, Square, RotateCcw, Terminal } from 'lucide-react'
+import { io } from 'socket.io-client'
+import Editor from '@monaco-editor/react'
 
-const API_BASE_URL = import.meta.env.VITE_BASE_URL
+const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
 
-const LANGUAGES = [
-  {
-    value: 'c',
-    label: 'C',
-    starterCode: `#include <stdio.h>
+const BOILERPLATES = {
+  c: `#include <stdio.h>
 
-int main(void) {
+int main() {
     printf("hello world\\n");
     return 0;
 }`,
-  },
-  {
-    value: 'cpp',
-    label: 'C++',
-    starterCode: `#include <iostream>
-using namespace std;
+  cpp: `#include <iostream>
 
 int main() {
-    cout << "hello world" << endl;
+    std::cout << "hello world" << std::endl;
     return 0;
 }`,
-  },
-  {
-    value: 'java',
-    label: 'Java',
-    starterCode: `public class Main {
+  java: `public class Main {
     public static void main(String[] args) {
         System.out.println("hello world");
     }
 }`,
-  },
-  {
-    value: 'python',
-    label: 'Python',
-    starterCode: `print("hello world")`,
-  },
-  {
-    value: 'javascript',
-    label: 'JavaScript',
-    starterCode: `console.log("hello world")`,
-  },
-]
+  python: `print("hello world")
+`,
+  javascript: `console.log("hello world");`
+}
 
-const DEFAULT_LANGUAGE = 'python'
+const LANGUAGES = [
+  { value: 'c', label: 'C', monacoLang: 'c', starterCode: BOILERPLATES.c },
+  { value: 'cpp', label: 'C++', monacoLang: 'cpp', starterCode: BOILERPLATES.cpp },
+  { value: 'java', label: 'Java', monacoLang: 'java', starterCode: BOILERPLATES.java },
+  { value: 'python', label: 'Python', monacoLang: 'python', starterCode: BOILERPLATES.python },
+  { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript', starterCode: BOILERPLATES.javascript }
+]
 
 const getLanguageConfig = (language) => (
   LANGUAGES.find((item) => item.value === language) || LANGUAGES[LANGUAGES.length - 1]
@@ -69,55 +56,124 @@ const storeCode = (storageKey, code) => {
   try {
     window.localStorage.setItem(storageKey, code)
   } catch {
-    // Local draft persistence is optional; the editor still works without it.
+    // Local draft persistence is optional
   }
 }
 
 const CodePlaygroundEditor = ({ storageKey, language }) => {
-  const [code, setCode] = useState(() => getStoredCode(storageKey, language))
-  const [output, setOutput] = useState('')
-  const [runError, setRunError] = useState('')
-  const [running, setRunning] = useState(false)
   const languageConfig = getLanguageConfig(language)
+  const [code, setCode] = useState(() => getStoredCode(storageKey, language))
+  const [terminalOutput, setTerminalOutput] = useState('')
+  const [inputVal, setInputVal] = useState('')
+  const [isRunning, setIsRunning] = useState(false)
+  const [socket, setSocket] = useState(null)
 
+  const terminalRef = useRef(null)
+  const inputRef = useRef(null)
+
+  // Sync code to localStorage when it changes
   useEffect(() => {
     storeCode(storageKey, code)
   }, [code, storageKey])
 
-  const handleRunCode = async () => {
-    setRunning(true)
-    setRunError('')
-    setOutput('Running...')
+  // Socket Connection Setup
+  useEffect(() => {
+    const socketInstance = io(API_BASE_URL, {
+      withCredentials: true,
+      transports: ['websocket', 'polling']
+    })
 
-    try {
-      const response = await axios.post(
-        `${API_BASE_URL}/user/code/run`,
-        { language, code },
-        { withCredentials: true },
-      )
-      const responseData = response.data?.data || {}
+    socketInstance.on('connect', () => {
+      console.log('Playground connected to run server')
+    })
 
-      if (!response.data?.success) {
-        throw new Error(response.data?.message || 'Unable to run code')
-      }
+    socketInstance.on('terminal-output', (data) => {
+      setTerminalOutput((prev) => prev + data)
+    })
 
-      setOutput(responseData.output || 'Finished with no output.')
-      setRunError(responseData.error || '')
-    } catch (error) {
-      const responseData = error?.response?.data?.data || {}
-      const message = error?.response?.data?.message || error?.message || 'Unable to run code'
+    socketInstance.on('process-exit', (exitCode) => {
+      setTerminalOutput((prev) => prev + `\n--- Process exited with code ${exitCode} ---\n`)
+      setIsRunning(false)
+    })
 
-      setOutput(responseData.output || '')
-      setRunError(responseData.error || message)
-    } finally {
-      setRunning(false)
+    socketInstance.on('connect_error', () => {
+      setTerminalOutput((prev) => prev + '\nSystem: Server connection error. Make sure backend is running.\n')
+      setIsRunning(false)
+    })
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSocket(socketInstance)
+
+    return () => {
+      socketInstance.disconnect()
+    }
+  }, [])
+
+  // Auto scroll terminal to bottom on output changes or typing
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight
+    }
+  }, [terminalOutput, inputVal])
+
+  // Keep input focused when running
+  useEffect(() => {
+    if (isRunning && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [isRunning, terminalOutput])
+
+  // Execution Start / Run
+  const handleRunCode = () => {
+    if (!socket || isRunning) return
+
+    setTerminalOutput('--- Starting compilation and execution ---\n')
+    setIsRunning(true)
+    setInputVal('')
+
+    socket.emit('run-code', {
+      language,
+      code
+    })
+  }
+
+  // Execution Stop
+  const handleStopCode = () => {
+    if (!socket || !isRunning) return
+    socket.emit('stop-code')
+  }
+
+  // Stdin Input Submitting
+  const handleInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      if (!socket || !isRunning) return
+
+      const toSend = inputVal + '\n'
+      
+      // Echo the typed input into terminal
+      setTerminalOutput((prev) => prev + inputVal + '\n')
+      
+      // Send input characters via socket
+      socket.emit('terminal-input', toSend)
+      setInputVal('')
+    }
+  }
+
+  const handleClearTerminal = () => {
+    setTerminalOutput('')
+  }
+
+  const handleTerminalClick = () => {
+    if (inputRef.current) {
+      inputRef.current.focus()
     }
   }
 
   const handleResetCode = () => {
-    setRunError('')
-    setOutput('')
-    setCode(languageConfig.starterCode)
+    if (window.confirm(`Are you sure you want to reset the ${languageConfig.label} code to boilerplate template?`)) {
+      setCode(languageConfig.starterCode)
+      storeCode(storageKey, languageConfig.starterCode)
+    }
   }
 
   return (
@@ -136,19 +192,30 @@ const CodePlaygroundEditor = ({ storageKey, language }) => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleRunCode}
-            disabled={running}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300 dark:disabled:bg-blue-900"
-          >
-            <Play className="h-4 w-4" aria-hidden="true" />
-            {running ? 'Running' : 'Run'}
-          </button>
+          {isRunning ? (
+            <button
+              type="button"
+              onClick={handleStopCode}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 text-sm font-semibold text-white transition hover:bg-rose-700 active:scale-95"
+            >
+              <Square className="h-4 w-4 fill-white" aria-hidden="true" />
+              Stop
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleRunCode}
+              disabled={!socket}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:bg-slate-400 dark:disabled:bg-slate-700 active:scale-95 animate-none"
+            >
+              <Play className="h-4 w-4 fill-white" aria-hidden="true" />
+              Run
+            </button>
+          )}
           <button
             type="button"
             onClick={handleResetCode}
-            disabled={running}
+            disabled={isRunning}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-700 dark:hover:text-blue-300"
           >
             <RotateCcw className="h-4 w-4" aria-hidden="true" />
@@ -158,38 +225,81 @@ const CodePlaygroundEditor = ({ storageKey, language }) => {
       </div>
 
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_170px]">
-        <label className="min-h-0">
-          <span className="sr-only">Code editor</span>
-          <textarea
+        {/* Monaco Editor Container */}
+        <div className="min-h-0 w-full relative">
+          <Editor
+            height="100%"
+            language={languageConfig.monacoLang}
+            theme="vs-dark"
             value={code}
-            onChange={(event) => setCode(event.target.value)}
-            spellCheck="false"
-            className="h-full w-full resize-none border-0 bg-slate-950 p-4 font-mono text-sm leading-6 text-slate-100 outline-none ring-0 placeholder:text-slate-500 focus:ring-0"
+            onChange={(value) => setCode(value || '')}
+            options={{
+              fontSize: 13,
+              fontFamily: "'Fira Code', 'Courier New', Courier, monospace",
+              minimap: { enabled: false },
+              automaticLayout: true,
+              padding: { top: 12, bottom: 12 },
+              cursorBlinking: 'smooth',
+              cursorSmoothCaretAnimation: 'on',
+              smoothScrolling: true,
+              scrollbar: {
+                verticalScrollbarSize: 8,
+                horizontalScrollbarSize: 8
+              }
+            }}
           />
-        </label>
+        </div>
 
-        <div className="min-h-0 border-t border-slate-800 bg-slate-950">
-          <div className="flex h-10 items-center justify-between border-b border-slate-800 px-4">
+        {/* Interactive Terminal Container */}
+        <div className="min-h-0 border-t border-slate-800 bg-slate-950 flex flex-col">
+          <div className="flex h-10 items-center justify-between border-b border-slate-800 px-4 shrink-0">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
               <Terminal className="h-4 w-4" aria-hidden="true" />
-              <span>Output</span>
+              <span>Interactive Terminal</span>
+              {isRunning && (
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              )}
             </div>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-              runError
-                ? 'bg-red-500/15 text-red-300'
-                : 'bg-emerald-500/15 text-emerald-300'
-            }`}
+            <button
+              type="button"
+              onClick={handleClearTerminal}
+              className="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded border border-slate-850 hover:border-slate-700 bg-slate-950 font-semibold transition"
             >
-              {runError ? 'Error' : 'Ready'}
-            </span>
+              Clear Logs
+            </button>
           </div>
 
-          <pre className={`h-[calc(100%-40px)] overflow-auto whitespace-pre-wrap p-4 font-mono text-sm leading-6 ${
-            runError ? 'text-red-200' : 'text-slate-100'
-          }`}
+          <div 
+            ref={terminalRef}
+            onClick={handleTerminalClick}
+            className="flex-1 overflow-y-auto px-4 py-3 font-mono text-xs leading-relaxed whitespace-pre-wrap selection:bg-slate-800 cursor-text"
           >
-            {runError || output || 'No output yet.'}
-          </pre>
+            {terminalOutput ? (
+              <span className="text-slate-100">{terminalOutput}</span>
+            ) : (
+              <div className="flex items-center gap-2 text-slate-500 py-2">
+                <span className="italic">Terminal logs are empty. Run your code to start.</span>
+              </div>
+            )}
+            {isRunning && (
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputVal}
+                onChange={(e) => setInputVal(e.target.value)}
+                onKeyDown={handleInputKeyDown}
+                className="inline bg-transparent border-none outline-none font-mono text-xs text-slate-100 m-0 p-0 focus:ring-0 focus:border-none focus:outline-none caret-emerald-400 select-text"
+                style={{
+                  width: `${Math.max(1, inputVal.length)}ch`,
+                  minWidth: '8px'
+                }}
+                autoFocus
+              />
+            )}
+          </div>
         </div>
       </div>
     </section>
@@ -202,7 +312,7 @@ const UserCodePlayground = ({
   isCollapsed = false,
   onToggleCollapse,
 }) => {
-  const [language, setLanguage] = useState(DEFAULT_LANGUAGE)
+  const [language, setLanguage] = useState('python')
   const storageKey = useMemo(
     () => getStorageKey(courseId, selectedVideoKey, language),
     [courseId, selectedVideoKey, language],
