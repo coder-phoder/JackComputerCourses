@@ -9,6 +9,7 @@ const {
     getCourseByFaculty,
     getCourseVideoEmbedByFaculty
 } = require('../controllers/course.controller');
+const { getNoteByFaculty } = require('../controllers/note.controller');
 const authFaculty = require('../middlewares/faculty.middleware');
 
 const router = express.Router();
@@ -22,6 +23,7 @@ router.get(
     authFaculty,
     getCourseVideoEmbedByFaculty
 );
+router.get('/courses/:courseId/notes', authFaculty, getNoteByFaculty);
 router.get('/courses/:courseId', authFaculty, getCourseByFaculty);
 
 module.exports = router;
