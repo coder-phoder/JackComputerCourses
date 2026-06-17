@@ -64,6 +64,55 @@ const UserIdePage = () => {
 
   const [showSettings, setShowSettings] = useState(false)
 
+  const [terminalHeight, setTerminalHeight] = useState(240)
+  const [isDraggingHeight, setIsDraggingHeight] = useState(false)
+
+  const handleHeightMouseDown = (e) => {
+    e.preventDefault()
+    setIsDraggingHeight(true)
+  }
+
+  useEffect(() => {
+    if (!isDraggingHeight) return
+
+    const handleMouseMove = (e) => {
+      const containerElement = document.getElementById('ide-workspace-container')
+      if (containerElement) {
+        const rect = containerElement.getBoundingClientRect()
+        const newHeight = rect.bottom - e.clientY
+        if (newHeight > 120 && newHeight < rect.height - 180) {
+          setTerminalHeight(newHeight)
+        }
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDraggingHeight(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDraggingHeight])
+
+  useEffect(() => {
+    if (isDraggingHeight) {
+      document.body.style.cursor = 'row-resize'
+      document.body.style.userSelect = 'none'
+    } else {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    return () => {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isDraggingHeight])
+
   const handleIncreaseFont = () => {
     setFontSize((prev) => {
       const next = Math.min(24, prev + 1)
@@ -185,11 +234,9 @@ const UserIdePage = () => {
 
   // Code Reset
   const handleResetCode = () => {
-    if (window.confirm(`Are you sure you want to reset the ${LANGUAGES.find(l => l.value === language).label} code to boilerplate template?`)) {
-      const resetVal = BOILERPLATES[language]
-      setCode(resetVal)
-      localStorage.setItem(`jack_ide_code_${language}`, resetVal)
-    }
+    const resetVal = BOILERPLATES[language]
+    setCode(resetVal)
+    localStorage.setItem(`jack_ide_code_${language}`, resetVal)
   }
 
   // Execution Start / Run
@@ -257,10 +304,13 @@ const UserIdePage = () => {
       <UserNavbar />
 
       {/* Main Workspace Layout */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <div 
+        id="ide-workspace-container"
+        className="flex-1 flex flex-col min-h-0 overflow-hidden relative"
+      >
         
         {/* Code Editor Panel */}
-        <div className="flex-1 flex flex-col min-h-0 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800">
+        <div className="flex-1 flex flex-col min-h-0">
           
           {/* Controls Header */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-10">
@@ -388,8 +438,19 @@ const UserIdePage = () => {
           </div>
         </div>
 
+        {/* Draggable Divider (Horizontal) */}
+        <div
+          onMouseDown={handleHeightMouseDown}
+          className={`h-1.5 hover:h-2 hover:bg-blue-500 cursor-row-resize select-none transition-all duration-150 rounded shrink-0 ${
+            isDraggingHeight ? 'bg-blue-600 h-2' : 'bg-slate-200 dark:bg-slate-800'
+          }`}
+        />
+
         {/* Interactive Terminal Panel */}
-        <div className="w-full md:w-96 flex flex-col min-h-0 bg-slate-950 border-t md:border-t-0 md:border-l border-slate-900 text-slate-100 overflow-hidden shadow-2xl relative">
+        <div 
+          style={{ height: `${terminalHeight}px` }}
+          className="flex flex-col min-h-0 bg-slate-950 text-slate-100 overflow-hidden shadow-2xl relative shrink-0 border-t border-slate-900"
+        >
           
           {/* Terminal Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-950">

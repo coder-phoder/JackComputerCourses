@@ -78,6 +78,55 @@ const CodePlaygroundEditor = ({ storageKey, language }) => {
 
   const [showSettings, setShowSettings] = useState(false)
 
+  const [terminalHeight, setTerminalHeight] = useState(170)
+  const [isDraggingHeight, setIsDraggingHeight] = useState(false)
+
+  const handleHeightMouseDown = (e) => {
+    e.preventDefault()
+    setIsDraggingHeight(true)
+  }
+
+  useEffect(() => {
+    if (!isDraggingHeight) return
+
+    const handleMouseMove = (e) => {
+      const containerElement = document.getElementById('playground-editor-container')
+      if (containerElement) {
+        const rect = containerElement.getBoundingClientRect()
+        const newHeight = rect.bottom - e.clientY
+        if (newHeight > 80 && newHeight < rect.height - 120) {
+          setTerminalHeight(newHeight)
+        }
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDraggingHeight(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDraggingHeight])
+
+  useEffect(() => {
+    if (isDraggingHeight) {
+      document.body.style.cursor = 'row-resize'
+      document.body.style.userSelect = 'none'
+    } else {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    return () => {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isDraggingHeight])
+
   const handleIncreaseFont = () => {
     setFontSize((prev) => {
       const next = Math.min(24, prev + 1)
@@ -193,14 +242,15 @@ const CodePlaygroundEditor = ({ storageKey, language }) => {
   }
 
   const handleResetCode = () => {
-    if (window.confirm(`Are you sure you want to reset the ${languageConfig.label} code to boilerplate template?`)) {
-      setCode(languageConfig.starterCode)
-      storeCode(storageKey, languageConfig.starterCode)
-    }
+    setCode(languageConfig.starterCode)
+    storeCode(storageKey, languageConfig.starterCode)
   }
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section 
+      id="playground-editor-container"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+    >
       <div className="flex shrink-0 flex-col gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
@@ -291,9 +341,9 @@ const CodePlaygroundEditor = ({ storageKey, language }) => {
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_170px]">
+      <div className="flex flex-col min-h-0 flex-1">
         {/* Monaco Editor Container */}
-        <div className="min-h-0 w-full relative">
+        <div className="flex-1 min-h-0 w-full relative">
           <Editor
             height="100%"
             language={languageConfig.monacoLang}
@@ -317,8 +367,19 @@ const CodePlaygroundEditor = ({ storageKey, language }) => {
           />
         </div>
 
+        {/* Draggable Divider (Horizontal) */}
+        <div
+          onMouseDown={handleHeightMouseDown}
+          className={`h-1.5 hover:h-2 hover:bg-blue-500 cursor-row-resize select-none transition-all duration-150 rounded shrink-0 ${
+            isDraggingHeight ? 'bg-blue-600 h-2' : 'bg-slate-200 dark:bg-slate-800'
+          }`}
+        />
+
         {/* Interactive Terminal Container */}
-        <div className="min-h-0 border-t border-slate-800 bg-slate-950 flex flex-col">
+        <div 
+          style={{ height: `${terminalHeight}px` }}
+          className="min-h-0 border-t border-slate-800 bg-slate-950 flex flex-col shrink-0"
+        >
           <div className="flex h-10 items-center justify-between border-b border-slate-800 px-4 shrink-0">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
               <Terminal className="h-4 w-4" aria-hidden="true" />
