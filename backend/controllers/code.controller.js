@@ -239,5 +239,6 @@ const runCode = async (req, res) => {
 };
 
 module.exports = {
-    runCode
+    runCode,
+    languageConfigs
 };

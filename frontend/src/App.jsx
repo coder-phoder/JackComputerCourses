@@ -7,6 +7,7 @@ import RegisterPage from './Pages/Common/RegisterPage'
 import UserHomePage from './Pages/User/UserHomePage'
 import UserCoursesPage from './Pages/User/UserCoursesPage'
 import UserCoursePlayerPage from './Pages/User/UserCoursePlayerPage'
+import UserIdePage from './Pages/User/UserIdePage'
 import AdminHomePage from './Pages/Admin/AdminHomePage'
 import AdminAllUsers from './Pages/Admin/AdminAllUsers'
 import AdminAllFaculties from './Pages/Admin/AdminAllFaculties'
@@ -29,6 +30,7 @@ const App = () => {
             <Route path="/user/home" element={<UserHomePage />} />
             <Route path="/user/courses" element={<UserCoursesPage />} />
             <Route path="/user/courses/:courseId/player" element={<UserCoursePlayerPage />} />
+            <Route path="/user/ide" element={<UserIdePage />} />
             <Route path="/faculty/home" element={<FacultyHomePage />} />
             <Route path="/faculty/courses" element={<FacultyCoursesPage />} />
             <Route path="/faculty/courses/:courseId" element={<FacultyCoursePage />} />

@@ -52,8 +52,22 @@ app.use((error, req, res, next) => {
     });
 });
 
+const http = require('http');
+const { Server } = require('socket.io');
+const { initSocket } = require('./services/socket.service');
+
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: process.env.CLIENT_URL || 'http://localhost:5173',
+        credentials: true
+    }
+});
+
+initSocket(io);
+
 if (require.main === module) {
-    app.listen(PORT, (error) => {
+    server.listen(PORT, (error) => {
         if (error) {
             console.log('error in server connection: ', error);
             return;
