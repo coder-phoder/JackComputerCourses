@@ -163,6 +163,8 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [saveError, setSaveError] = useState('')
   const [nodeActionId, setNodeActionId] = useState('')
   const [creatingParentId, setCreatingParentId] = useState('')
+  const [workspaceDraft, setWorkspaceDraft] = useState(null)
+  const [nodeDraft, setNodeDraft] = useState(null)
 
   const [terminalOutput, setTerminalOutput] = useState('')
   const [inputVal, setInputVal] = useState('')
@@ -171,6 +173,12 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
   const terminalRef = useRef(null)
   const inputRef = useRef(null)
+  const workspaceDraftInputRef = useRef(null)
+  const nodeDraftInputRef = useRef(null)
+  const workspaceDraftSubmittingRef = useRef(false)
+  const nodeDraftSubmittingRef = useRef(false)
+  const workspaceDraftCancelingRef = useRef(false)
+  const nodeDraftCancelingRef = useRef(false)
 
   const [fontSize, setFontSize] = useState(() => {
     const saved = localStorage.getItem(storageKeys.fontSize)
@@ -555,6 +563,24 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   }, [explorerWidth, storageKeys.explorerWidth])
 
   useEffect(() => {
+    if (!workspaceDraft || !workspaceDraftInputRef.current) {
+      return
+    }
+
+    workspaceDraftInputRef.current.focus()
+    workspaceDraftInputRef.current.select()
+  }, [workspaceDraft?.id])
+
+  useEffect(() => {
+    if (!nodeDraft || !nodeDraftInputRef.current) {
+      return
+    }
+
+    nodeDraftInputRef.current.focus()
+    nodeDraftInputRef.current.select()
+  }, [nodeDraft?.id])
+
+  useEffect(() => {
     if (terminalRef.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight
     }
@@ -598,71 +624,112 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     activateFile(node, nodes)
   }
 
-  const createWorkspace = async () => {
-    const name = String(window.prompt('Workspace name', 'new-workspace') || '').trim()
-
-    if (!name) {
+  const startCreateWorkspace = () => {
+    if (workspacesLoading || saving) {
       return
     }
 
-    setWorkspacesLoading(true)
     setWorkspaceError('')
+    setWorkspaceDraft({
+      id: `workspace-create-${Date.now()}`,
+      mode: 'create',
+      value: 'new-workspace',
+    })
+  }
 
-    try {
-      const response = await axios.post(`${workspaceBaseUrl}/workspaces`, {
-        name,
-      }, {
-        withCredentials: true,
-      })
+  const startRenameWorkspace = () => {
+    if (!activeWorkspace || workspacesLoading || saving) {
+      return
+    }
 
-      if (!response.data?.success) {
-        throw new Error(response.data?.message || 'Unable to create workspace')
-      }
+    setWorkspaceError('')
+    setWorkspaceDraft({
+      id: `workspace-rename-${activeWorkspace._id}`,
+      mode: 'rename',
+      workspaceId: activeWorkspace._id,
+      originalName: activeWorkspace.name,
+      value: activeWorkspace.name,
+    })
+  }
 
-      const createdWorkspace = response.data?.data?.workspace
-
-      setWorkspaces((currentWorkspaces) => [...currentWorkspaces, createdWorkspace])
-      setActiveWorkspaceId(createdWorkspace._id)
-    } catch (createError) {
-      setWorkspaceError(getErrorMessage(createError, 'Unable to create workspace.'))
-    } finally {
-      setWorkspacesLoading(false)
+  const cancelWorkspaceDraft = () => {
+    if (!workspaceDraftSubmittingRef.current) {
+      workspaceDraftCancelingRef.current = true
+      setWorkspaceDraft(null)
+      window.setTimeout(() => {
+        workspaceDraftCancelingRef.current = false
+      }, 0)
     }
   }
 
-  const renameWorkspace = async () => {
-    if (!activeWorkspace) {
+  const submitWorkspaceDraft = async () => {
+    if (workspaceDraftCancelingRef.current) {
+      workspaceDraftCancelingRef.current = false
       return
     }
 
-    const name = String(window.prompt('Rename workspace', activeWorkspace.name) || '').trim()
-
-    if (!name || name === activeWorkspace.name) {
+    if (!workspaceDraft || workspaceDraftSubmittingRef.current) {
       return
     }
 
+    const name = String(workspaceDraft.value || '').trim()
+
+    if (!name || (workspaceDraft.mode === 'rename' && name === workspaceDraft.originalName)) {
+      setWorkspaceDraft(null)
+      return
+    }
+
+    workspaceDraftSubmittingRef.current = true
     setWorkspacesLoading(true)
     setWorkspaceError('')
 
     try {
-      const response = await axios.patch(`${workspaceBaseUrl}/workspaces/${activeWorkspace._id}`, {
-        name,
-      }, {
-        withCredentials: true,
-      })
+      if (workspaceDraft.mode === 'create') {
+        const response = await axios.post(`${workspaceBaseUrl}/workspaces`, {
+          name,
+        }, {
+          withCredentials: true,
+        })
 
-      if (!response.data?.success) {
-        throw new Error(response.data?.message || 'Unable to rename workspace')
+        if (!response.data?.success) {
+          throw new Error(response.data?.message || 'Unable to create workspace')
+        }
+
+        const createdWorkspace = response.data?.data?.workspace
+
+        if (!createdWorkspace?._id) {
+          throw new Error('Workspace was created without a valid response')
+        }
+
+        setWorkspaces((currentWorkspaces) => [...currentWorkspaces, createdWorkspace])
+        setActiveWorkspaceId(createdWorkspace._id)
+      } else {
+        const response = await axios.patch(`${workspaceBaseUrl}/workspaces/${workspaceDraft.workspaceId}`, {
+          name,
+        }, {
+          withCredentials: true,
+        })
+
+        if (!response.data?.success) {
+          throw new Error(response.data?.message || 'Unable to rename workspace')
+        }
+
+        const updatedWorkspace = response.data?.data?.workspace
+
+        if (!updatedWorkspace?._id) {
+          throw new Error('Workspace was renamed without a valid response')
+        }
+
+        setWorkspaces((currentWorkspaces) => currentWorkspaces.map((workspace) => (
+          workspace._id === updatedWorkspace._id ? updatedWorkspace : workspace
+        )))
       }
 
-      const updatedWorkspace = response.data?.data?.workspace
-
-      setWorkspaces((currentWorkspaces) => currentWorkspaces.map((workspace) => (
-        workspace._id === updatedWorkspace._id ? updatedWorkspace : workspace
-      )))
-    } catch (renameError) {
-      setWorkspaceError(getErrorMessage(renameError, 'Unable to rename workspace.'))
+      setWorkspaceDraft(null)
+    } catch (draftError) {
+      setWorkspaceError(getErrorMessage(draftError, `Unable to ${workspaceDraft.mode} workspace.`))
     } finally {
+      workspaceDraftSubmittingRef.current = false
       setWorkspacesLoading(false)
     }
   }
@@ -701,34 +768,68 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     }
   }
 
-  const createWorkspaceNode = async (type, parentId = null, forcedName = '') => {
-    const isFile = type === 'file'
-    const fallbackName = isFile ? 'main.py' : 'New Folder'
-    const promptedName = forcedName || window.prompt(isFile ? 'File name' : 'Folder name', fallbackName)
-    const name = String(promptedName || '').trim()
-
-    if (!name) {
-      return
-    }
-
-    if (isFile && !getLanguageFromFileName(name)) {
-      setWorkspaceError('Only .c, .cpp, .java, .py and .js files are supported.')
-      return
-    }
-
+  const startCreateWorkspaceNode = (type, parentId = null) => {
     if (!workspaceNodesUrl) {
       setWorkspaceError('Select a workspace before creating files.')
       return
     }
 
-    setCreatingParentId(parentId || 'root')
+    const normalizedParentId = parentId || null
+
+    if (normalizedParentId) {
+      setExpandedFolders((currentFolders) => {
+        const nextFolders = new Set(currentFolders)
+        nextFolders.add(normalizedParentId)
+        return nextFolders
+      })
+    }
+
+    setWorkspaceError('')
+    setNodeDraft({
+      id: `node-create-${type}-${normalizedParentId || 'root'}-${Date.now()}`,
+      mode: 'create',
+      type,
+      parentId: normalizedParentId,
+      value: type === 'file' ? 'main.py' : 'New Folder',
+    })
+  }
+
+  const cancelNodeDraft = () => {
+    if (!nodeDraftSubmittingRef.current) {
+      nodeDraftCancelingRef.current = true
+      setNodeDraft(null)
+      window.setTimeout(() => {
+        nodeDraftCancelingRef.current = false
+      }, 0)
+    }
+  }
+
+  const persistWorkspaceNodeCreation = async (type, parentId = null, name) => {
+    const isFile = type === 'file'
+    const normalizedParentId = parentId || null
+
+    if (!name) {
+      return false
+    }
+
+    if (isFile && !getLanguageFromFileName(name)) {
+      setWorkspaceError('Only .c, .cpp, .java, .py and .js files are supported.')
+      return false
+    }
+
+    if (!workspaceNodesUrl) {
+      setWorkspaceError('Select a workspace before creating files.')
+      return false
+    }
+
+    setCreatingParentId(normalizedParentId || 'root')
     setWorkspaceError('')
 
     try {
       const response = await axios.post(workspaceNodesUrl, {
         type,
         name,
-        parentId,
+        parentId: normalizedParentId,
       }, {
         withCredentials: true,
       })
@@ -739,12 +840,16 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
       const createdNode = response.data?.data?.node
 
+      if (!createdNode?._id) {
+        throw new Error('Workspace item was created without a valid response')
+      }
+
       setNodes((currentNodes) => [...currentNodes, createdNode])
 
-      if (parentId) {
+      if (normalizedParentId) {
         setExpandedFolders((currentFolders) => {
           const nextFolders = new Set(currentFolders)
-          nextFolders.add(parentId)
+          nextFolders.add(normalizedParentId)
           return nextFolders
         })
       }
@@ -758,35 +863,67 @@ const UserIdePage = ({ accessRole = 'user' }) => {
           return nextFolders
         })
       }
+
+      return true
     } catch (createError) {
       setWorkspaceError(getErrorMessage(createError, 'Unable to create workspace item.'))
+      return false
     } finally {
       setCreatingParentId('')
     }
   }
 
-  const renameWorkspaceNode = async (node) => {
-    const nextName = String(window.prompt('Rename', node.name) || '').trim()
+  const createWorkspaceNode = async (type, parentId = null, forcedName = '') => {
+    const name = String(forcedName || '').trim()
 
-    if (!nextName || nextName === node.name) {
+    if (!name) {
+      startCreateWorkspaceNode(type, parentId)
       return
     }
 
-    if (node.type === 'file' && !getLanguageFromFileName(nextName)) {
-      setWorkspaceError('Only .c, .cpp, .java, .py and .js files are supported.')
+    await persistWorkspaceNodeCreation(type, parentId, name)
+  }
+
+  const startRenameWorkspaceNode = (node) => {
+    if (!node || nodeActionId || saving) {
       return
+    }
+
+    setWorkspaceError('')
+    setNodeDraft({
+      id: `node-rename-${node._id}`,
+      mode: 'rename',
+      nodeId: node._id,
+      type: node.type,
+      parentId: node.parentId || null,
+      originalName: node.name,
+      value: node.name,
+    })
+  }
+
+  const persistWorkspaceNodeRename = async (draft) => {
+    const nextName = String(draft.value || '').trim()
+
+    if (!nextName || nextName === draft.originalName) {
+      setNodeDraft(null)
+      return true
+    }
+
+    if (draft.type === 'file' && !getLanguageFromFileName(nextName)) {
+      setWorkspaceError('Only .c, .cpp, .java, .py and .js files are supported.')
+      return false
     }
 
     if (!workspaceNodesUrl) {
       setWorkspaceError('Select a workspace before renaming files.')
-      return
+      return false
     }
 
-    setNodeActionId(node._id)
+    setNodeActionId(draft.nodeId)
     setWorkspaceError('')
 
     try {
-      const response = await axios.patch(`${workspaceNodesUrl}/${node._id}`, {
+      const response = await axios.patch(`${workspaceNodesUrl}/${draft.nodeId}`, {
         name: nextName,
       }, {
         withCredentials: true,
@@ -798,13 +935,59 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
       const updatedNode = response.data?.data?.node
 
+      if (!updatedNode?._id) {
+        throw new Error('Workspace item was renamed without a valid response')
+      }
+
       setNodes((currentNodes) => currentNodes.map((currentNode) => (
         currentNode._id === updatedNode._id ? updatedNode : currentNode
       )))
+      setNodeDraft(null)
+      return true
     } catch (renameError) {
       setWorkspaceError(getErrorMessage(renameError, 'Unable to rename workspace item.'))
+      return false
     } finally {
       setNodeActionId('')
+    }
+  }
+
+  const submitNodeDraft = async () => {
+    if (nodeDraftCancelingRef.current) {
+      nodeDraftCancelingRef.current = false
+      return
+    }
+
+    if (!nodeDraft || nodeDraftSubmittingRef.current) {
+      return
+    }
+
+    const name = String(nodeDraft.value || '').trim()
+
+    if (!name) {
+      setNodeDraft(null)
+      return
+    }
+
+    if (nodeDraft.type === 'file' && !getLanguageFromFileName(name)) {
+      setWorkspaceError('Only .c, .cpp, .java, .py and .js files are supported.')
+      return
+    }
+
+    nodeDraftSubmittingRef.current = true
+
+    try {
+      if (nodeDraft.mode === 'create') {
+        const didCreate = await persistWorkspaceNodeCreation(nodeDraft.type, nodeDraft.parentId, name)
+
+        if (didCreate) {
+          setNodeDraft(null)
+        }
+      } else {
+        await persistWorkspaceNodeRename(nodeDraft)
+      }
+    } finally {
+      nodeDraftSubmittingRef.current = false
     }
   }
 
@@ -915,22 +1098,91 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     }
   }
 
+  const renderNodeDraft = (depth = 0) => {
+    if (!nodeDraft || nodeDraft.mode !== 'create') {
+      return null
+    }
+
+    const isFileDraft = nodeDraft.type === 'file'
+
+    return (
+      <div
+        key={nodeDraft.id}
+        className="flex h-8 items-center gap-1 bg-blue-50 pr-1 text-sm text-blue-700 dark:bg-blue-950/40 dark:text-blue-100"
+        style={{ paddingLeft: `${8 + depth * 14}px` }}
+      >
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center" />
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+          {isFileDraft ? (
+            <FileCode className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          ) : (
+            <Folder className="h-4 w-4 text-amber-500" />
+          )}
+        </span>
+        <input
+          ref={nodeDraftInputRef}
+          value={nodeDraft.value}
+          onChange={(event) => {
+            setNodeDraft((currentDraft) => (
+              currentDraft ? { ...currentDraft, value: event.target.value } : currentDraft
+            ))
+          }}
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          onBlur={submitNodeDraft}
+          onKeyDown={(event) => {
+            event.stopPropagation()
+
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              submitNodeDraft()
+            }
+
+            if (event.key === 'Escape') {
+              event.preventDefault()
+              cancelNodeDraft()
+            }
+          }}
+          disabled={Boolean(creatingParentId)}
+          className="h-6 min-w-0 flex-1 rounded border border-blue-500 bg-white px-1.5 text-sm font-medium text-slate-900 outline-none dark:bg-slate-900 dark:text-slate-100"
+          autoComplete="off"
+          spellCheck="false"
+        />
+      </div>
+    )
+  }
+
   const renderWorkspaceNode = (node, depth = 0) => {
     const isFolder = node.type === 'folder'
     const isExpanded = expandedFolders.has(node._id)
     const children = childrenByParentId.get(node._id) || []
     const isActive = activeNodeId === node._id
     const isBusy = nodeActionId === node._id || creatingParentId === node._id
+    const isRenaming = nodeDraft?.mode === 'rename' && nodeDraft.nodeId === node._id
+    const isCreatingChild = nodeDraft?.mode === 'create' && nodeDraft.parentId === node._id
 
     return (
       <div key={node._id}>
         <div
           role="button"
           tabIndex={0}
-          onClick={() => (isFolder ? toggleFolder(node._id) : openFile(node))}
+          onClick={() => {
+            if (isRenaming) {
+              return
+            }
+
+            if (isFolder) {
+              toggleFolder(node._id)
+            } else {
+              openFile(node)
+            }
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault()
+              if (isRenaming) {
+                return
+              }
               if (isFolder) {
                 toggleFolder(node._id)
               } else {
@@ -957,10 +1209,43 @@ const UserIdePage = ({ accessRole = 'user' }) => {
               <FileCode className="h-4 w-4 text-slate-500 dark:text-slate-400" />
             )}
           </span>
-          <span className="min-w-0 flex-1 truncate">{node.name}</span>
+          {isRenaming ? (
+            <input
+              ref={nodeDraftInputRef}
+              value={nodeDraft.value}
+              onChange={(event) => {
+                setNodeDraft((currentDraft) => (
+                  currentDraft ? { ...currentDraft, value: event.target.value } : currentDraft
+                ))
+              }}
+              onClick={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+              onBlur={submitNodeDraft}
+              onKeyDown={(event) => {
+                event.stopPropagation()
+
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  submitNodeDraft()
+                }
+
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  cancelNodeDraft()
+                }
+              }}
+              disabled={nodeActionId === node._id}
+              className="h-6 min-w-0 flex-1 rounded border border-blue-500 bg-white px-1.5 text-sm font-medium text-slate-900 outline-none dark:bg-slate-900 dark:text-slate-100"
+              autoComplete="off"
+              spellCheck="false"
+            />
+          ) : (
+            <span className="min-w-0 flex-1 truncate">{node.name}</span>
+          )}
           {isActive && isDirty ? (
             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" title="Unsaved changes" />
           ) : null}
+          {!isRenaming ? (
           <div className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
             {isFolder ? (
               <>
@@ -968,9 +1253,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation()
-                    createWorkspaceNode('file', node._id)
+                    startCreateWorkspaceNode('file', node._id)
                   }}
-                  disabled={isBusy || saving}
+                  disabled={isBusy || saving || Boolean(nodeDraft)}
                   title="New file"
                   className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-white"
                 >
@@ -980,9 +1265,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation()
-                    createWorkspaceNode('folder', node._id)
+                    startCreateWorkspaceNode('folder', node._id)
                   }}
-                  disabled={isBusy || saving}
+                  disabled={isBusy || saving || Boolean(nodeDraft)}
                   title="New folder"
                   className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-white"
                 >
@@ -994,9 +1279,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
               type="button"
               onClick={(event) => {
                 event.stopPropagation()
-                renameWorkspaceNode(node)
+                startRenameWorkspaceNode(node)
               }}
-              disabled={isBusy || saving}
+              disabled={isBusy || saving || Boolean(nodeDraft)}
               title="Rename"
               className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-white"
             >
@@ -1008,24 +1293,26 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                 event.stopPropagation()
                 deleteWorkspaceNode(node)
               }}
-              disabled={isBusy || saving}
+              disabled={isBusy || saving || Boolean(nodeDraft)}
               title="Delete"
               className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-rose-100 hover:text-rose-700 disabled:opacity-40 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
+          ) : null}
         </div>
         {isFolder && isExpanded ? (
           <div>
-            {children.length ? children.map((childNode) => renderWorkspaceNode(childNode, depth + 1)) : (
+            {isCreatingChild ? renderNodeDraft(depth + 1) : null}
+            {children.length ? children.map((childNode) => renderWorkspaceNode(childNode, depth + 1)) : !isCreatingChild ? (
               <div
                 className="flex h-8 items-center text-xs font-medium text-slate-400 dark:text-slate-500"
                 style={{ paddingLeft: `${44 + depth * 14}px` }}
               >
                 Empty folder
               </div>
-            )}
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -1072,28 +1359,59 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             <div className="border-b border-slate-200 px-3 py-2 dark:border-slate-800">
               <label htmlFor="workspace-select" className="sr-only">Workspace</label>
               <div className="flex items-center gap-1.5">
-                <select
-                  id="workspace-select"
-                  value={activeWorkspaceId}
-                  onChange={(event) => {
-                    if (isDirty && !window.confirm('Switch workspace and discard unsaved changes?')) {
-                      return
-                    }
-                    setActiveWorkspaceId(event.target.value)
-                  }}
-                  disabled={workspacesLoading || !workspaces.length || saving}
-                  className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:ring-2 focus:ring-blue-500 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                >
-                  {workspaces.map((workspace) => (
-                    <option key={workspace._id} value={workspace._id}>
-                      {workspace.name}
-                    </option>
-                  ))}
-                </select>
+                {workspaceDraft ? (
+                  <form
+                    className="min-w-0 flex-1"
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      submitWorkspaceDraft()
+                    }}
+                  >
+                    <input
+                      ref={workspaceDraftInputRef}
+                      value={workspaceDraft.value}
+                      onChange={(event) => {
+                        setWorkspaceDraft((currentDraft) => (
+                          currentDraft ? { ...currentDraft, value: event.target.value } : currentDraft
+                        ))
+                      }}
+                      onBlur={submitWorkspaceDraft}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') {
+                          event.preventDefault()
+                          cancelWorkspaceDraft()
+                        }
+                      }}
+                      disabled={workspacesLoading}
+                      className="w-full rounded-lg border border-blue-500 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 outline-none dark:bg-slate-900 dark:text-slate-100"
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+                  </form>
+                ) : (
+                  <select
+                    id="workspace-select"
+                    value={activeWorkspaceId}
+                    onChange={(event) => {
+                      if (isDirty && !window.confirm('Switch workspace and discard unsaved changes?')) {
+                        return
+                      }
+                      setActiveWorkspaceId(event.target.value)
+                    }}
+                    disabled={workspacesLoading || !workspaces.length || saving}
+                    className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:ring-2 focus:ring-blue-500 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  >
+                    {workspaces.map((workspace) => (
+                      <option key={workspace._id} value={workspace._id}>
+                        {workspace.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <button
                   type="button"
-                  onClick={createWorkspace}
-                  disabled={workspacesLoading || saving}
+                  onClick={startCreateWorkspace}
+                  disabled={workspacesLoading || saving || Boolean(workspaceDraft)}
                   title="New workspace"
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
@@ -1101,8 +1419,8 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                 </button>
                 <button
                   type="button"
-                  onClick={renameWorkspace}
-                  disabled={workspacesLoading || !activeWorkspace || saving}
+                  onClick={startRenameWorkspace}
+                  disabled={workspacesLoading || !activeWorkspace || saving || Boolean(workspaceDraft)}
                   title="Rename workspace"
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
@@ -1111,7 +1429,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                 <button
                   type="button"
                   onClick={deleteActiveWorkspace}
-                  disabled={workspacesLoading || workspaces.length <= 1 || !activeWorkspace || saving}
+                  disabled={workspacesLoading || workspaces.length <= 1 || !activeWorkspace || saving || Boolean(workspaceDraft)}
                   title="Delete workspace"
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-600 transition hover:bg-rose-100 hover:text-rose-700 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
                 >
@@ -1129,8 +1447,8 @@ const UserIdePage = ({ accessRole = 'user' }) => {
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => createWorkspaceNode('file')}
-                  disabled={workspaceLoading || saving || Boolean(creatingParentId)}
+                  onClick={() => startCreateWorkspaceNode('file')}
+                  disabled={workspaceLoading || saving || Boolean(creatingParentId) || Boolean(nodeDraft)}
                   title="New file"
                   className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
@@ -1138,8 +1456,8 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => createWorkspaceNode('folder')}
-                  disabled={workspaceLoading || saving || Boolean(creatingParentId)}
+                  onClick={() => startCreateWorkspaceNode('folder')}
+                  disabled={workspaceLoading || saving || Boolean(creatingParentId) || Boolean(nodeDraft)}
                   title="New folder"
                   className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
@@ -1153,18 +1471,21 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                 <div className="px-3 py-3 text-sm font-medium text-slate-500 dark:text-slate-400">
                   Loading workspace...
                 </div>
-              ) : rootNodes.length ? (
-                rootNodes.map((node) => renderWorkspaceNode(node))
+              ) : rootNodes.length || nodeDraft?.mode === 'create' ? (
+                <>
+                  {nodeDraft?.mode === 'create' && !nodeDraft.parentId ? renderNodeDraft(0) : null}
+                  {rootNodes.map((node) => renderWorkspaceNode(node))}
+                </>
               ) : (
                 <div className="px-3 py-4">
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">No files yet</p>
                   <button
                     type="button"
-                    onClick={() => createWorkspaceNode('file', null, 'main.py')}
-                    disabled={Boolean(creatingParentId)}
+                    onClick={() => startCreateWorkspaceNode('file')}
+                    disabled={Boolean(creatingParentId) || Boolean(nodeDraft)}
                     className="mt-3 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:bg-slate-400"
                   >
-                    Create main.py
+                    New file
                   </button>
                 </div>
               )}
