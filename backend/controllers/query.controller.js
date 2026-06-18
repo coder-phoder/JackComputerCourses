@@ -58,6 +58,19 @@ const formatCodeFile = (node, workspace) => ({
     updatedAt: node.updatedAt
 });
 
+const formatWorkspaceNode = (node) => ({
+    _id: node._id.toString(),
+    workspaceId: node.workspaceId.toString(),
+    type: node.type,
+    name: node.name,
+    parentId: node.parentId ? node.parentId.toString() : null,
+    language: node.language || null,
+    content: node.type === 'file' ? node.content : '',
+    size: node.size || 0,
+    createdAt: node.createdAt,
+    updatedAt: node.updatedAt
+});
+
 const getUserCodeFile = async (userId, fileId) => {
     if (!isValidObjectId(fileId)) {
         return null;
@@ -379,7 +392,10 @@ const decideReviewedQuery = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: 'Faculty changes applied successfully',
-            data: { query: formatQuery(query) }
+            data: {
+                query: formatQuery(query),
+                node: formatWorkspaceNode(codeFile.node)
+            }
         });
     } catch (error) {
         if (error.name === 'ValidationError') {

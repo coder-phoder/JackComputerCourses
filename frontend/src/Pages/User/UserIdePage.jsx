@@ -529,6 +529,25 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     }
   }, [activateFile, lastOpenedFileKey, workspaceNodesUrl])
 
+  const handleWorkspaceNodeApplied = useCallback((updatedNode) => {
+    if (!updatedNode?._id || updatedNode.workspaceId !== activeWorkspaceId) {
+      return
+    }
+
+    setNodes((currentNodes) => currentNodes.map((node) => (
+      node._id === updatedNode._id ? updatedNode : node
+    )))
+
+    if (updatedNode._id === activeNodeId) {
+      const nextContent = updatedNode.content || ''
+
+      setCode(nextContent)
+      setSavedCode(nextContent)
+      setSaveStatus('saved')
+      setSaveError('')
+    }
+  }, [activeNodeId, activeWorkspaceId])
+
   useEffect(() => {
     let isActive = true
 
@@ -1517,6 +1536,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             <IDEquery
               isDark={isDark}
               onNotificationCountChange={setQueryNotificationCount}
+              onWorkspaceNodeApplied={handleWorkspaceNodeApplied}
             />
           ) : (
           <main className="flex min-w-0 flex-1 flex-col">

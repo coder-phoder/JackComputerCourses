@@ -47,7 +47,7 @@ const QueryStatusBadge = ({ status }) => {
   )
 }
 
-const IDEquery = ({ isDark = false, onNotificationCountChange }) => {
+const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeApplied }) => {
   const [queries, setQueries] = useState([])
   const [files, setFiles] = useState([])
   const [faculties, setFaculties] = useState([])
@@ -320,6 +320,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange }) => {
       }
 
       const updatedQuery = response.data?.data?.query
+      const updatedNode = response.data?.data?.node
 
       setQueries((currentQueries) => {
         const nextQueries = currentQueries.map((currentQuery) => (
@@ -329,6 +330,9 @@ const IDEquery = ({ isDark = false, onNotificationCountChange }) => {
         return nextQueries
       })
       setSelectedQueryId(updatedQuery._id)
+      if (decision === 'accept' && updatedNode?._id) {
+        onWorkspaceNodeApplied?.(updatedNode)
+      }
       setSuccess(decision === 'accept' ? 'Faculty changes applied to your file.' : 'Faculty changes declined.')
     } catch (decisionError) {
       setError(getErrorMessage(decisionError, 'Unable to save decision.'))
