@@ -5,6 +5,7 @@ import Editor from '@monaco-editor/react'
 import { io } from 'socket.io-client'
 import {
   AlertTriangle,
+  Braces,
   Check,
   ChevronDown,
   ChevronRight,
@@ -141,6 +142,154 @@ const getAncestorFolderIds = (node, nodes) => {
   return folderIds
 }
 
+const trimCodeWhitespace = (source) => String(source || '')
+  .replace(/\t/g, '    ')
+  .split('\n')
+  .map((line) => line.replace(/\s+$/u, ''))
+  .join('\n')
+  .trim()
+
+const formatBraceLanguageCode = (source) => {
+  const normalizedSource = trimCodeWhitespace(source)
+  let tokenizedSource = ''
+  let quote = ''
+  let escaped = false
+  let parenDepth = 0
+  let inLineComment = false
+  let inBlockComment = false
+
+  for (let index = 0; index < normalizedSource.length; index += 1) {
+    const char = normalizedSource[index]
+    const nextChar = normalizedSource[index + 1] || ''
+
+    if (inLineComment) {
+      tokenizedSource += char
+      if (char === '\n') {
+        inLineComment = false
+      }
+      continue
+    }
+
+    if (inBlockComment) {
+      tokenizedSource += char
+      if (char === '*' && nextChar === '/') {
+        tokenizedSource += nextChar
+        index += 1
+        inBlockComment = false
+      }
+      continue
+    }
+
+    if (quote) {
+      tokenizedSource += char
+      if (escaped) {
+        escaped = false
+      } else if (char === '\\') {
+        escaped = true
+      } else if (char === quote) {
+        quote = ''
+      }
+      continue
+    }
+
+    if ((char === '"' || char === "'") && !quote) {
+      quote = char
+      tokenizedSource += char
+      continue
+    }
+
+    if (char === '/' && nextChar === '/') {
+      tokenizedSource += char + nextChar
+      index += 1
+      inLineComment = true
+      continue
+    }
+
+    if (char === '/' && nextChar === '*') {
+      tokenizedSource += char + nextChar
+      index += 1
+      inBlockComment = true
+      continue
+    }
+
+    if (char === '(' || char === '[') {
+      parenDepth += 1
+      tokenizedSource += char
+      continue
+    }
+
+    if (char === ')' || char === ']') {
+      parenDepth = Math.max(0, parenDepth - 1)
+      tokenizedSource += char
+      continue
+    }
+
+    if (char === '{' || char === '}') {
+      tokenizedSource += `\n${char}\n`
+      continue
+    }
+
+    if (char === ';' && parenDepth === 0) {
+      tokenizedSource += ';\n'
+      continue
+    }
+
+    tokenizedSource += char
+  }
+
+  const normalizedLines = tokenizedSource
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+  let indentLevel = 0
+
+  return normalizedLines.map((line) => {
+    const shouldDedent = line.startsWith('}')
+    indentLevel = shouldDedent ? Math.max(0, indentLevel - 1) : indentLevel
+
+    const formattedLine = `${'    '.repeat(indentLevel)}${line}`
+
+    if (line.endsWith('{')) {
+      indentLevel += 1
+    }
+
+    return formattedLine
+  }).join('\n')
+}
+
+const formatPythonCode = (source) => {
+  const lines = trimCodeWhitespace(source)
+    .split('\n')
+    .map((line) => line.replace(/^ +/u, (spaces) => ' '.repeat(Math.floor(spaces.length / 4) * 4)))
+  let blankLineSeen = false
+
+  return lines.reduce((formattedLines, line) => {
+    if (!line.trim()) {
+      if (!blankLineSeen && formattedLines.length) {
+        formattedLines.push('')
+      }
+      blankLineSeen = true
+      return formattedLines
+    }
+
+    blankLineSeen = false
+    formattedLines.push(line)
+    return formattedLines
+  }, []).join('\n')
+}
+
+const formatCodeByLanguage = (source, language) => {
+  if (['c', 'cpp', 'java', 'javascript'].includes(language)) {
+    return formatBraceLanguageCode(source)
+  }
+
+  if (language === 'python') {
+    return formatPythonCode(source)
+  }
+
+  return trimCodeWhitespace(source)
+}
+
 const UserIdePage = ({ accessRole = 'user' }) => {
   const accessConfig = IDE_ACCESS_CONFIG[accessRole] || IDE_ACCESS_CONFIG.user
   const storageKeys = useMemo(() => getStorageKeys(accessConfig.role), [accessConfig.role])
@@ -167,6 +316,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [workspaceDraft, setWorkspaceDraft] = useState(null)
   const [nodeDraft, setNodeDraft] = useState(null)
   const [showWorkspaceActions, setShowWorkspaceActions] = useState(false)
+  const [openNodeActionMenuId, setOpenNodeActionMenuId] = useState('')
 
   const [terminalOutput, setTerminalOutput] = useState('')
   const [inputVal, setInputVal] = useState('')
@@ -175,8 +325,11 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
   const terminalRef = useRef(null)
   const inputRef = useRef(null)
+  const editorRef = useRef(null)
   const workspaceDraftInputRef = useRef(null)
   const nodeDraftInputRef = useRef(null)
+  const formatCodeRef = useRef(null)
+  const formatActionDisposableRef = useRef(null)
   const snippetProviderDisposablesRef = useRef([])
   const workspaceDraftSubmittingRef = useRef(false)
   const nodeDraftSubmittingRef = useRef(false)
@@ -473,6 +626,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   }, [isAuthorized])
 
   useEffect(() => () => {
+    formatActionDisposableRef.current?.dispose()
+    formatActionDisposableRef.current = null
+    editorRef.current = null
     snippetProviderDisposablesRef.current.forEach((disposable) => disposable.dispose())
     snippetProviderDisposablesRef.current = []
   }, [])
@@ -511,6 +667,55 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       setSaving(false)
     }
   }, [activeNode, code, savedCode, saving, workspaceNodesUrl])
+
+  const formatActiveCode = useCallback(async () => {
+    const editor = editorRef.current
+    const model = editor?.getModel()
+
+    if (!activeNode || !editor || !model) {
+      return
+    }
+
+    setSaveError('')
+    const originalCode = model.getValue()
+    let formattedCode = originalCode
+    let nativeFormatted = false
+
+    try {
+      const formatAction = editor.getAction('editor.action.formatDocument')
+      if (formatAction) {
+        await formatAction.run()
+        formattedCode = model.getValue()
+        nativeFormatted = formattedCode !== originalCode
+      }
+    } catch {
+      formattedCode = originalCode
+    }
+
+    if (!nativeFormatted) {
+      formattedCode = formatCodeByLanguage(originalCode, activeNode.language)
+    }
+
+    if (!nativeFormatted && formattedCode !== originalCode) {
+      editor.pushUndoStop()
+      editor.executeEdits('format-code', [{
+        range: model.getFullModelRange(),
+        text: formattedCode,
+      }])
+      editor.pushUndoStop()
+    }
+
+    if (formattedCode !== originalCode) {
+      setCode(formattedCode)
+      setSaveStatus('idle')
+    }
+
+    editor.focus()
+  }, [activeNode])
+
+  useEffect(() => {
+    formatCodeRef.current = formatActiveCode
+  }, [formatActiveCode])
 
   useEffect(() => {
     if (!isAuthorized || !activeNode || !isDirty || saving) {
@@ -948,6 +1153,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       return
     }
 
+    setOpenNodeActionMenuId('')
     setWorkspaceError('')
     setNodeDraft({
       id: `node-rename-${node._id}`,
@@ -1060,6 +1266,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   }
 
   const deleteWorkspaceNode = async (node) => {
+    setOpenNodeActionMenuId('')
     const confirmed = window.confirm(`Delete ${node.name}${node.type === 'folder' ? ' and everything inside it' : ''}?`)
 
     if (!confirmed) {
@@ -1220,6 +1427,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     const isBusy = nodeActionId === node._id || creatingParentId === node._id
     const isRenaming = nodeDraft?.mode === 'rename' && nodeDraft.nodeId === node._id
     const isCreatingChild = nodeDraft?.mode === 'create' && nodeDraft.parentId === node._id
+    const isNodeMenuOpen = openNodeActionMenuId === node._id
 
     return (
       <div key={node._id}>
@@ -1306,13 +1514,14 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" title="Unsaved changes" />
           ) : null}
           {!isRenaming ? (
-          <div className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
+          <div className={`${isNodeMenuOpen ? 'flex' : 'hidden group-hover:flex'} relative shrink-0 items-center gap-0.5`}>
             {isFolder ? (
               <>
                 <button
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation()
+                    setOpenNodeActionMenuId('')
                     startCreateWorkspaceNode('file', node._id)
                   }}
                   disabled={isBusy || saving || Boolean(nodeDraft)}
@@ -1325,6 +1534,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation()
+                    setOpenNodeActionMenuId('')
                     startCreateWorkspaceNode('folder', node._id)
                   }}
                   disabled={isBusy || saving || Boolean(nodeDraft)}
@@ -1333,32 +1543,85 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                 >
                   <FolderPlus className="h-3.5 w-3.5" />
                 </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setOpenNodeActionMenuId((currentId) => (currentId === node._id ? '' : node._id))
+                  }}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  disabled={isBusy || saving || Boolean(nodeDraft)}
+                  title="Folder actions"
+                  aria-label="Folder actions"
+                  aria-expanded={isNodeMenuOpen}
+                  className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-white"
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </button>
+                {isNodeMenuOpen ? (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        setOpenNodeActionMenuId('')
+                      }}
+                    />
+                    <div
+                      className="absolute right-0 top-7 z-20 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-900"
+                      onClick={(event) => event.stopPropagation()}
+                      onMouseDown={(event) => event.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => startRenameWorkspaceNode(node)}
+                        disabled={isBusy || saving || Boolean(nodeDraft)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-slate-800"
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Rename folder
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteWorkspaceNode(node)}
+                        disabled={isBusy || saving || Boolean(nodeDraft)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-40 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete folder
+                      </button>
+                    </div>
+                  </>
+                ) : null}
               </>
-            ) : null}
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                startRenameWorkspaceNode(node)
-              }}
-              disabled={isBusy || saving || Boolean(nodeDraft)}
-              title="Rename"
-              className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-white"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                deleteWorkspaceNode(node)
-              }}
-              disabled={isBusy || saving || Boolean(nodeDraft)}
-              title="Delete"
-              className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-rose-100 hover:text-rose-700 disabled:opacity-40 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    startRenameWorkspaceNode(node)
+                  }}
+                  disabled={isBusy || saving || Boolean(nodeDraft)}
+                  title="Rename"
+                  className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-white"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    deleteWorkspaceNode(node)
+                  }}
+                  disabled={isBusy || saving || Boolean(nodeDraft)}
+                  title="Delete"
+                  className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-rose-100 hover:text-rose-700 disabled:opacity-40 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
           </div>
           ) : null}
         </div>
@@ -1620,6 +1883,17 @@ const UserIdePage = ({ accessRole = 'user' }) => {
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={formatActiveCode}
+                  disabled={!activeNode}
+                  title="Format code"
+                  aria-label="Format code"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  <Braces className="h-4 w-4" />
+                </button>
+
                 <div className="relative">
                   <button
                     type="button"
@@ -1704,8 +1978,20 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                   language={selectedLanguage.monacoLang}
                   theme={isDark ? 'vs-dark' : 'light'}
                   value={code}
-                  onMount={(_, monaco) => {
+                  onMount={(editor, monaco) => {
+                    editorRef.current = editor
                     registerBoilerplateSnippets(monaco)
+                    formatActionDisposableRef.current?.dispose()
+                    formatActionDisposableRef.current = editor.addAction({
+                      id: 'jack-format-code',
+                      label: 'Format Code',
+                      keybindings: [
+                        monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF,
+                      ],
+                      contextMenuGroupId: 'navigation',
+                      contextMenuOrder: 1.5,
+                      run: () => formatCodeRef.current?.(),
+                    })
                   }}
                   onChange={(value) => {
                     setCode(value || '')
@@ -1714,6 +2000,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                   options={{
                     fontSize,
                     fontFamily: "'Fira Code', 'Courier New', Courier, monospace",
+                    tabSize: 4,
+                    insertSpaces: true,
+                    detectIndentation: false,
                     minimap: { enabled: false },
                     automaticLayout: true,
                     padding: { top: 12, bottom: 12 },
