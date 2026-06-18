@@ -73,6 +73,8 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
   const [faculties, setFaculties] = useState([])
   const [fileSearch, setFileSearch] = useState('')
   const [facultySearch, setFacultySearch] = useState('')
+  const [fileDropdownOpen, setFileDropdownOpen] = useState(false)
+  const [facultyDropdownOpen, setFacultyDropdownOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [selectedFaculty, setSelectedFaculty] = useState(null)
   const [message, setMessage] = useState('')
@@ -216,6 +218,10 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
   const resetForm = () => {
     setSelectedFile(null)
     setSelectedFaculty(null)
+    setFileSearch('')
+    setFacultySearch('')
+    setFileDropdownOpen(false)
+    setFacultyDropdownOpen(false)
     setMessage('')
   }
 
@@ -335,7 +341,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
   )
 
   return (
-    <main className="flex min-w-0 flex-1 flex-col bg-slate-50 dark:bg-slate-900">
+    <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-900">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
         <div>
           <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">Queries</h1>
@@ -354,9 +360,9 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
         </button>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto p-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <section className="space-y-4">
-          <form onSubmit={submitQuery} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <section className="flex min-h-0 flex-col gap-4 overflow-hidden">
+          <form onSubmit={submitQuery} className="shrink-0 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                 Create Query
@@ -364,7 +370,14 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
             </div>
 
             <div className="space-y-4">
-              <div>
+              <div
+                className="relative"
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setFileDropdownOpen(false)
+                  }
+                }}
+              >
                 <label htmlFor="query-file-search" className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Code file
                 </label>
@@ -373,36 +386,56 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                   <input
                     id="query-file-search"
                     value={fileSearch}
-                    onChange={(event) => setFileSearch(event.target.value)}
+                    onFocus={() => setFileDropdownOpen(true)}
+                    onClick={() => setFileDropdownOpen(true)}
+                    onChange={(event) => {
+                      setFileSearch(event.target.value)
+                      setSelectedFile(null)
+                      setFileDropdownOpen(true)
+                    }}
                     placeholder="Search your code files"
                     className="min-w-0 flex-1 bg-transparent py-2 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
                   />
                 </div>
-                <div className="mt-2 max-h-44 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800">
-                  {searchingFiles ? (
-                    <p className="p-3 text-sm font-medium text-slate-500 dark:text-slate-400">Searching files...</p>
-                  ) : files.length ? files.map((file) => (
-                    <button
-                      key={file._id}
-                      type="button"
-                      onClick={() => setSelectedFile(file)}
-                      className={`flex w-full items-center gap-2 border-b border-slate-100 px-3 py-2 text-left text-sm transition last:border-b-0 dark:border-slate-800 ${
-                        selectedFile?._id === file._id
-                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200'
-                          : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900'
-                      }`}
-                    >
-                      <FileCode className="h-4 w-4 shrink-0" />
-                      <span className="min-w-0 flex-1 truncate">{file.name}</span>
-                      <span className="shrink-0 text-xs text-slate-400">{file.workspaceName}</span>
-                    </button>
-                  )) : (
-                    <p className="p-3 text-sm font-medium text-slate-500 dark:text-slate-400">No code files found.</p>
-                  )}
-                </div>
+                {fileDropdownOpen ? (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-2 max-h-44 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                    {searchingFiles ? (
+                      <p className="p-3 text-sm font-medium text-slate-500 dark:text-slate-400">Searching files...</p>
+                    ) : files.length ? files.map((file) => (
+                      <button
+                        key={file._id}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setSelectedFile(file)
+                          setFileSearch(file.name)
+                          setFileDropdownOpen(false)
+                        }}
+                        className={`flex w-full items-center gap-2 border-b border-slate-100 px-3 py-2 text-left text-sm transition last:border-b-0 dark:border-slate-800 ${
+                          selectedFile?._id === file._id
+                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200'
+                            : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900'
+                        }`}
+                      >
+                        <FileCode className="h-4 w-4 shrink-0" />
+                        <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                        <span className="shrink-0 text-xs text-slate-400">{file.workspaceName}</span>
+                      </button>
+                    )) : (
+                      <p className="p-3 text-sm font-medium text-slate-500 dark:text-slate-400">No code files found.</p>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
-              <div>
+              <div
+                className="relative"
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setFacultyDropdownOpen(false)
+                  }
+                }}
+              >
                 <label htmlFor="query-faculty-search" className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Faculty
                 </label>
@@ -411,32 +444,45 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                   <input
                     id="query-faculty-search"
                     value={facultySearch}
-                    onChange={(event) => setFacultySearch(event.target.value)}
+                    onFocus={() => setFacultyDropdownOpen(true)}
+                    onClick={() => setFacultyDropdownOpen(true)}
+                    onChange={(event) => {
+                      setFacultySearch(event.target.value)
+                      setSelectedFaculty(null)
+                      setFacultyDropdownOpen(true)
+                    }}
                     placeholder="Search faculty name or phone"
                     className="min-w-0 flex-1 bg-transparent py-2 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
                   />
                 </div>
-                <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800">
-                  {searchingFaculties ? (
-                    <p className="p-3 text-sm font-medium text-slate-500 dark:text-slate-400">Searching faculty...</p>
-                  ) : faculties.length ? faculties.map((faculty) => (
-                    <button
-                      key={faculty._id}
-                      type="button"
-                      onClick={() => setSelectedFaculty(faculty)}
-                      className={`w-full border-b border-slate-100 px-3 py-2 text-left text-sm transition last:border-b-0 dark:border-slate-800 ${
-                        selectedFaculty?._id === faculty._id
-                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200'
-                          : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900'
-                      }`}
-                    >
-                      <span className="block truncate font-semibold">{faculty.name}</span>
-                      <span className="block truncate text-xs text-slate-400">{faculty.phone}</span>
-                    </button>
-                  )) : (
-                    <p className="p-3 text-sm font-medium text-slate-500 dark:text-slate-400">No faculty found.</p>
-                  )}
-                </div>
+                {facultyDropdownOpen ? (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                    {searchingFaculties ? (
+                      <p className="p-3 text-sm font-medium text-slate-500 dark:text-slate-400">Searching faculty...</p>
+                    ) : faculties.length ? faculties.map((faculty) => (
+                      <button
+                        key={faculty._id}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setSelectedFaculty(faculty)
+                          setFacultySearch(faculty.name)
+                          setFacultyDropdownOpen(false)
+                        }}
+                        className={`w-full border-b border-slate-100 px-3 py-2 text-left text-sm transition last:border-b-0 dark:border-slate-800 ${
+                          selectedFaculty?._id === faculty._id
+                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200'
+                            : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900'
+                        }`}
+                      >
+                        <span className="block truncate font-semibold">{faculty.name}</span>
+                        <span className="block truncate text-xs text-slate-400">{faculty.phone}</span>
+                      </button>
+                    )) : (
+                      <p className="p-3 text-sm font-medium text-slate-500 dark:text-slate-400">No faculty found.</p>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
               <div>
@@ -476,9 +522,9 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
             </div>
           </form>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
             <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Active Queries</h2>
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
               {loading ? (
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Loading queries...</p>
               ) : activeQueries.length ? (
@@ -492,7 +538,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
             </div>
           </div>
 
-          <details className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+          <details className="max-h-44 shrink-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
             <summary className="cursor-pointer text-sm font-bold text-slate-900 dark:text-slate-100">
               Query History ({historyQueries.length})
             </summary>
