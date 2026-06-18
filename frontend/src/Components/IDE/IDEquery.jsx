@@ -118,10 +118,6 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
     [queries],
   )
 
-  useEffect(() => {
-    setSelectedQueryId((currentId) => getPriorityQueryId(queries, currentId))
-  }, [queries])
-
   const syncQueries = useCallback((nextQueries, actionRequiredCount) => {
     setQueries(nextQueries)
     onNotificationCountChange?.(actionRequiredCount)

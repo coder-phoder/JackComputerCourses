@@ -8,6 +8,8 @@ const {
 
 const MAX_WORKSPACE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_WORKSPACE_NAME = 'demo';
+const ZIP_UNIX_DIRECTORY_MODE = 0o40755 * 0x10000;
+const ZIP_UNIX_FILE_MODE = 0o100644 * 0x10000;
 
 const sendError = (res, statusCode, message) => res.status(statusCode).json({
     success: false,
@@ -34,6 +36,182 @@ const formatWorkspace = (workspace) => ({
     createdAt: workspace.createdAt,
     updatedAt: workspace.updatedAt
 });
+
+const makeCrcTable = () => {
+    const table = [];
+
+    for (let index = 0; index < 256; index += 1) {
+        let crc = index;
+
+        for (let bit = 0; bit < 8; bit += 1) {
+            crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
+        }
+
+        table[index] = crc >>> 0;
+    }
+
+    return table;
+};
+
+const CRC_TABLE = makeCrcTable();
+
+const getCrc32 = (buffer) => {
+    let crc = 0xffffffff;
+
+    for (const byte of buffer) {
+        crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+    }
+
+    return (crc ^ 0xffffffff) >>> 0;
+};
+
+const getDosDateTime = (dateValue = new Date()) => {
+    const date = new Date(dateValue);
+    const year = Math.max(1980, date.getFullYear());
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const seconds = Math.floor(date.getSeconds() / 2);
+
+    return {
+        dosTime: (hours << 11) | (minutes << 5) | seconds,
+        dosDate: ((year - 1980) << 9) | (month << 5) | day
+    };
+};
+
+const sanitizeZipPathPart = (value, fallback) => {
+    const normalizedValue = String(value || '').trim()
+        .replace(/[\\/]+/g, '-')
+        .replace(/\0/g, '')
+        .replace(/^\.+$/g, '')
+        .trim();
+
+    return normalizedValue || fallback;
+};
+
+const sanitizeDownloadFileName = (value) => {
+    const normalizedValue = sanitizeZipPathPart(value, DEFAULT_WORKSPACE_NAME)
+        .replace(/[^\w.-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+    return normalizedValue || DEFAULT_WORKSPACE_NAME;
+};
+
+const buildZipArchive = (entries) => {
+    const localFileParts = [];
+    const centralDirectoryParts = [];
+    let offset = 0;
+
+    entries.forEach((entry) => {
+        const nameBuffer = Buffer.from(entry.path, 'utf8');
+        const contentBuffer = entry.isDirectory ? Buffer.alloc(0) : Buffer.from(entry.content || '', 'utf8');
+        const crc32 = getCrc32(contentBuffer);
+        const { dosTime, dosDate } = getDosDateTime(entry.updatedAt);
+        const localHeader = Buffer.alloc(30);
+
+        localHeader.writeUInt32LE(0x04034b50, 0);
+        localHeader.writeUInt16LE(20, 4);
+        localHeader.writeUInt16LE(0, 6);
+        localHeader.writeUInt16LE(0, 8);
+        localHeader.writeUInt16LE(dosTime, 10);
+        localHeader.writeUInt16LE(dosDate, 12);
+        localHeader.writeUInt32LE(crc32, 14);
+        localHeader.writeUInt32LE(contentBuffer.length, 18);
+        localHeader.writeUInt32LE(contentBuffer.length, 22);
+        localHeader.writeUInt16LE(nameBuffer.length, 26);
+        localHeader.writeUInt16LE(0, 28);
+
+        localFileParts.push(localHeader, nameBuffer, contentBuffer);
+
+        const centralDirectoryHeader = Buffer.alloc(46);
+        centralDirectoryHeader.writeUInt32LE(0x02014b50, 0);
+        centralDirectoryHeader.writeUInt16LE(0x031e, 4);
+        centralDirectoryHeader.writeUInt16LE(20, 6);
+        centralDirectoryHeader.writeUInt16LE(0, 8);
+        centralDirectoryHeader.writeUInt16LE(0, 10);
+        centralDirectoryHeader.writeUInt16LE(dosTime, 12);
+        centralDirectoryHeader.writeUInt16LE(dosDate, 14);
+        centralDirectoryHeader.writeUInt32LE(crc32, 16);
+        centralDirectoryHeader.writeUInt32LE(contentBuffer.length, 20);
+        centralDirectoryHeader.writeUInt32LE(contentBuffer.length, 24);
+        centralDirectoryHeader.writeUInt16LE(nameBuffer.length, 28);
+        centralDirectoryHeader.writeUInt16LE(0, 30);
+        centralDirectoryHeader.writeUInt16LE(0, 32);
+        centralDirectoryHeader.writeUInt16LE(0, 34);
+        centralDirectoryHeader.writeUInt16LE(0, 36);
+        centralDirectoryHeader.writeUInt32LE(entry.isDirectory ? ZIP_UNIX_DIRECTORY_MODE : ZIP_UNIX_FILE_MODE, 38);
+        centralDirectoryHeader.writeUInt32LE(offset, 42);
+
+        centralDirectoryParts.push(centralDirectoryHeader, nameBuffer);
+        offset += localHeader.length + nameBuffer.length + contentBuffer.length;
+    });
+
+    const centralDirectorySize = centralDirectoryParts.reduce((total, part) => total + part.length, 0);
+    const endOfCentralDirectory = Buffer.alloc(22);
+
+    endOfCentralDirectory.writeUInt32LE(0x06054b50, 0);
+    endOfCentralDirectory.writeUInt16LE(0, 4);
+    endOfCentralDirectory.writeUInt16LE(0, 6);
+    endOfCentralDirectory.writeUInt16LE(entries.length, 8);
+    endOfCentralDirectory.writeUInt16LE(entries.length, 10);
+    endOfCentralDirectory.writeUInt32LE(centralDirectorySize, 12);
+    endOfCentralDirectory.writeUInt32LE(offset, 16);
+    endOfCentralDirectory.writeUInt16LE(0, 20);
+
+    return Buffer.concat([...localFileParts, ...centralDirectoryParts, endOfCentralDirectory]);
+};
+
+const buildWorkspaceZipEntries = (workspace, nodes) => {
+    const rootName = sanitizeZipPathPart(workspace.name, DEFAULT_WORKSPACE_NAME);
+    const nodesById = new Map(nodes.map((node) => [String(node._id), node]));
+    const pathById = new Map();
+
+    const resolveNodePath = (node) => {
+        const nodeId = String(node._id);
+
+        if (pathById.has(nodeId)) {
+            return pathById.get(nodeId);
+        }
+
+        const name = sanitizeZipPathPart(node.name, node.type === 'folder' ? 'folder' : 'file');
+        const parent = node.parentId ? nodesById.get(String(node.parentId)) : null;
+        const parentPath = parent ? resolveNodePath(parent) : rootName;
+        const nodePath = `${parentPath}/${name}`;
+
+        pathById.set(nodeId, nodePath);
+        return nodePath;
+    };
+
+    const entries = [{
+        path: `${rootName}/`,
+        content: '',
+        isDirectory: true,
+        updatedAt: workspace.updatedAt
+    }];
+
+    nodes
+        .slice()
+        .sort((first, second) => {
+            if (first.type !== second.type) {
+                return first.type === 'folder' ? -1 : 1;
+            }
+
+            return String(first.name).localeCompare(String(second.name));
+        })
+        .forEach((node) => {
+            const nodePath = resolveNodePath(node);
+
+            entries.push({
+                path: node.type === 'folder' ? `${nodePath}/` : nodePath,
+                content: node.type === 'file' ? node.content || '' : '',
+                isDirectory: node.type === 'folder',
+                updatedAt: node.updatedAt
+            });
+        });
+
+    return entries;
+};
 
 const getWorkspaceOwner = (req) => {
     if (req.user?._id) {
@@ -412,6 +590,40 @@ const getWorkspaceNodes = async (req, res) => {
     }
 };
 
+const downloadWorkspace = async (req, res) => {
+    try {
+        const owner = getWorkspaceOwner(req);
+        const { workspaceId } = req.params;
+
+        if (!owner) {
+            return sendError(res, 401, 'Workspace authentication is required');
+        }
+
+        const workspace = await getWorkspaceById(owner, workspaceId);
+
+        if (!workspace) {
+            return sendError(res, 404, 'Workspace not found');
+        }
+
+        const nodes = await WorkspaceNode.find(getNodeQuery(owner, workspace._id))
+            .sort({ type: 1, name: 1, createdAt: 1 });
+        const zipEntries = buildWorkspaceZipEntries(workspace, nodes);
+        const zipBuffer = buildZipArchive(zipEntries);
+        const downloadFileName = `${sanitizeDownloadFileName(workspace.name)}.zip`;
+
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Length', zipBuffer.length);
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${downloadFileName}"; filename*=UTF-8''${encodeURIComponent(downloadFileName)}`
+        );
+
+        return res.status(200).send(zipBuffer);
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while downloading workspace');
+    }
+};
+
 const createWorkspaceNode = async (req, res) => {
     try {
         const owner = getWorkspaceOwner(req);
@@ -640,12 +852,15 @@ module.exports = {
     updateWorkspace,
     deleteWorkspace,
     getWorkspaceNodes,
+    downloadWorkspace,
     createWorkspaceNode,
     updateWorkspaceNode,
     deleteWorkspaceNode,
     formatWorkspaceNode,
     formatWorkspace,
     getWorkspaceOwner,
+    buildZipArchive,
+    buildWorkspaceZipEntries,
     MAX_WORKSPACE_SIZE_BYTES,
     DEFAULT_WORKSPACE_NAME
 };

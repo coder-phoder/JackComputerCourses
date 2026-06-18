@@ -122,6 +122,15 @@ const getLanguageMeta = (language) => (
   LANGUAGES.find((currentLanguage) => currentLanguage.value === language) || LANGUAGES[3]
 )
 
+const getWorkspaceZipFileName = (workspaceName) => {
+  const normalizedName = String(workspaceName || 'workspace')
+    .trim()
+    .replace(/[^\w.-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return `${normalizedName || 'workspace'}.zip`
+}
+
 const sortWorkspaceNodes = (nodes) => [...nodes].sort((first, second) => {
   if (first.type !== second.type) {
     return first.type === 'folder' ? -1 : 1
@@ -320,6 +329,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [openNodeActionMenuId, setOpenNodeActionMenuId] = useState('')
   const [activeActivity, setActiveActivity] = useState('explorer')
   const [queryNotificationCount, setQueryNotificationCount] = useState(0)
+  const [downloadWorkspaceId, setDownloadWorkspaceId] = useState('')
+  const [downloadingWorkspaceId, setDownloadingWorkspaceId] = useState('')
+  const [downloadError, setDownloadError] = useState('')
 
   const [terminalOutput, setTerminalOutput] = useState('')
   const [inputVal, setInputVal] = useState('')
@@ -370,6 +382,13 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     () => workspaces.find((workspace) => workspace._id === activeWorkspaceId) || null,
     [activeWorkspaceId, workspaces],
   )
+  const selectedDownloadWorkspaceId = useMemo(() => {
+    if (downloadWorkspaceId && workspaces.some((workspace) => workspace._id === downloadWorkspaceId)) {
+      return downloadWorkspaceId
+    }
+
+    return activeWorkspaceId || workspaces[0]?._id || ''
+  }, [activeWorkspaceId, downloadWorkspaceId, workspaces])
   const activeNode = useMemo(
     () => nodes.find((node) => node._id === activeNodeId && node.type === 'file') || null,
     [activeNodeId, nodes],
@@ -743,8 +762,12 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   }, [])
 
   const saveActiveFile = useCallback(async () => {
-    if (!activeNode || !workspaceNodesUrl || saving || code === savedCode) {
-      return
+    if (!activeNode || !workspaceNodesUrl || saving) {
+      return false
+    }
+
+    if (code === savedCode) {
+      return true
     }
 
     setSaving(true)
@@ -769,13 +792,78 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       )))
       setSavedCode(updatedNode.content || '')
       setSaveStatus('saved')
+      return true
     } catch (saveFileError) {
       setSaveError(getErrorMessage(saveFileError, 'Unable to save file.'))
       setSaveStatus('error')
+      return false
     } finally {
       setSaving(false)
     }
   }, [activeNode, code, savedCode, saving, workspaceNodesUrl])
+
+  const downloadWorkspace = useCallback(async (workspaceId) => {
+    const selectedWorkspace = workspaces.find((workspace) => workspace._id === workspaceId)
+
+    if (!selectedWorkspace?._id) {
+      setDownloadError('Select a workspace before downloading.')
+      return
+    }
+
+    if (downloadingWorkspaceId) {
+      return
+    }
+
+    setDownloadError('')
+    setDownloadingWorkspaceId(selectedWorkspace._id)
+
+    try {
+      if (selectedWorkspace._id === activeWorkspaceId && isDirty) {
+        const didSave = await saveActiveFile()
+
+        if (!didSave) {
+          throw new Error('Save the current file before downloading this workspace.')
+        }
+      }
+
+      const response = await axios.get(`${workspaceBaseUrl}/workspaces/${selectedWorkspace._id}/download`, {
+        responseType: 'blob',
+        withCredentials: true,
+      })
+      const blobUrl = window.URL.createObjectURL(response.data)
+      const downloadLink = document.createElement('a')
+
+      downloadLink.href = blobUrl
+      downloadLink.download = getWorkspaceZipFileName(selectedWorkspace.name)
+      document.body.appendChild(downloadLink)
+      downloadLink.click()
+      downloadLink.remove()
+      window.URL.revokeObjectURL(blobUrl)
+    } catch (downloadRequestError) {
+      let message = getErrorMessage(downloadRequestError, 'Unable to download workspace.')
+      const errorData = downloadRequestError?.response?.data
+
+      if (errorData instanceof Blob) {
+        try {
+          const parsedError = JSON.parse(await errorData.text())
+          message = parsedError?.message || message
+        } catch {
+          message = 'Unable to download workspace.'
+        }
+      }
+
+      setDownloadError(message)
+    } finally {
+      setDownloadingWorkspaceId('')
+    }
+  }, [
+    activeWorkspaceId,
+    downloadingWorkspaceId,
+    isDirty,
+    saveActiveFile,
+    workspaceBaseUrl,
+    workspaces,
+  ])
 
   const formatActiveCode = useCallback(async () => {
     const editor = editorRef.current
@@ -1479,7 +1567,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       >
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <IDExplorer
-            activeActivity={isQueryActivity ? 'query' : 'explorer'}
+            activeActivity={activeActivity}
             activeNodeId={activeNodeId}
             activeWorkspace={activeWorkspace}
             activeWorkspaceId={activeWorkspaceId}
@@ -1490,6 +1578,10 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             creatingParentId={creatingParentId}
             deleteActiveWorkspace={deleteActiveWorkspace}
             deleteWorkspaceNode={deleteWorkspaceNode}
+            downloadError={downloadError}
+            downloadingWorkspaceId={downloadingWorkspaceId}
+            downloadWorkspace={downloadWorkspace}
+            downloadWorkspaceId={selectedDownloadWorkspaceId}
             expandedFolders={expandedFolders}
             explorerWidth={explorerWidth}
             handleNodeDraftBlur={handleNodeDraftBlur}
@@ -1511,6 +1603,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             saving={saving}
             setActiveWorkspaceId={setActiveWorkspaceId}
             setActiveActivity={setActiveActivity}
+            setDownloadWorkspaceId={setDownloadWorkspaceId}
             setIsCollapsed={setIsExplorerCollapsed}
             setNodeDraft={setNodeDraft}
             setOpenNodeActionMenuId={setOpenNodeActionMenuId}

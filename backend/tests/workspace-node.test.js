@@ -8,7 +8,11 @@ const {
     MAX_FILE_SIZE_BYTES,
     getLanguageFromFileName
 } = require('../models/workspaceNode.model');
-const { formatWorkspaceNode } = require('../controllers/workspace.controller');
+const {
+    buildWorkspaceZipEntries,
+    buildZipArchive,
+    formatWorkspaceNode
+} = require('../controllers/workspace.controller');
 
 const ownerId = new mongoose.Types.ObjectId();
 const workspaceId = new mongoose.Types.ObjectId();
@@ -132,4 +136,39 @@ test('formatWorkspaceNode returns safe flat workspace data', async () => {
     assert.equal(data.language, 'cpp');
     assert.equal(data.content, node.content);
     assert.equal(data.size, node.size);
+});
+
+test('buildZipArchive creates a zip buffer for workspace files and folders', () => {
+    const folderId = new mongoose.Types.ObjectId();
+    const fileId = new mongoose.Types.ObjectId();
+    const now = new Date('2026-06-19T10:00:00.000Z');
+    const workspace = {
+        _id: workspaceId,
+        name: 'python',
+        updatedAt: now
+    };
+    const nodes = [
+        {
+            _id: folderId,
+            type: 'folder',
+            name: 'src',
+            parentId: null,
+            updatedAt: now
+        },
+        {
+            _id: fileId,
+            type: 'file',
+            name: 'abc.py',
+            parentId: folderId,
+            content: 'print("hello world")\n',
+            updatedAt: now
+        }
+    ];
+
+    const entries = buildWorkspaceZipEntries(workspace, nodes);
+    const zipBuffer = buildZipArchive(entries);
+
+    assert.equal(Buffer.isBuffer(zipBuffer), true);
+    assert.equal(zipBuffer.readUInt32LE(0), 0x04034b50);
+    assert.equal(zipBuffer.includes(Buffer.from('python/src/abc.py')), true);
 });
