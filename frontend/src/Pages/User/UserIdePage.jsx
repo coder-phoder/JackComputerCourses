@@ -12,6 +12,8 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  ListCollapse,
+  MoreHorizontal,
   Pencil,
   Play,
   Plus,
@@ -164,6 +166,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [creatingParentId, setCreatingParentId] = useState('')
   const [workspaceDraft, setWorkspaceDraft] = useState(null)
   const [nodeDraft, setNodeDraft] = useState(null)
+  const [showWorkspaceActions, setShowWorkspaceActions] = useState(false)
 
   const [terminalOutput, setTerminalOutput] = useState('')
   const [inputVal, setInputVal] = useState('')
@@ -259,7 +262,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     return groupedChildren
   }, [nodes])
 
-  const activateFile = useCallback((node, nodeList = []) => {
+  const activateFile = useCallback((node, nodeList = [], expandAncestors = true) => {
     if (!node || node.type !== 'file') {
       setActiveNodeId('')
       setCode('')
@@ -277,6 +280,10 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     setSaveError('')
     if (lastOpenedFileKey) {
       localStorage.setItem(lastOpenedFileKey, node._id)
+    }
+
+    if (!expandAncestors) {
+      return
     }
 
     const ancestorIds = getAncestorFolderIds(node, nodeList)
@@ -344,7 +351,8 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       const nextActiveFile = nextFileNodes.find((node) => node._id === lastOpenedFileId) || nextFileNodes[0] || null
 
       setNodes(nextNodes)
-      activateFile(nextActiveFile, nextNodes)
+      setExpandedFolders(new Set())
+      activateFile(nextActiveFile, nextNodes, false)
     } catch (workspaceLoadError) {
       setWorkspaceError(getErrorMessage(workspaceLoadError, 'Unable to load workspace.'))
       setNodes([])
@@ -677,6 +685,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       return
     }
 
+    setShowWorkspaceActions(false)
     setWorkspaceError('')
     setWorkspaceDraft({
       id: `workspace-rename-${activeWorkspace._id}`,
@@ -783,6 +792,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       return
     }
 
+    setShowWorkspaceActions(false)
     const confirmed = window.confirm(`Delete workspace ${activeWorkspace.name} and all files inside it?`)
 
     if (!confirmed) {
@@ -810,6 +820,11 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     } finally {
       setWorkspacesLoading(false)
     }
+  }
+
+  const collapseWorkspaceFolders = () => {
+    setShowWorkspaceActions(false)
+    setExpandedFolders(new Set())
   }
 
   const startCreateWorkspaceNode = (type, parentId = null) => {
@@ -1465,22 +1480,52 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                 </button>
                 <button
                   type="button"
-                  onClick={startRenameWorkspace}
-                  disabled={workspacesLoading || !activeWorkspace || saving || Boolean(workspaceDraft)}
-                  title="Rename workspace"
+                  onClick={collapseWorkspaceFolders}
+                  disabled={!expandedFolders.size || workspacesLoading || saving || Boolean(workspaceDraft)}
+                  title="Collapse folders in Explorer"
+                  aria-label="Collapse folders in Explorer"
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
-                  <Pencil className="h-4 w-4" />
+                  <ListCollapse className="h-4 w-4" />
                 </button>
-                <button
-                  type="button"
-                  onClick={deleteActiveWorkspace}
-                  disabled={workspacesLoading || workspaces.length <= 1 || !activeWorkspace || saving || Boolean(workspaceDraft)}
-                  title="Delete workspace"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-600 transition hover:bg-rose-100 hover:text-rose-700 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowWorkspaceActions((currentValue) => !currentValue)}
+                    disabled={workspacesLoading || !activeWorkspace || saving || Boolean(workspaceDraft)}
+                    title="Workspace actions"
+                    aria-label="Workspace actions"
+                    aria-expanded={showWorkspaceActions}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                  {showWorkspaceActions ? (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowWorkspaceActions(false)} />
+                      <div className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                        <button
+                          type="button"
+                          onClick={startRenameWorkspace}
+                          disabled={workspacesLoading || !activeWorkspace || saving || Boolean(workspaceDraft)}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-slate-800"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Rename workspace
+                        </button>
+                        <button
+                          type="button"
+                          onClick={deleteActiveWorkspace}
+                          disabled={workspacesLoading || workspaces.length <= 1 || !activeWorkspace || saving || Boolean(workspaceDraft)}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-40 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete workspace
+                        </button>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
               </div>
             </div>
 
