@@ -30,10 +30,6 @@ const IDExplorer = ({
   creatingParentId,
   deleteActiveWorkspace,
   deleteWorkspaceNode,
-  downloadError,
-  downloadingWorkspaceId,
-  downloadWorkspace,
-  downloadWorkspaceId,
   expandedFolders,
   explorerWidth,
   handleNodeDraftBlur,
@@ -52,7 +48,6 @@ const IDExplorer = ({
   saving,
   setActiveWorkspaceId,
   setActiveActivity,
-  setDownloadWorkspaceId,
   setIsCollapsed,
   setNodeDraft,
   setOpenNodeActionMenuId,
@@ -75,9 +70,6 @@ const IDExplorer = ({
 }) => {
   const workspaceDraftInputRef = useRef(null)
   const nodeDraftInputRef = useRef(null)
-  const selectedDownloadWorkspaceId = downloadWorkspaceId || activeWorkspaceId
-  const selectedDownloadWorkspace = workspaces.find((workspace) => workspace._id === selectedDownloadWorkspaceId) || null
-  const isDownloadingWorkspace = Boolean(downloadingWorkspaceId)
 
   useEffect(() => {
     if (!workspaceDraftInputRef.current) {
@@ -418,102 +410,19 @@ const IDExplorer = ({
         ) : null}
         <button
           type="button"
-          onClick={() => {
-            setActiveActivity?.('download')
-            setIsCollapsed(activeActivity === 'download' ? !isCollapsed : false)
-          }}
-          title={isCollapsed || activeActivity !== 'download' ? 'Open Downloads' : 'Close Downloads'}
-          aria-label={isCollapsed || activeActivity !== 'download' ? 'Open Downloads' : 'Close Downloads'}
-          aria-pressed={activeActivity === 'download' && !isCollapsed}
+          onClick={() => setActiveActivity?.('download')}
+          title="Download workspace"
+          aria-label="Download workspace"
+          aria-pressed={activeActivity === 'download'}
           className={`mt-1 flex h-11 w-11 items-center justify-center border-l-2 transition ${
-            activeActivity !== 'download' || isCollapsed
-              ? 'border-transparent text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-500 dark:hover:bg-slate-900 dark:hover:text-slate-200'
-              : 'border-blue-500 bg-white text-slate-900 dark:bg-slate-900 dark:text-white'
+            activeActivity === 'download'
+              ? 'border-blue-500 bg-white text-slate-900 dark:bg-slate-900 dark:text-white'
+              : 'border-transparent text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-500 dark:hover:bg-slate-900 dark:hover:text-slate-200'
           }`}
         >
           <Download className="h-6 w-6" />
         </button>
       </nav>
-
-      {isCollapsed || activeActivity !== 'download' ? null : (
-        <>
-          <aside
-            className="flex min-h-0 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
-            style={{ width: `${explorerWidth}px` }}
-          >
-            <div className="flex h-11 items-center justify-between border-b border-slate-200 px-3 dark:border-slate-800">
-              <p className="truncate text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Download
-              </p>
-              <button
-                type="button"
-                onClick={() => setIsCollapsed(true)}
-                title="Collapse Downloads"
-                aria-label="Collapse Downloads"
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-              >
-                <PanelLeftClose className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3 border-b border-slate-200 px-3 py-3 dark:border-slate-800">
-              <label htmlFor="workspace-download-select" className="sr-only">Workspace</label>
-              <select
-                id="workspace-download-select"
-                value={selectedDownloadWorkspaceId}
-                onChange={(event) => setDownloadWorkspaceId?.(event.target.value)}
-                disabled={workspacesLoading || !workspaces.length || isDownloadingWorkspace}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:ring-2 focus:ring-blue-500 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-              >
-                {workspaces.map((workspace) => (
-                  <option key={workspace._id} value={workspace._id}>
-                    {workspace.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => downloadWorkspace?.(selectedDownloadWorkspaceId)}
-                disabled={workspacesLoading || !selectedDownloadWorkspace || isDownloadingWorkspace || saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:bg-slate-400 dark:disabled:bg-slate-700"
-              >
-                <Download className="h-4 w-4" />
-                {downloadingWorkspaceId === selectedDownloadWorkspaceId ? 'Downloading...' : 'Download ZIP'}
-              </button>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
-              {workspacesLoading ? (
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Loading workspaces...</p>
-              ) : selectedDownloadWorkspace ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
-                  <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">
-                    {selectedDownloadWorkspace.name}
-                  </p>
-                  <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                    .zip archive
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No workspace available</p>
-              )}
-            </div>
-
-            {downloadError ? (
-              <div className="border-t border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-                {downloadError}
-              </div>
-            ) : null}
-          </aside>
-
-          <div
-            onMouseDown={onStartExplorerResize}
-            className={`w-1 shrink-0 cursor-col-resize transition ${
-              isDraggingExplorer ? 'bg-blue-600' : 'bg-slate-200 hover:bg-blue-500 dark:bg-slate-800'
-            }`}
-          />
-        </>
-      )}
 
       {isCollapsed || activeActivity !== 'explorer' ? null : (
         <>

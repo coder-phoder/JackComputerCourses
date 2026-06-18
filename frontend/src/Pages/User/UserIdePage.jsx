@@ -16,6 +16,7 @@ import {
 import IDExplorer from '../../Components/IDE/IDExplorer'
 import IDEerminal from '../../Components/IDE/IDEerminal'
 import IDEquery from '../../Components/IDE/IDEquery'
+import IDEWorkspace from '../../Components/IDE/IDEWorkspace'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import UserNavbar from '../../Components/User/UserNavbar'
 import { useAuth } from '../../Context/AuthContext'
@@ -121,15 +122,6 @@ const getLanguageFromFileName = (name) => LANGUAGE_BY_EXTENSION[getFileExtension
 const getLanguageMeta = (language) => (
   LANGUAGES.find((currentLanguage) => currentLanguage.value === language) || LANGUAGES[3]
 )
-
-const getWorkspaceZipFileName = (workspaceName) => {
-  const normalizedName = String(workspaceName || 'workspace')
-    .trim()
-    .replace(/[^\w.-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-
-  return `${normalizedName || 'workspace'}.zip`
-}
 
 const sortWorkspaceNodes = (nodes) => [...nodes].sort((first, second) => {
   if (first.type !== second.type) {
@@ -329,9 +321,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [openNodeActionMenuId, setOpenNodeActionMenuId] = useState('')
   const [activeActivity, setActiveActivity] = useState('explorer')
   const [queryNotificationCount, setQueryNotificationCount] = useState(0)
-  const [downloadWorkspaceId, setDownloadWorkspaceId] = useState('')
-  const [downloadingWorkspaceId, setDownloadingWorkspaceId] = useState('')
-  const [downloadError, setDownloadError] = useState('')
 
   const [terminalOutput, setTerminalOutput] = useState('')
   const [inputVal, setInputVal] = useState('')
@@ -382,13 +371,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     () => workspaces.find((workspace) => workspace._id === activeWorkspaceId) || null,
     [activeWorkspaceId, workspaces],
   )
-  const selectedDownloadWorkspaceId = useMemo(() => {
-    if (downloadWorkspaceId && workspaces.some((workspace) => workspace._id === downloadWorkspaceId)) {
-      return downloadWorkspaceId
-    }
-
-    return activeWorkspaceId || workspaces[0]?._id || ''
-  }, [activeWorkspaceId, downloadWorkspaceId, workspaces])
   const activeNode = useMemo(
     () => nodes.find((node) => node._id === activeNodeId && node.type === 'file') || null,
     [activeNodeId, nodes],
@@ -404,6 +386,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const isExplorerLayoutCollapsed = isExplorerCollapsed || shouldAutoCollapseExplorer
   const isTerminalLayoutCollapsed = isTerminalCollapsed || shouldAutoCollapseTerminal
   const isQueryActivity = accessConfig.role === 'user' && activeActivity === 'query'
+  const isWorkspaceActivity = activeActivity === 'download'
 
   const registerBoilerplateSnippets = useCallback((monaco) => {
     snippetProviderDisposablesRef.current.forEach((disposable) => disposable.dispose())
@@ -801,69 +784,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       setSaving(false)
     }
   }, [activeNode, code, savedCode, saving, workspaceNodesUrl])
-
-  const downloadWorkspace = useCallback(async (workspaceId) => {
-    const selectedWorkspace = workspaces.find((workspace) => workspace._id === workspaceId)
-
-    if (!selectedWorkspace?._id) {
-      setDownloadError('Select a workspace before downloading.')
-      return
-    }
-
-    if (downloadingWorkspaceId) {
-      return
-    }
-
-    setDownloadError('')
-    setDownloadingWorkspaceId(selectedWorkspace._id)
-
-    try {
-      if (selectedWorkspace._id === activeWorkspaceId && isDirty) {
-        const didSave = await saveActiveFile()
-
-        if (!didSave) {
-          throw new Error('Save the current file before downloading this workspace.')
-        }
-      }
-
-      const response = await axios.get(`${workspaceBaseUrl}/workspaces/${selectedWorkspace._id}/download`, {
-        responseType: 'blob',
-        withCredentials: true,
-      })
-      const blobUrl = window.URL.createObjectURL(response.data)
-      const downloadLink = document.createElement('a')
-
-      downloadLink.href = blobUrl
-      downloadLink.download = getWorkspaceZipFileName(selectedWorkspace.name)
-      document.body.appendChild(downloadLink)
-      downloadLink.click()
-      downloadLink.remove()
-      window.URL.revokeObjectURL(blobUrl)
-    } catch (downloadRequestError) {
-      let message = getErrorMessage(downloadRequestError, 'Unable to download workspace.')
-      const errorData = downloadRequestError?.response?.data
-
-      if (errorData instanceof Blob) {
-        try {
-          const parsedError = JSON.parse(await errorData.text())
-          message = parsedError?.message || message
-        } catch {
-          message = 'Unable to download workspace.'
-        }
-      }
-
-      setDownloadError(message)
-    } finally {
-      setDownloadingWorkspaceId('')
-    }
-  }, [
-    activeWorkspaceId,
-    downloadingWorkspaceId,
-    isDirty,
-    saveActiveFile,
-    workspaceBaseUrl,
-    workspaces,
-  ])
 
   const formatActiveCode = useCallback(async () => {
     const editor = editorRef.current
@@ -1578,10 +1498,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             creatingParentId={creatingParentId}
             deleteActiveWorkspace={deleteActiveWorkspace}
             deleteWorkspaceNode={deleteWorkspaceNode}
-            downloadError={downloadError}
-            downloadingWorkspaceId={downloadingWorkspaceId}
-            downloadWorkspace={downloadWorkspace}
-            downloadWorkspaceId={selectedDownloadWorkspaceId}
             expandedFolders={expandedFolders}
             explorerWidth={explorerWidth}
             handleNodeDraftBlur={handleNodeDraftBlur}
@@ -1603,7 +1519,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             saving={saving}
             setActiveWorkspaceId={setActiveWorkspaceId}
             setActiveActivity={setActiveActivity}
-            setDownloadWorkspaceId={setDownloadWorkspaceId}
             setIsCollapsed={setIsExplorerCollapsed}
             setNodeDraft={setNodeDraft}
             setOpenNodeActionMenuId={setOpenNodeActionMenuId}
@@ -1631,38 +1546,48 @@ const UserIdePage = ({ accessRole = 'user' }) => {
               onNotificationCountChange={setQueryNotificationCount}
               onWorkspaceNodeApplied={handleWorkspaceNodeApplied}
             />
+          ) : isWorkspaceActivity ? (
+            <IDEWorkspace
+              activeWorkspaceId={activeWorkspaceId}
+              isActiveWorkspaceDirty={isDirty}
+              onSaveActiveWorkspaceFile={saveActiveFile}
+              saving={saving}
+              workspaceBaseUrl={workspaceBaseUrl}
+              workspaces={workspaces}
+              workspacesLoading={workspacesLoading}
+            />
           ) : (
-          <main className="flex min-w-0 flex-1 flex-col">
-            <div className="z-10 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <div className="min-w-0">
-                <div className="flex min-w-0 items-center gap-2">
-                  {saveStatus === 'error' ? (
-                    <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
-                  ) : isDirty ? (
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
-                  ) : (
-                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
-                  )}
-                  <h1 className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-                    {activeNode?.name || 'No file selected'}
-                  </h1>
+            <main className="flex min-w-0 flex-1 flex-col">
+              <div className="z-10 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {saveStatus === 'error' ? (
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
+                    ) : isDirty ? (
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                    ) : (
+                      <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                    )}
+                    <h1 className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {activeNode?.name || 'No file selected'}
+                    </h1>
+                  </div>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                    {activeNode ? `${selectedLanguage.label} · ${statusText}` : 'Create or open a file to start coding'}
+                  </p>
                 </div>
-                <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                  {activeNode ? `${selectedLanguage.label} · ${statusText}` : 'Create or open a file to start coding'}
-                </p>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={formatActiveCode}
-                  disabled={!activeNode}
-                  title="Format code"
-                  aria-label="Format code"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                >
-                  <Braces className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={formatActiveCode}
+                    disabled={!activeNode}
+                    title="Format code"
+                    aria-label="Format code"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    <Braces className="h-4 w-4" />
+                  </button>
 
                 <div className="relative">
                   <button
@@ -1799,7 +1724,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
           )}
         </div>
 
-        {isQueryActivity ? null : (
+        {isQueryActivity || isWorkspaceActivity ? null : (
           <IDEerminal
             handleClearTerminal={handleClearTerminal}
             handleInputKeyDown={handleInputKeyDown}
