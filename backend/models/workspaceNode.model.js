@@ -35,6 +35,12 @@ const workspaceNodeSchema = new mongoose.Schema({
         required: true,
         index: true
     },
+    workspaceId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Workspace',
+        required: true,
+        index: true
+    },
     type: {
         type: String,
         enum: ['file', 'folder'],
@@ -108,7 +114,7 @@ workspaceNodeSchema.pre('validate', function setWorkspaceNodeDerivedFields() {
     this.size = Buffer.byteLength(content, 'utf8');
 });
 
-workspaceNodeSchema.index({ ownerRole: 1, ownerId: 1, parentId: 1, name: 1 });
+workspaceNodeSchema.index({ ownerRole: 1, ownerId: 1, workspaceId: 1, parentId: 1, name: 1 });
 
 module.exports = mongoose.model('WorkspaceNode', workspaceNodeSchema);
 module.exports.LANGUAGE_BY_EXTENSION = LANGUAGE_BY_EXTENSION;

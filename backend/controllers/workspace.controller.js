@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
+const Workspace = require('../models/workspace.model');
 const WorkspaceNode = require('../models/workspaceNode.model');
 const {
     MAX_FILE_SIZE_BYTES,
     getLanguageFromFileName
 } = require('../models/workspaceNode.model');
 
-const MAX_FILES_PER_WORKSPACE = 100;
-const MAX_FOLDERS_PER_WORKSPACE = 20;
 const MAX_WORKSPACE_SIZE_BYTES = 5 * 1024 * 1024;
+const DEFAULT_WORKSPACE_NAME = 'demo';
 
 const BOILERPLATES = {
     c: '#include <stdio.h>\n\nint main() {\n    printf("hello world\\n");\n    return 0;\n}\n',
@@ -25,6 +25,7 @@ const sendError = (res, statusCode, message) => res.status(statusCode).json({
 
 const formatWorkspaceNode = (node) => ({
     _id: node._id.toString(),
+    workspaceId: node.workspaceId.toString(),
     type: node.type,
     name: node.name,
     parentId: node.parentId ? node.parentId.toString() : null,
@@ -33,6 +34,13 @@ const formatWorkspaceNode = (node) => ({
     size: node.size || 0,
     createdAt: node.createdAt,
     updatedAt: node.updatedAt
+});
+
+const formatWorkspace = (workspace) => ({
+    _id: workspace._id.toString(),
+    name: workspace.name,
+    createdAt: workspace.createdAt,
+    updatedAt: workspace.updatedAt
 });
 
 const getWorkspaceOwner = (req) => {
@@ -68,14 +76,20 @@ const getOwnerQuery = (owner) => ({
     ownerId: owner.ownerId
 });
 
+const getNodeQuery = (owner, workspaceId) => ({
+    ...getOwnerQuery(owner),
+    workspaceId
+});
+
 const getContentSize = (content) => Buffer.byteLength(String(content || ''), 'utf8');
 
-const getWorkspaceTotalSize = async (owner) => {
+const getWorkspaceTotalSize = async (owner, workspaceId) => {
     const [result] = await WorkspaceNode.aggregate([
         {
             $match: {
                 ownerRole: owner.ownerRole,
                 ownerId: new mongoose.Types.ObjectId(owner.ownerId),
+                workspaceId: new mongoose.Types.ObjectId(workspaceId),
                 type: 'file'
             }
         },
@@ -90,7 +104,54 @@ const getWorkspaceTotalSize = async (owner) => {
     return result?.totalSize || 0;
 };
 
-const validateParentNode = async (owner, parentId) => {
+const getWorkspaceById = async (owner, workspaceId) => {
+    if (!isValidObjectId(workspaceId)) {
+        return null;
+    }
+
+    return Workspace.findOne({
+        ...getOwnerQuery(owner),
+        _id: workspaceId
+    });
+};
+
+const ensureDefaultWorkspace = async (owner) => {
+    const existingWorkspace = await Workspace.findOne(getOwnerQuery(owner)).sort({ createdAt: 1 });
+
+    if (existingWorkspace) {
+        await WorkspaceNode.updateMany(
+            {
+                ...getOwnerQuery(owner),
+                $or: [
+                    { workspaceId: { $exists: false } },
+                    { workspaceId: null }
+                ]
+            },
+            { $set: { workspaceId: existingWorkspace._id } }
+        );
+        return existingWorkspace;
+    }
+
+    const workspace = await Workspace.create({
+        ...owner,
+        name: DEFAULT_WORKSPACE_NAME
+    });
+
+    await WorkspaceNode.updateMany(
+        {
+            ...getOwnerQuery(owner),
+            $or: [
+                { workspaceId: { $exists: false } },
+                { workspaceId: null }
+            ]
+        },
+        { $set: { workspaceId: workspace._id } }
+    );
+
+    return workspace;
+};
+
+const validateParentNode = async (owner, workspaceId, parentId) => {
     const normalizedParentId = normalizeParentId(parentId);
 
     if (!normalizedParentId) {
@@ -102,7 +163,7 @@ const validateParentNode = async (owner, parentId) => {
     }
 
     const parentNode = await WorkspaceNode.findOne({
-        ...getOwnerQuery(owner),
+        ...getNodeQuery(owner, workspaceId),
         _id: normalizedParentId
     });
 
@@ -116,9 +177,9 @@ const validateParentNode = async (owner, parentId) => {
     };
 };
 
-const findSiblingByName = async (owner, name, parentId, excludedNodeId = null) => {
+const findSiblingByName = async (owner, workspaceId, name, parentId, excludedNodeId = null) => {
     const query = {
-        ...getOwnerQuery(owner),
+        ...getNodeQuery(owner, workspaceId),
         name: String(name || '').trim(),
         parentId: parentId || null
     };
@@ -130,34 +191,26 @@ const findSiblingByName = async (owner, name, parentId, excludedNodeId = null) =
     return WorkspaceNode.findOne(query);
 };
 
-const ensureCreateQuota = async (owner, type, contentSize) => {
+const ensureCreateQuota = async (type, contentSize) => {
     if (type === 'folder') {
-        const folderCount = await WorkspaceNode.countDocuments({
-            ...getOwnerQuery(owner),
-            type: 'folder'
-        });
-
-        if (folderCount >= MAX_FOLDERS_PER_WORKSPACE) {
-            return 'Folder limit reached for this workspace';
-        }
-
         return '';
-    }
-
-    const fileCount = await WorkspaceNode.countDocuments({
-        ...getOwnerQuery(owner),
-        type: 'file'
-    });
-
-    if (fileCount >= MAX_FILES_PER_WORKSPACE) {
-        return 'File limit reached for this workspace';
     }
 
     if (contentSize > MAX_FILE_SIZE_BYTES) {
         return 'File is too large';
     }
 
-    const currentTotalSize = await getWorkspaceTotalSize(owner);
+    return '';
+};
+
+const ensureCreateSizeQuota = async (owner, workspaceId, type, contentSize) => {
+    const quotaError = await ensureCreateQuota(type, contentSize);
+
+    if (quotaError || type === 'folder') {
+        return quotaError;
+    }
+
+    const currentTotalSize = await getWorkspaceTotalSize(owner, workspaceId);
 
     if (currentTotalSize + contentSize > MAX_WORKSPACE_SIZE_BYTES) {
         return 'Workspace storage limit reached';
@@ -171,7 +224,7 @@ const ensureUpdateSizeQuota = async (owner, currentNode, nextSize) => {
         return 'File is too large';
     }
 
-    const currentTotalSize = await getWorkspaceTotalSize(owner);
+    const currentTotalSize = await getWorkspaceTotalSize(owner, currentNode.workspaceId);
     const projectedTotalSize = currentTotalSize - (currentNode.size || 0) + nextSize;
 
     if (projectedTotalSize > MAX_WORKSPACE_SIZE_BYTES) {
@@ -181,8 +234,8 @@ const ensureUpdateSizeQuota = async (owner, currentNode, nextSize) => {
     return '';
 };
 
-const getDescendantIds = async (owner, folderId) => {
-    const nodes = await WorkspaceNode.find(getOwnerQuery(owner)).select('_id parentId').lean();
+const getDescendantIds = async (owner, workspaceId, folderId) => {
+    const nodes = await WorkspaceNode.find(getNodeQuery(owner, workspaceId)).select('_id parentId').lean();
     const descendants = [];
     const queue = [String(folderId)];
 
@@ -201,7 +254,7 @@ const getDescendantIds = async (owner, folderId) => {
     return descendants;
 };
 
-const getWorkspaceNodes = async (req, res) => {
+const getWorkspaces = async (req, res) => {
     try {
         const owner = getWorkspaceOwner(req);
 
@@ -209,7 +262,152 @@ const getWorkspaceNodes = async (req, res) => {
             return sendError(res, 401, 'Workspace authentication is required');
         }
 
-        const nodes = await WorkspaceNode.find(getOwnerQuery(owner))
+        await ensureDefaultWorkspace(owner);
+
+        const workspaces = await Workspace.find(getOwnerQuery(owner)).sort({ createdAt: 1, name: 1 });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Workspaces fetched successfully',
+            data: { workspaces: workspaces.map(formatWorkspace) }
+        });
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while fetching workspaces');
+    }
+};
+
+const createWorkspace = async (req, res) => {
+    try {
+        const owner = getWorkspaceOwner(req);
+
+        if (!owner) {
+            return sendError(res, 401, 'Workspace authentication is required');
+        }
+
+        const name = String(req.body?.name || '').trim();
+
+        if (!name) {
+            return sendError(res, 400, 'Workspace name is required');
+        }
+
+        const workspace = await Workspace.create({
+            ...owner,
+            name
+        });
+
+        return res.status(201).json({
+            success: true,
+            message: 'Workspace created successfully',
+            data: { workspace: formatWorkspace(workspace) }
+        });
+    } catch (error) {
+        if (error.code === 11000) {
+            return sendError(res, 409, 'Workspace with this name already exists');
+        }
+
+        if (error.name === 'ValidationError') {
+            return sendError(res, 400, error.message);
+        }
+
+        return sendError(res, 500, 'Something went wrong while creating workspace');
+    }
+};
+
+const updateWorkspace = async (req, res) => {
+    try {
+        const owner = getWorkspaceOwner(req);
+        const { workspaceId } = req.params;
+
+        if (!owner) {
+            return sendError(res, 401, 'Workspace authentication is required');
+        }
+
+        const workspace = await getWorkspaceById(owner, workspaceId);
+
+        if (!workspace) {
+            return sendError(res, 404, 'Workspace not found');
+        }
+
+        const name = String(req.body?.name || '').trim();
+
+        if (!name) {
+            return sendError(res, 400, 'Workspace name is required');
+        }
+
+        workspace.name = name;
+        await workspace.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Workspace updated successfully',
+            data: { workspace: formatWorkspace(workspace) }
+        });
+    } catch (error) {
+        if (error.code === 11000) {
+            return sendError(res, 409, 'Workspace with this name already exists');
+        }
+
+        if (error.name === 'ValidationError') {
+            return sendError(res, 400, error.message);
+        }
+
+        return sendError(res, 500, 'Something went wrong while updating workspace');
+    }
+};
+
+const deleteWorkspace = async (req, res) => {
+    try {
+        const owner = getWorkspaceOwner(req);
+        const { workspaceId } = req.params;
+
+        if (!owner) {
+            return sendError(res, 401, 'Workspace authentication is required');
+        }
+
+        const workspace = await getWorkspaceById(owner, workspaceId);
+
+        if (!workspace) {
+            return sendError(res, 404, 'Workspace not found');
+        }
+
+        const workspaceCount = await Workspace.countDocuments(getOwnerQuery(owner));
+
+        if (workspaceCount <= 1) {
+            return sendError(res, 400, 'At least one workspace is required');
+        }
+
+        await WorkspaceNode.deleteMany(getNodeQuery(owner, workspace._id));
+        await Workspace.deleteOne({
+            ...getOwnerQuery(owner),
+            _id: workspace._id
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Workspace deleted successfully',
+            data: { deletedWorkspaceId: workspace._id.toString() }
+        });
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while deleting workspace');
+    }
+};
+
+const getWorkspaceNodes = async (req, res) => {
+    try {
+        const owner = getWorkspaceOwner(req);
+        const { workspaceId } = req.params;
+
+        if (!owner) {
+            return sendError(res, 401, 'Workspace authentication is required');
+        }
+
+        const workspace = await getWorkspaceById(owner, workspaceId);
+
+        if (!workspace) {
+            return sendError(res, 404, 'Workspace not found');
+        }
+
+        const nodes = await WorkspaceNode.find(getNodeQuery(owner, workspace._id))
             .sort({ type: 1, name: 1, createdAt: 1 });
 
         return res.status(200).json({
@@ -225,9 +423,16 @@ const getWorkspaceNodes = async (req, res) => {
 const createWorkspaceNode = async (req, res) => {
     try {
         const owner = getWorkspaceOwner(req);
+        const { workspaceId } = req.params;
 
         if (!owner) {
             return sendError(res, 401, 'Workspace authentication is required');
+        }
+
+        const workspace = await getWorkspaceById(owner, workspaceId);
+
+        if (!workspace) {
+            return sendError(res, 404, 'Workspace not found');
         }
 
         const type = String(req.body?.type || '').trim();
@@ -242,13 +447,13 @@ const createWorkspaceNode = async (req, res) => {
             return sendError(res, 400, 'Name is required');
         }
 
-        const parentValidation = await validateParentNode(owner, req.body?.parentId);
+        const parentValidation = await validateParentNode(owner, workspace._id, req.body?.parentId);
 
         if (parentValidation.error) {
             return sendError(res, 400, parentValidation.error);
         }
 
-        const sibling = await findSiblingByName(owner, name, parentValidation.parentId);
+        const sibling = await findSiblingByName(owner, workspace._id, name, parentValidation.parentId);
 
         if (sibling) {
             return sendError(res, 409, 'A file or folder with this name already exists here');
@@ -263,7 +468,7 @@ const createWorkspaceNode = async (req, res) => {
         const initialContent = type === 'file'
             ? (content === undefined ? BOILERPLATES[language] : content)
             : '';
-        const quotaError = await ensureCreateQuota(owner, type, getContentSize(initialContent));
+        const quotaError = await ensureCreateSizeQuota(owner, workspace._id, type, getContentSize(initialContent));
 
         if (quotaError) {
             return sendError(res, 400, quotaError);
@@ -271,6 +476,7 @@ const createWorkspaceNode = async (req, res) => {
 
         const node = await WorkspaceNode.create({
             ...owner,
+            workspaceId: workspace._id,
             type,
             name,
             parentId: parentValidation.parentId,
@@ -295,10 +501,16 @@ const createWorkspaceNode = async (req, res) => {
 const updateWorkspaceNode = async (req, res) => {
     try {
         const owner = getWorkspaceOwner(req);
-        const { nodeId } = req.params;
+        const { workspaceId, nodeId } = req.params;
 
         if (!owner) {
             return sendError(res, 401, 'Workspace authentication is required');
+        }
+
+        const workspace = await getWorkspaceById(owner, workspaceId);
+
+        if (!workspace) {
+            return sendError(res, 404, 'Workspace not found');
         }
 
         if (!isValidObjectId(nodeId)) {
@@ -306,7 +518,7 @@ const updateWorkspaceNode = async (req, res) => {
         }
 
         const node = await WorkspaceNode.findOne({
-            ...getOwnerQuery(owner),
+            ...getNodeQuery(owner, workspace._id),
             _id: nodeId
         });
 
@@ -329,7 +541,7 @@ const updateWorkspaceNode = async (req, res) => {
         }
 
         if (Object.prototype.hasOwnProperty.call(req.body || {}, 'parentId')) {
-            const parentValidation = await validateParentNode(owner, req.body.parentId);
+            const parentValidation = await validateParentNode(owner, workspace._id, req.body.parentId);
 
             if (parentValidation.error) {
                 return sendError(res, 400, parentValidation.error);
@@ -340,7 +552,7 @@ const updateWorkspaceNode = async (req, res) => {
                     return sendError(res, 400, 'Folder cannot be moved into itself');
                 }
 
-                const descendantIds = await getDescendantIds(owner, node._id);
+                const descendantIds = await getDescendantIds(owner, workspace._id, node._id);
 
                 if (descendantIds.includes(String(parentValidation.parentId))) {
                     return sendError(res, 400, 'Folder cannot be moved into its own descendant');
@@ -350,7 +562,7 @@ const updateWorkspaceNode = async (req, res) => {
             node.parentId = parentValidation.parentId;
         }
 
-        const sibling = await findSiblingByName(owner, node.name, node.parentId, node._id);
+        const sibling = await findSiblingByName(owner, workspace._id, node.name, node.parentId, node._id);
 
         if (sibling) {
             return sendError(res, 409, 'A file or folder with this name already exists here');
@@ -386,10 +598,16 @@ const updateWorkspaceNode = async (req, res) => {
 const deleteWorkspaceNode = async (req, res) => {
     try {
         const owner = getWorkspaceOwner(req);
-        const { nodeId } = req.params;
+        const { workspaceId, nodeId } = req.params;
 
         if (!owner) {
             return sendError(res, 401, 'Workspace authentication is required');
+        }
+
+        const workspace = await getWorkspaceById(owner, workspaceId);
+
+        if (!workspace) {
+            return sendError(res, 404, 'Workspace not found');
         }
 
         if (!isValidObjectId(nodeId)) {
@@ -397,7 +615,7 @@ const deleteWorkspaceNode = async (req, res) => {
         }
 
         const node = await WorkspaceNode.findOne({
-            ...getOwnerQuery(owner),
+            ...getNodeQuery(owner, workspace._id),
             _id: nodeId
         });
 
@@ -408,12 +626,12 @@ const deleteWorkspaceNode = async (req, res) => {
         const idsToDelete = [String(node._id)];
 
         if (node.type === 'folder') {
-            const descendantIds = await getDescendantIds(owner, node._id);
+            const descendantIds = await getDescendantIds(owner, workspace._id, node._id);
             idsToDelete.push(...descendantIds);
         }
 
         await WorkspaceNode.deleteMany({
-            ...getOwnerQuery(owner),
+            ...getNodeQuery(owner, workspace._id),
             _id: { $in: idsToDelete }
         });
 
@@ -428,14 +646,18 @@ const deleteWorkspaceNode = async (req, res) => {
 };
 
 module.exports = {
+    getWorkspaces,
+    createWorkspace,
+    updateWorkspace,
+    deleteWorkspace,
     getWorkspaceNodes,
     createWorkspaceNode,
     updateWorkspaceNode,
     deleteWorkspaceNode,
     formatWorkspaceNode,
+    formatWorkspace,
     getWorkspaceOwner,
-    MAX_FILES_PER_WORKSPACE,
-    MAX_FOLDERS_PER_WORKSPACE,
     MAX_WORKSPACE_SIZE_BYTES,
+    DEFAULT_WORKSPACE_NAME,
     BOILERPLATES
 };

@@ -1,5 +1,9 @@
 const express = require('express');
 const {
+    getWorkspaces,
+    createWorkspace,
+    updateWorkspace,
+    deleteWorkspace,
     getWorkspaceNodes,
     createWorkspaceNode,
     updateWorkspaceNode,
@@ -8,9 +12,14 @@ const {
 
 const router = express.Router();
 
-router.get('/nodes', getWorkspaceNodes);
-router.post('/nodes', createWorkspaceNode);
-router.patch('/nodes/:nodeId', updateWorkspaceNode);
-router.delete('/nodes/:nodeId', deleteWorkspaceNode);
+router.get('/workspaces', getWorkspaces);
+router.post('/workspaces', createWorkspace);
+router.patch('/workspaces/:workspaceId', updateWorkspace);
+router.delete('/workspaces/:workspaceId', deleteWorkspace);
+
+router.get('/workspaces/:workspaceId/nodes', getWorkspaceNodes);
+router.post('/workspaces/:workspaceId/nodes', createWorkspaceNode);
+router.patch('/workspaces/:workspaceId/nodes/:nodeId', updateWorkspaceNode);
+router.delete('/workspaces/:workspaceId/nodes/:nodeId', deleteWorkspaceNode);
 
 module.exports = router;

@@ -34,14 +34,14 @@ const IDE_ACCESS_CONFIG = {
     role: 'user',
     profilePath: '/user/profile',
     profileKey: 'user',
-    workspacePath: '/user/workspace/nodes',
+    workspacePath: '/user/workspace',
     Navbar: UserNavbar,
   },
   faculty: {
     role: 'faculty',
     profilePath: '/faculty/profile',
     profileKey: 'faculty',
-    workspacePath: '/faculty/workspace/nodes',
+    workspacePath: '/faculty/workspace',
     Navbar: FacultyNavbar,
   },
 }
@@ -90,11 +90,13 @@ const LANGUAGE_BY_EXTENSION = {
 }
 
 const getStorageKeys = (role) => ({
-  lastOpenedFileId: `jack_ide_${role}_last_file_id`,
+  lastWorkspaceId: `jack_ide_${role}_last_workspace_id`,
   fontSize: 'jack_ide_font_size',
   terminalHeight: 'jack_ide_terminal_height',
   explorerWidth: `jack_ide_${role}_explorer_width`,
 })
+
+const getLastOpenedFileKey = (role, workspaceId) => `jack_ide_${role}_${workspaceId}_last_file_id`
 
 const getErrorMessage = (error, fallback) => (
   error?.response?.data?.message || error?.message || fallback
@@ -146,6 +148,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
+  const [workspaces, setWorkspaces] = useState([])
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState('')
+  const [workspacesLoading, setWorkspacesLoading] = useState(true)
   const [nodes, setNodes] = useState([])
   const [workspaceLoading, setWorkspaceLoading] = useState(true)
   const [workspaceError, setWorkspaceError] = useState('')
@@ -185,7 +190,17 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   })
   const [isDraggingExplorer, setIsDraggingExplorer] = useState(false)
 
-  const workspaceUrl = `${API_BASE_URL}${accessConfig.workspacePath}`
+  const workspaceBaseUrl = `${API_BASE_URL}${accessConfig.workspacePath}`
+  const workspaceNodesUrl = activeWorkspaceId
+    ? `${workspaceBaseUrl}/workspaces/${activeWorkspaceId}/nodes`
+    : ''
+  const lastOpenedFileKey = activeWorkspaceId
+    ? getLastOpenedFileKey(accessConfig.role, activeWorkspaceId)
+    : ''
+  const activeWorkspace = useMemo(
+    () => workspaces.find((workspace) => workspace._id === activeWorkspaceId) || null,
+    [activeWorkspaceId, workspaces],
+  )
   const activeNode = useMemo(
     () => nodes.find((node) => node._id === activeNodeId && node.type === 'file') || null,
     [activeNodeId, nodes],
@@ -211,7 +226,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       setActiveNodeId('')
       setCode('')
       setSavedCode('')
-      localStorage.removeItem(storageKeys.lastOpenedFileId)
+      if (lastOpenedFileKey) {
+        localStorage.removeItem(lastOpenedFileKey)
+      }
       return
     }
 
@@ -220,7 +237,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     setSavedCode(node.content || '')
     setSaveStatus('saved')
     setSaveError('')
-    localStorage.setItem(storageKeys.lastOpenedFileId, node._id)
+    if (lastOpenedFileKey) {
+      localStorage.setItem(lastOpenedFileKey, node._id)
+    }
 
     const ancestorIds = getAncestorFolderIds(node, nodeList)
 
@@ -231,14 +250,49 @@ const UserIdePage = ({ accessRole = 'user' }) => {
         return nextFolders
       })
     }
-  }, [storageKeys.lastOpenedFileId])
+  }, [lastOpenedFileKey])
 
-  const fetchWorkspace = useCallback(async () => {
+  const fetchWorkspaces = useCallback(async () => {
+    setWorkspacesLoading(true)
+    setWorkspaceError('')
+
+    try {
+      const response = await axios.get(`${workspaceBaseUrl}/workspaces`, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to load workspaces')
+      }
+
+      const nextWorkspaces = response.data?.data?.workspaces || []
+      const lastWorkspaceId = localStorage.getItem(storageKeys.lastWorkspaceId)
+      const nextActiveWorkspace = nextWorkspaces.find((workspace) => workspace._id === lastWorkspaceId)
+        || nextWorkspaces[0]
+        || null
+
+      setWorkspaces(nextWorkspaces)
+      setActiveWorkspaceId(nextActiveWorkspace?._id || '')
+    } catch (workspaceLoadError) {
+      setWorkspaceError(getErrorMessage(workspaceLoadError, 'Unable to load workspaces.'))
+      setWorkspaces([])
+      setActiveWorkspaceId('')
+    } finally {
+      setWorkspacesLoading(false)
+    }
+  }, [storageKeys.lastWorkspaceId, workspaceBaseUrl])
+
+  const fetchWorkspaceNodes = useCallback(async () => {
+    if (!workspaceNodesUrl || !lastOpenedFileKey) {
+      setWorkspaceLoading(false)
+      return
+    }
+
     setWorkspaceLoading(true)
     setWorkspaceError('')
 
     try {
-      const response = await axios.get(workspaceUrl, {
+      const response = await axios.get(workspaceNodesUrl, {
         withCredentials: true,
       })
 
@@ -248,7 +302,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
       const nextNodes = response.data?.data?.nodes || []
       const nextFileNodes = sortWorkspaceNodes(nextNodes).filter((node) => node.type === 'file')
-      const lastOpenedFileId = localStorage.getItem(storageKeys.lastOpenedFileId)
+      const lastOpenedFileId = localStorage.getItem(lastOpenedFileKey)
       const nextActiveFile = nextFileNodes.find((node) => node._id === lastOpenedFileId) || nextFileNodes[0] || null
 
       setNodes(nextNodes)
@@ -260,7 +314,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     } finally {
       setWorkspaceLoading(false)
     }
-  }, [activateFile, storageKeys.lastOpenedFileId, workspaceUrl])
+  }, [activateFile, lastOpenedFileKey, workspaceNodesUrl])
 
   useEffect(() => {
     let isActive = true
@@ -312,14 +366,32 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       return undefined
     }
 
-    const workspaceLoadTimer = window.setTimeout(() => {
-      fetchWorkspace()
+    const workspacesLoadTimer = window.setTimeout(() => {
+      fetchWorkspaces()
     }, 0)
 
     return () => {
-      window.clearTimeout(workspaceLoadTimer)
+      window.clearTimeout(workspacesLoadTimer)
     }
-  }, [fetchWorkspace, isAuthorized])
+  }, [fetchWorkspaces, isAuthorized])
+
+  useEffect(() => {
+    if (!isAuthorized || !activeWorkspaceId) {
+      return undefined
+    }
+
+    localStorage.setItem(storageKeys.lastWorkspaceId, activeWorkspaceId)
+
+    const workspaceNodesLoadTimer = window.setTimeout(() => {
+      setNodes([])
+      activateFile(null, [])
+      fetchWorkspaceNodes()
+    }, 0)
+
+    return () => {
+      window.clearTimeout(workspaceNodesLoadTimer)
+    }
+  }, [activateFile, activeWorkspaceId, fetchWorkspaceNodes, isAuthorized, storageKeys.lastWorkspaceId])
 
   useEffect(() => {
     if (!isAuthorized) {
@@ -355,7 +427,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   }, [isAuthorized])
 
   const saveActiveFile = useCallback(async () => {
-    if (!activeNode || saving || code === savedCode) {
+    if (!activeNode || !workspaceNodesUrl || saving || code === savedCode) {
       return
     }
 
@@ -364,7 +436,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     setSaveError('')
 
     try {
-      const response = await axios.patch(`${workspaceUrl}/${activeNode._id}`, {
+      const response = await axios.patch(`${workspaceNodesUrl}/${activeNode._id}`, {
         content: code,
       }, {
         withCredentials: true,
@@ -387,7 +459,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     } finally {
       setSaving(false)
     }
-  }, [activeNode, code, savedCode, saving, workspaceUrl])
+  }, [activeNode, code, savedCode, saving, workspaceNodesUrl])
 
   useEffect(() => {
     if (!isAuthorized || !activeNode || !isDirty || saving) {
@@ -526,6 +598,109 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     activateFile(node, nodes)
   }
 
+  const createWorkspace = async () => {
+    const name = String(window.prompt('Workspace name', 'new-workspace') || '').trim()
+
+    if (!name) {
+      return
+    }
+
+    setWorkspacesLoading(true)
+    setWorkspaceError('')
+
+    try {
+      const response = await axios.post(`${workspaceBaseUrl}/workspaces`, {
+        name,
+      }, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to create workspace')
+      }
+
+      const createdWorkspace = response.data?.data?.workspace
+
+      setWorkspaces((currentWorkspaces) => [...currentWorkspaces, createdWorkspace])
+      setActiveWorkspaceId(createdWorkspace._id)
+    } catch (createError) {
+      setWorkspaceError(getErrorMessage(createError, 'Unable to create workspace.'))
+    } finally {
+      setWorkspacesLoading(false)
+    }
+  }
+
+  const renameWorkspace = async () => {
+    if (!activeWorkspace) {
+      return
+    }
+
+    const name = String(window.prompt('Rename workspace', activeWorkspace.name) || '').trim()
+
+    if (!name || name === activeWorkspace.name) {
+      return
+    }
+
+    setWorkspacesLoading(true)
+    setWorkspaceError('')
+
+    try {
+      const response = await axios.patch(`${workspaceBaseUrl}/workspaces/${activeWorkspace._id}`, {
+        name,
+      }, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to rename workspace')
+      }
+
+      const updatedWorkspace = response.data?.data?.workspace
+
+      setWorkspaces((currentWorkspaces) => currentWorkspaces.map((workspace) => (
+        workspace._id === updatedWorkspace._id ? updatedWorkspace : workspace
+      )))
+    } catch (renameError) {
+      setWorkspaceError(getErrorMessage(renameError, 'Unable to rename workspace.'))
+    } finally {
+      setWorkspacesLoading(false)
+    }
+  }
+
+  const deleteActiveWorkspace = async () => {
+    if (!activeWorkspace) {
+      return
+    }
+
+    const confirmed = window.confirm(`Delete workspace ${activeWorkspace.name} and all files inside it?`)
+
+    if (!confirmed) {
+      return
+    }
+
+    setWorkspacesLoading(true)
+    setWorkspaceError('')
+
+    try {
+      const response = await axios.delete(`${workspaceBaseUrl}/workspaces/${activeWorkspace._id}`, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to delete workspace')
+      }
+
+      const remainingWorkspaces = workspaces.filter((workspace) => workspace._id !== activeWorkspace._id)
+
+      setWorkspaces(remainingWorkspaces)
+      setActiveWorkspaceId(remainingWorkspaces[0]?._id || '')
+    } catch (deleteError) {
+      setWorkspaceError(getErrorMessage(deleteError, 'Unable to delete workspace.'))
+    } finally {
+      setWorkspacesLoading(false)
+    }
+  }
+
   const createWorkspaceNode = async (type, parentId = null, forcedName = '') => {
     const isFile = type === 'file'
     const fallbackName = isFile ? 'main.py' : 'New Folder'
@@ -541,11 +716,16 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       return
     }
 
+    if (!workspaceNodesUrl) {
+      setWorkspaceError('Select a workspace before creating files.')
+      return
+    }
+
     setCreatingParentId(parentId || 'root')
     setWorkspaceError('')
 
     try {
-      const response = await axios.post(workspaceUrl, {
+      const response = await axios.post(workspaceNodesUrl, {
         type,
         name,
         parentId,
@@ -597,11 +777,16 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       return
     }
 
+    if (!workspaceNodesUrl) {
+      setWorkspaceError('Select a workspace before renaming files.')
+      return
+    }
+
     setNodeActionId(node._id)
     setWorkspaceError('')
 
     try {
-      const response = await axios.patch(`${workspaceUrl}/${node._id}`, {
+      const response = await axios.patch(`${workspaceNodesUrl}/${node._id}`, {
         name: nextName,
       }, {
         withCredentials: true,
@@ -630,11 +815,16 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       return
     }
 
+    if (!workspaceNodesUrl) {
+      setWorkspaceError('Select a workspace before deleting files.')
+      return
+    }
+
     setNodeActionId(node._id)
     setWorkspaceError('')
 
     try {
-      const response = await axios.delete(`${workspaceUrl}/${node._id}`, {
+      const response = await axios.delete(`${workspaceNodesUrl}/${node._id}`, {
         withCredentials: true,
       })
 
@@ -879,6 +1069,57 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             className="flex min-h-0 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
             style={{ width: `${explorerWidth}px` }}
           >
+            <div className="border-b border-slate-200 px-3 py-2 dark:border-slate-800">
+              <label htmlFor="workspace-select" className="sr-only">Workspace</label>
+              <div className="flex items-center gap-1.5">
+                <select
+                  id="workspace-select"
+                  value={activeWorkspaceId}
+                  onChange={(event) => {
+                    if (isDirty && !window.confirm('Switch workspace and discard unsaved changes?')) {
+                      return
+                    }
+                    setActiveWorkspaceId(event.target.value)
+                  }}
+                  disabled={workspacesLoading || !workspaces.length || saving}
+                  className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:ring-2 focus:ring-blue-500 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                >
+                  {workspaces.map((workspace) => (
+                    <option key={workspace._id} value={workspace._id}>
+                      {workspace.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={createWorkspace}
+                  disabled={workspacesLoading || saving}
+                  title="New workspace"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={renameWorkspace}
+                  disabled={workspacesLoading || !activeWorkspace || saving}
+                  title="Rename workspace"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={deleteActiveWorkspace}
+                  disabled={workspacesLoading || workspaces.length <= 1 || !activeWorkspace || saving}
+                  title="Delete workspace"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-600 transition hover:bg-rose-100 hover:text-rose-700 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
             <div className="flex h-11 items-center justify-between border-b border-slate-200 px-3 dark:border-slate-800">
               <div className="min-w-0">
                 <p className="truncate text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -908,7 +1149,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto py-2">
-              {workspaceLoading ? (
+              {workspacesLoading || workspaceLoading ? (
                 <div className="px-3 py-3 text-sm font-medium text-slate-500 dark:text-slate-400">
                   Loading workspace...
                 </div>
