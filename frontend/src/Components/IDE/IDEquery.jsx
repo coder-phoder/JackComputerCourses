@@ -2,6 +2,8 @@ import axios from 'axios'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import {
+  ChevronDown,
+  ChevronRight,
   Check,
   Clock,
   FileCode,
@@ -86,6 +88,8 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
   const [busyQueryId, setBusyQueryId] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [createQueryOpen, setCreateQueryOpen] = useState(false)
+  const [activeQueriesOpen, setActiveQueriesOpen] = useState(true)
 
   const selectedQuery = useMemo(
     () => queries.find((query) => query._id === selectedQueryId) || null,
@@ -360,16 +364,42 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
         </button>
       </div>
 
+      {error || success ? (
+        <div className="space-y-2 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+          {error ? (
+            <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+              {error}
+            </div>
+          ) : null}
+          {success ? (
+            <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+              {success}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 xl:grid-cols-[360px_minmax(0,1fr)]">
         <section className="flex min-h-0 flex-col gap-4 overflow-hidden">
           <form onSubmit={submitQuery} className="shrink-0 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+            <button
+              type="button"
+              onClick={() => setCreateQueryOpen((isOpen) => !isOpen)}
+              aria-expanded={createQueryOpen}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
                 Create Query
-              </h2>
-            </div>
+              </span>
+              {createQueryOpen ? (
+                <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
+              )}
+            </button>
 
-            <div className="space-y-4">
+            {createQueryOpen ? (
+              <div className="mt-4 space-y-4">
               <div
                 className="relative"
                 onBlur={(event) => {
@@ -500,17 +530,6 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                 />
               </div>
 
-              {error ? (
-                <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
-                  {error}
-                </div>
-              ) : null}
-              {success ? (
-                <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
-                  {success}
-                </div>
-              ) : null}
-
               <button
                 type="submit"
                 disabled={submitting}
@@ -519,12 +538,28 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                 <Send className="h-4 w-4" />
                 {submitting ? 'Sending...' : 'Send Query'}
               </button>
-            </div>
+              </div>
+            ) : null}
           </form>
 
-          <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Active Queries</h2>
-            <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
+          <div className={`flex min-h-0 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950 ${activeQueriesOpen ? 'flex-1' : 'shrink-0'}`}>
+            <button
+              type="button"
+              onClick={() => setActiveQueriesOpen((isOpen) => !isOpen)}
+              aria-expanded={activeQueriesOpen}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Active Queries ({activeQueries.length})
+              </span>
+              {activeQueriesOpen ? (
+                <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
+              )}
+            </button>
+            {activeQueriesOpen ? (
+              <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
               {loading ? (
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Loading queries...</p>
               ) : activeQueries.length ? (
@@ -535,7 +570,8 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                   <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">No active queries</p>
                 </div>
               )}
-            </div>
+              </div>
+            ) : null}
           </div>
 
           <details className="max-h-44 shrink-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
