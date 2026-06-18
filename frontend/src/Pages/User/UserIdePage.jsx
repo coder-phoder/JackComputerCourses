@@ -1,9 +1,27 @@
 import axios from 'axios'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
 import { io } from 'socket.io-client'
-import { Play, Square, RotateCcw, AlertTriangle, Settings, Terminal as TerminalIcon } from 'lucide-react'
+import {
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  FileCode,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  Pencil,
+  Play,
+  Plus,
+  RotateCcw,
+  Save,
+  Settings,
+  Square,
+  Terminal as TerminalIcon,
+  Trash2,
+} from 'lucide-react'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import UserNavbar from '../../Components/User/UserNavbar'
 import { useAuth } from '../../Context/AuthContext'
@@ -16,12 +34,14 @@ const IDE_ACCESS_CONFIG = {
     role: 'user',
     profilePath: '/user/profile',
     profileKey: 'user',
+    workspacePath: '/user/workspace/nodes',
     Navbar: UserNavbar,
   },
   faculty: {
     role: 'faculty',
     profilePath: '/faculty/profile',
     profileKey: 'faculty',
+    workspacePath: '/faculty/workspace/nodes',
     Navbar: FacultyNavbar,
   },
 }
@@ -32,21 +52,25 @@ const BOILERPLATES = {
 int main() {
     printf("hello world\\n");
     return 0;
-}`,
+}
+`,
   cpp: `#include <iostream>
 
 int main() {
     std::cout << "hello world" << std::endl;
     return 0;
-}`,
+}
+`,
   java: `public class Main {
     public static void main(String[] args) {
         System.out.println("hello world");
     }
-}`,
+}
+`,
   python: `print("hello world")
 `,
-  javascript: `console.log("hello world");`
+  javascript: `console.log("hello world");
+`,
 }
 
 const LANGUAGES = [
@@ -54,99 +78,190 @@ const LANGUAGES = [
   { value: 'cpp', label: 'C++', monacoLang: 'cpp' },
   { value: 'java', label: 'Java', monacoLang: 'java' },
   { value: 'python', label: 'Python', monacoLang: 'python' },
-  { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript' }
+  { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript' },
 ]
+
+const LANGUAGE_BY_EXTENSION = {
+  '.c': 'c',
+  '.cpp': 'cpp',
+  '.java': 'java',
+  '.py': 'python',
+  '.js': 'javascript',
+}
+
+const getStorageKeys = (role) => ({
+  lastOpenedFileId: `jack_ide_${role}_last_file_id`,
+  fontSize: 'jack_ide_font_size',
+  terminalHeight: 'jack_ide_terminal_height',
+  explorerWidth: `jack_ide_${role}_explorer_width`,
+})
+
+const getErrorMessage = (error, fallback) => (
+  error?.response?.data?.message || error?.message || fallback
+)
+
+const getFileExtension = (name) => {
+  const normalizedName = String(name || '').trim().toLowerCase()
+  const dotIndex = normalizedName.lastIndexOf('.')
+
+  if (dotIndex <= 0) {
+    return ''
+  }
+
+  return normalizedName.slice(dotIndex)
+}
+
+const getLanguageFromFileName = (name) => LANGUAGE_BY_EXTENSION[getFileExtension(name)] || ''
+
+const getLanguageMeta = (language) => (
+  LANGUAGES.find((currentLanguage) => currentLanguage.value === language) || LANGUAGES[3]
+)
+
+const sortWorkspaceNodes = (nodes) => [...nodes].sort((first, second) => {
+  if (first.type !== second.type) {
+    return first.type === 'folder' ? -1 : 1
+  }
+
+  return first.name.localeCompare(second.name)
+})
+
+const getAncestorFolderIds = (node, nodes) => {
+  const folderIds = []
+  let currentParentId = node?.parentId || null
+
+  while (currentParentId) {
+    folderIds.push(currentParentId)
+    const parentNode = nodes.find((currentNode) => currentNode._id === currentParentId)
+    currentParentId = parentNode?.parentId || null
+  }
+
+  return folderIds
+}
 
 const UserIdePage = ({ accessRole = 'user' }) => {
   const accessConfig = IDE_ACCESS_CONFIG[accessRole] || IDE_ACCESS_CONFIG.user
+  const storageKeys = useMemo(() => getStorageKeys(accessConfig.role), [accessConfig.role])
   const { clearAuth, setAuth } = useAuth()
   const { isDark } = useTheme()
+
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
+  const [nodes, setNodes] = useState([])
+  const [workspaceLoading, setWorkspaceLoading] = useState(true)
+  const [workspaceError, setWorkspaceError] = useState('')
+  const [activeNodeId, setActiveNodeId] = useState('')
+  const [expandedFolders, setExpandedFolders] = useState(() => new Set())
+  const [code, setCode] = useState('')
+  const [savedCode, setSavedCode] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState('idle')
+  const [saveError, setSaveError] = useState('')
+  const [nodeActionId, setNodeActionId] = useState('')
+  const [creatingParentId, setCreatingParentId] = useState('')
 
-  const [language, setLanguage] = useState('python')
-  const [code, setCode] = useState(() => localStorage.getItem('jack_ide_code_python') || BOILERPLATES.python)
   const [terminalOutput, setTerminalOutput] = useState('')
   const [inputVal, setInputVal] = useState('')
   const [isRunning, setIsRunning] = useState(false)
   const [socket, setSocket] = useState(null)
-  
+
   const terminalRef = useRef(null)
   const inputRef = useRef(null)
 
   const [fontSize, setFontSize] = useState(() => {
-    const saved = localStorage.getItem('jack_ide_font_size')
+    const saved = localStorage.getItem(storageKeys.fontSize)
     return saved ? parseInt(saved, 10) : 18
   })
-
   const [showSettings, setShowSettings] = useState(false)
 
-  const [terminalHeight, setTerminalHeight] = useState(240)
+  const [terminalHeight, setTerminalHeight] = useState(() => {
+    const saved = localStorage.getItem(storageKeys.terminalHeight)
+    return saved ? parseInt(saved, 10) : 240
+  })
   const [isDraggingHeight, setIsDraggingHeight] = useState(false)
 
-  const handleHeightMouseDown = (e) => {
-    e.preventDefault()
-    setIsDraggingHeight(true)
-  }
+  const [explorerWidth, setExplorerWidth] = useState(() => {
+    const saved = localStorage.getItem(storageKeys.explorerWidth)
+    return saved ? parseInt(saved, 10) : 280
+  })
+  const [isDraggingExplorer, setIsDraggingExplorer] = useState(false)
 
-  useEffect(() => {
-    if (!isDraggingHeight) return
+  const workspaceUrl = `${API_BASE_URL}${accessConfig.workspacePath}`
+  const activeNode = useMemo(
+    () => nodes.find((node) => node._id === activeNodeId && node.type === 'file') || null,
+    [activeNodeId, nodes],
+  )
+  const selectedLanguage = getLanguageMeta(activeNode?.language)
+  const isDirty = Boolean(activeNode) && code !== savedCode
 
-    const handleMouseMove = (e) => {
-      const containerElement = document.getElementById('ide-workspace-container')
-      if (containerElement) {
-        const rect = containerElement.getBoundingClientRect()
-        const newHeight = rect.bottom - e.clientY
-        if (newHeight > 120 && newHeight < rect.height - 180) {
-          setTerminalHeight(newHeight)
-        }
+  const childrenByParentId = useMemo(() => {
+    const groupedChildren = new Map()
+
+    sortWorkspaceNodes(nodes).forEach((node) => {
+      const parentKey = node.parentId || 'root'
+      const children = groupedChildren.get(parentKey) || []
+      children.push(node)
+      groupedChildren.set(parentKey, children)
+    })
+
+    return groupedChildren
+  }, [nodes])
+
+  const activateFile = useCallback((node, nodeList = []) => {
+    if (!node || node.type !== 'file') {
+      setActiveNodeId('')
+      setCode('')
+      setSavedCode('')
+      localStorage.removeItem(storageKeys.lastOpenedFileId)
+      return
+    }
+
+    setActiveNodeId(node._id)
+    setCode(node.content || '')
+    setSavedCode(node.content || '')
+    setSaveStatus('saved')
+    setSaveError('')
+    localStorage.setItem(storageKeys.lastOpenedFileId, node._id)
+
+    const ancestorIds = getAncestorFolderIds(node, nodeList)
+
+    if (ancestorIds.length) {
+      setExpandedFolders((currentFolders) => {
+        const nextFolders = new Set(currentFolders)
+        ancestorIds.forEach((folderId) => nextFolders.add(folderId))
+        return nextFolders
+      })
+    }
+  }, [storageKeys.lastOpenedFileId])
+
+  const fetchWorkspace = useCallback(async () => {
+    setWorkspaceLoading(true)
+    setWorkspaceError('')
+
+    try {
+      const response = await axios.get(workspaceUrl, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to load workspace')
       }
+
+      const nextNodes = response.data?.data?.nodes || []
+      const nextFileNodes = sortWorkspaceNodes(nextNodes).filter((node) => node.type === 'file')
+      const lastOpenedFileId = localStorage.getItem(storageKeys.lastOpenedFileId)
+      const nextActiveFile = nextFileNodes.find((node) => node._id === lastOpenedFileId) || nextFileNodes[0] || null
+
+      setNodes(nextNodes)
+      activateFile(nextActiveFile, nextNodes)
+    } catch (workspaceLoadError) {
+      setWorkspaceError(getErrorMessage(workspaceLoadError, 'Unable to load workspace.'))
+      setNodes([])
+      activateFile(null, [])
+    } finally {
+      setWorkspaceLoading(false)
     }
+  }, [activateFile, storageKeys.lastOpenedFileId, workspaceUrl])
 
-    const handleMouseUp = () => {
-      setIsDraggingHeight(false)
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDraggingHeight])
-
-  useEffect(() => {
-    if (isDraggingHeight) {
-      document.body.style.cursor = 'row-resize'
-      document.body.style.userSelect = 'none'
-    } else {
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-    return () => {
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-  }, [isDraggingHeight])
-
-  const handleIncreaseFont = () => {
-    setFontSize((prev) => {
-      const next = Math.min(24, prev + 1)
-      localStorage.setItem('jack_ide_font_size', next)
-      return next
-    })
-  }
-
-  const handleDecreaseFont = () => {
-    setFontSize((prev) => {
-      const next = Math.max(10, prev - 1)
-      localStorage.setItem('jack_ide_font_size', next)
-      return next
-    })
-  }
-
-  // Auth Verification
   useEffect(() => {
     let isActive = true
 
@@ -192,15 +307,28 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     }
   }, [accessConfig.profileKey, accessConfig.profilePath, accessConfig.role, clearAuth, setAuth])
 
-  // Socket Connection Setup
   useEffect(() => {
+    if (!isAuthorized) {
+      return undefined
+    }
+
+    const workspaceLoadTimer = window.setTimeout(() => {
+      fetchWorkspace()
+    }, 0)
+
+    return () => {
+      window.clearTimeout(workspaceLoadTimer)
+    }
+  }, [fetchWorkspace, isAuthorized])
+
+  useEffect(() => {
+    if (!isAuthorized) {
+      return undefined
+    }
+
     const socketInstance = io(API_BASE_URL, {
       withCredentials: true,
-      transports: ['websocket', 'polling']
-    })
-
-    socketInstance.on('connect', () => {
-      console.log('Connected to run server')
+      transports: ['websocket', 'polling'],
     })
 
     socketInstance.on('terminal-output', (data) => {
@@ -222,74 +350,369 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
     return () => {
       socketInstance.disconnect()
+      setSocket(null)
     }
-  }, [])
+  }, [isAuthorized])
 
-  // Auto scroll terminal to bottom on output changes or typing
+  const saveActiveFile = useCallback(async () => {
+    if (!activeNode || saving || code === savedCode) {
+      return
+    }
+
+    setSaving(true)
+    setSaveStatus('saving')
+    setSaveError('')
+
+    try {
+      const response = await axios.patch(`${workspaceUrl}/${activeNode._id}`, {
+        content: code,
+      }, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to save file')
+      }
+
+      const updatedNode = response.data?.data?.node
+
+      setNodes((currentNodes) => currentNodes.map((node) => (
+        node._id === updatedNode._id ? updatedNode : node
+      )))
+      setSavedCode(updatedNode.content || '')
+      setSaveStatus('saved')
+    } catch (saveFileError) {
+      setSaveError(getErrorMessage(saveFileError, 'Unable to save file.'))
+      setSaveStatus('error')
+    } finally {
+      setSaving(false)
+    }
+  }, [activeNode, code, savedCode, saving, workspaceUrl])
+
+  useEffect(() => {
+    if (!isAuthorized || !activeNode || !isDirty || saving) {
+      return undefined
+    }
+
+    const autosaveTimer = window.setTimeout(() => {
+      saveActiveFile()
+    }, 2500)
+
+    return () => {
+      window.clearTimeout(autosaveTimer)
+    }
+  }, [activeNode, isAuthorized, isDirty, saveActiveFile, saving])
+
+  useEffect(() => {
+    if (!isDraggingHeight) return undefined
+
+    const handleMouseMove = (event) => {
+      const containerElement = document.getElementById('ide-workspace-container')
+      if (containerElement) {
+        const rect = containerElement.getBoundingClientRect()
+        const newHeight = rect.bottom - event.clientY
+        if (newHeight > 120 && newHeight < rect.height - 180) {
+          setTerminalHeight(newHeight)
+        }
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDraggingHeight(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDraggingHeight])
+
+  useEffect(() => {
+    if (!isDraggingExplorer) return undefined
+
+    const handleMouseMove = (event) => {
+      const containerElement = document.getElementById('ide-workspace-container')
+      if (!containerElement) {
+        return
+      }
+
+      const rect = containerElement.getBoundingClientRect()
+      const nextWidth = event.clientX - rect.left
+
+      if (nextWidth >= 220 && nextWidth <= 420) {
+        setExplorerWidth(nextWidth)
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDraggingExplorer(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDraggingExplorer])
+
+  useEffect(() => {
+    const hasActiveDrag = isDraggingHeight || isDraggingExplorer
+
+    document.body.style.cursor = hasActiveDrag
+      ? (isDraggingExplorer ? 'col-resize' : 'row-resize')
+      : ''
+    document.body.style.userSelect = hasActiveDrag ? 'none' : ''
+
+    return () => {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isDraggingExplorer, isDraggingHeight])
+
+  useEffect(() => {
+    localStorage.setItem(storageKeys.terminalHeight, String(terminalHeight))
+  }, [storageKeys.terminalHeight, terminalHeight])
+
+  useEffect(() => {
+    localStorage.setItem(storageKeys.explorerWidth, String(explorerWidth))
+  }, [explorerWidth, storageKeys.explorerWidth])
+
   useEffect(() => {
     if (terminalRef.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight
     }
   }, [terminalOutput, inputVal])
 
-  // Keep input focused when running
   useEffect(() => {
     if (isRunning && inputRef.current) {
       inputRef.current.focus()
     }
   }, [isRunning, terminalOutput])
 
-  // Language Change Handling
-  const handleLanguageChange = (newLang) => {
-    // Save current code to localStorage before switching
-    localStorage.setItem(`jack_ide_code_${language}`, code)
-    
-    setLanguage(newLang)
-    const savedCode = localStorage.getItem(`jack_ide_code_${newLang}`)
-    setCode(savedCode || BOILERPLATES[newLang])
+  const handleIncreaseFont = () => {
+    setFontSize((prev) => {
+      const next = Math.min(24, prev + 1)
+      localStorage.setItem(storageKeys.fontSize, String(next))
+      return next
+    })
   }
 
-  // Code Reset
+  const handleDecreaseFont = () => {
+    setFontSize((prev) => {
+      const next = Math.max(10, prev - 1)
+      localStorage.setItem(storageKeys.fontSize, String(next))
+      return next
+    })
+  }
+
+  const openFile = (node) => {
+    if (!node || node.type !== 'file') {
+      return
+    }
+
+    if (node._id === activeNodeId) {
+      return
+    }
+
+    if (isDirty && !window.confirm('Open another file and discard unsaved changes?')) {
+      return
+    }
+
+    activateFile(node, nodes)
+  }
+
+  const createWorkspaceNode = async (type, parentId = null, forcedName = '') => {
+    const isFile = type === 'file'
+    const fallbackName = isFile ? 'main.py' : 'New Folder'
+    const promptedName = forcedName || window.prompt(isFile ? 'File name' : 'Folder name', fallbackName)
+    const name = String(promptedName || '').trim()
+
+    if (!name) {
+      return
+    }
+
+    if (isFile && !getLanguageFromFileName(name)) {
+      setWorkspaceError('Only .c, .cpp, .java, .py and .js files are supported.')
+      return
+    }
+
+    setCreatingParentId(parentId || 'root')
+    setWorkspaceError('')
+
+    try {
+      const response = await axios.post(workspaceUrl, {
+        type,
+        name,
+        parentId,
+      }, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to create workspace item')
+      }
+
+      const createdNode = response.data?.data?.node
+
+      setNodes((currentNodes) => [...currentNodes, createdNode])
+
+      if (parentId) {
+        setExpandedFolders((currentFolders) => {
+          const nextFolders = new Set(currentFolders)
+          nextFolders.add(parentId)
+          return nextFolders
+        })
+      }
+
+      if (createdNode.type === 'file') {
+        activateFile(createdNode, [...nodes, createdNode])
+      } else {
+        setExpandedFolders((currentFolders) => {
+          const nextFolders = new Set(currentFolders)
+          nextFolders.add(createdNode._id)
+          return nextFolders
+        })
+      }
+    } catch (createError) {
+      setWorkspaceError(getErrorMessage(createError, 'Unable to create workspace item.'))
+    } finally {
+      setCreatingParentId('')
+    }
+  }
+
+  const renameWorkspaceNode = async (node) => {
+    const nextName = String(window.prompt('Rename', node.name) || '').trim()
+
+    if (!nextName || nextName === node.name) {
+      return
+    }
+
+    if (node.type === 'file' && !getLanguageFromFileName(nextName)) {
+      setWorkspaceError('Only .c, .cpp, .java, .py and .js files are supported.')
+      return
+    }
+
+    setNodeActionId(node._id)
+    setWorkspaceError('')
+
+    try {
+      const response = await axios.patch(`${workspaceUrl}/${node._id}`, {
+        name: nextName,
+      }, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to rename workspace item')
+      }
+
+      const updatedNode = response.data?.data?.node
+
+      setNodes((currentNodes) => currentNodes.map((currentNode) => (
+        currentNode._id === updatedNode._id ? updatedNode : currentNode
+      )))
+    } catch (renameError) {
+      setWorkspaceError(getErrorMessage(renameError, 'Unable to rename workspace item.'))
+    } finally {
+      setNodeActionId('')
+    }
+  }
+
+  const deleteWorkspaceNode = async (node) => {
+    const confirmed = window.confirm(`Delete ${node.name}${node.type === 'folder' ? ' and everything inside it' : ''}?`)
+
+    if (!confirmed) {
+      return
+    }
+
+    setNodeActionId(node._id)
+    setWorkspaceError('')
+
+    try {
+      const response = await axios.delete(`${workspaceUrl}/${node._id}`, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to delete workspace item')
+      }
+
+      const deletedIds = response.data?.data?.deletedIds || [node._id]
+      const remainingNodes = nodes.filter((currentNode) => !deletedIds.includes(currentNode._id))
+
+      setNodes(remainingNodes)
+
+      if (activeNodeId && deletedIds.includes(activeNodeId)) {
+        const nextActiveFile = sortWorkspaceNodes(remainingNodes).find((currentNode) => currentNode.type === 'file') || null
+        activateFile(nextActiveFile, remainingNodes)
+      }
+    } catch (deleteError) {
+      setWorkspaceError(getErrorMessage(deleteError, 'Unable to delete workspace item.'))
+    } finally {
+      setNodeActionId('')
+    }
+  }
+
+  const toggleFolder = (folderId) => {
+    setExpandedFolders((currentFolders) => {
+      const nextFolders = new Set(currentFolders)
+
+      if (nextFolders.has(folderId)) {
+        nextFolders.delete(folderId)
+      } else {
+        nextFolders.add(folderId)
+      }
+
+      return nextFolders
+    })
+  }
+
   const handleResetCode = () => {
-    const resetVal = BOILERPLATES[language]
-    setCode(resetVal)
-    localStorage.setItem(`jack_ide_code_${language}`, resetVal)
+    if (!activeNode) {
+      return
+    }
+
+    setCode(BOILERPLATES[activeNode.language] || '')
+    setSaveStatus('idle')
   }
 
-  // Execution Start / Run
   const handleRunCode = () => {
-    if (!socket || isRunning) return
+    if (!socket || isRunning || !activeNode) return
 
-    setTerminalOutput('--- Starting compilation and execution ---\n')
+    setTerminalOutput(`--- Running ${activeNode.name} ---\n`)
     setIsRunning(true)
     setInputVal('')
 
     socket.emit('run-code', {
-      language,
-      code
+      language: activeNode.language,
+      code,
     })
   }
 
-  // Execution Stop
   const handleStopCode = () => {
     if (!socket || !isRunning) return
     socket.emit('stop-code')
   }
 
-  // Stdin Input Submitting
-  const handleInputKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      if (!socket || !isRunning) return
-
-      const toSend = inputVal + '\n'
-      
-      // Echo the typed input into terminal
-      setTerminalOutput((prev) => prev + inputVal + '\n')
-      
-      // Send input characters via socket
-      socket.emit('terminal-input', toSend)
-      setInputVal('')
+  const handleInputKeyDown = (event) => {
+    if (event.key !== 'Enter') {
+      return
     }
+
+    if (!socket || !isRunning) {
+      return
+    }
+
+    const toSend = `${inputVal}\n`
+
+    setTerminalOutput((prev) => prev + inputVal + '\n')
+    socket.emit('terminal-input', toSend)
+    setInputVal('')
   }
 
   const handleClearTerminal = () => {
@@ -302,9 +725,126 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     }
   }
 
+  const renderWorkspaceNode = (node, depth = 0) => {
+    const isFolder = node.type === 'folder'
+    const isExpanded = expandedFolders.has(node._id)
+    const children = childrenByParentId.get(node._id) || []
+    const isActive = activeNodeId === node._id
+    const isBusy = nodeActionId === node._id || creatingParentId === node._id
+
+    return (
+      <div key={node._id}>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => (isFolder ? toggleFolder(node._id) : openFile(node))}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              if (isFolder) {
+                toggleFolder(node._id)
+              } else {
+                openFile(node)
+              }
+            }
+          }}
+          className={`group flex h-8 items-center gap-1 pr-1 text-sm transition ${
+            isActive
+              ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200'
+              : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+          }`}
+          style={{ paddingLeft: `${8 + depth * 14}px` }}
+        >
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+            {isFolder ? (
+              isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
+            ) : null}
+          </span>
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+            {isFolder ? (
+              isExpanded ? <FolderOpen className="h-4 w-4 text-amber-500" /> : <Folder className="h-4 w-4 text-amber-500" />
+            ) : (
+              <FileCode className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+            )}
+          </span>
+          <span className="min-w-0 flex-1 truncate">{node.name}</span>
+          {isActive && isDirty ? (
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" title="Unsaved changes" />
+          ) : null}
+          <div className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
+            {isFolder ? (
+              <>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    createWorkspaceNode('file', node._id)
+                  }}
+                  disabled={isBusy || saving}
+                  title="New file"
+                  className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-white"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    createWorkspaceNode('folder', node._id)
+                  }}
+                  disabled={isBusy || saving}
+                  title="New folder"
+                  className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-white"
+                >
+                  <FolderPlus className="h-3.5 w-3.5" />
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                renameWorkspaceNode(node)
+              }}
+              disabled={isBusy || saving}
+              title="Rename"
+              className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-white"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                deleteWorkspaceNode(node)
+              }}
+              disabled={isBusy || saving}
+              title="Delete"
+              className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-rose-100 hover:text-rose-700 disabled:opacity-40 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+        {isFolder && isExpanded ? (
+          <div>
+            {children.length ? children.map((childNode) => renderWorkspaceNode(childNode, depth + 1)) : (
+              <div
+                className="flex h-8 items-center text-xs font-medium text-slate-400 dark:text-slate-500"
+                style={{ paddingLeft: `${44 + depth * 14}px` }}
+              >
+                Empty folder
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 font-sans">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 font-sans dark:bg-slate-950">
         <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Checking authentication...</p>
       </div>
     )
@@ -314,216 +854,311 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     return <Navigate to="/login" replace />
   }
 
-  const selectedLanguage = LANGUAGES.find(l => l.value === language)
   const Navbar = accessConfig.Navbar
+  const rootNodes = childrenByParentId.get('root') || []
+  const statusText = saving
+    ? 'Saving...'
+    : saveStatus === 'error'
+      ? 'Save failed'
+      : isDirty
+        ? 'Unsaved'
+        : activeNode
+          ? 'Saved'
+          : 'No file'
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-900 font-sans overflow-hidden">
+    <div className="flex h-screen flex-col overflow-hidden bg-slate-50 font-sans dark:bg-slate-900">
       <Navbar />
 
-      {/* Main Workspace Layout */}
-      <div 
+      <div
         id="ide-workspace-container"
-        className="flex-1 flex flex-col min-h-0 overflow-hidden relative"
+        className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
       >
-        
-        {/* Code Editor Panel */}
-        <div className="flex-1 flex flex-col min-h-0">
-          
-          {/* Controls Header */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-10">
-            <div className="flex items-center gap-3">
-              <label htmlFor="lang-select" className="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-wide uppercase">
-                Language:
-              </label>
-              <select
-                id="lang-select"
-                value={language}
-                onChange={(e) => handleLanguageChange(e.target.value)}
-                disabled={isRunning}
-                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 transition"
-              >
-                {LANGUAGES.map((lang) => (
-                  <option key={lang.value} value={lang.value}>
-                    {lang.label}
-                  </option>
-                ))}
-              </select>
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <aside
+            className="flex min-h-0 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
+            style={{ width: `${explorerWidth}px` }}
+          >
+            <div className="flex h-11 items-center justify-between border-b border-slate-200 px-3 dark:border-slate-800">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Explorer
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => createWorkspaceNode('file')}
+                  disabled={workspaceLoading || saving || Boolean(creatingParentId)}
+                  title="New file"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => createWorkspaceNode('folder')}
+                  disabled={workspaceLoading || saving || Boolean(creatingParentId)}
+                  title="New folder"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                >
+                  <FolderPlus className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* IDE Settings Popover */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowSettings(!showSettings)}
-                  title="IDE Settings"
-                  className="h-9 w-9 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center justify-center"
-                >
-                  <Settings className="w-4 h-4" />
-                </button>
-                {showSettings && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowSettings(false)} />
-                    <div className="absolute right-0 mt-2 w-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 p-4 shadow-xl z-20">
-                      <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 select-none">
-                        Editor Settings
-                      </h3>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-350 select-none">Font Size</span>
-                        <div className="flex items-center gap-1 border border-slate-250 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 rounded px-1.5 py-0.5">
-                          <button
-                            type="button"
-                            onClick={handleDecreaseFont}
-                            className="w-5 h-5 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition select-none"
-                          >
-                            -
-                          </button>
-                          <span className="text-xs font-mono text-slate-750 dark:text-slate-250 font-semibold select-none w-8 text-center">
-                            {fontSize}px
-                          </span>
-                          <button
-                            type="button"
-                            onClick={handleIncreaseFont}
-                            className="w-5 h-5 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition select-none"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleResetCode}
-                disabled={isRunning}
-                title="Reset code to default boilerplate"
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 text-sm font-semibold transition"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Reset
-              </button>
-
-              {isRunning ? (
-                <button
-                  type="button"
-                  onClick={handleStopCode}
-                  className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white px-4 py-1.5 rounded-lg text-sm font-semibold shadow-sm shadow-rose-900/10 hover:shadow-rose-950/20 active:scale-95 transition"
-                >
-                  <Square className="w-4 h-4 fill-white" />
-                  Stop Execution
-                </button>
+            <div className="min-h-0 flex-1 overflow-y-auto py-2">
+              {workspaceLoading ? (
+                <div className="px-3 py-3 text-sm font-medium text-slate-500 dark:text-slate-400">
+                  Loading workspace...
+                </div>
+              ) : rootNodes.length ? (
+                rootNodes.map((node) => renderWorkspaceNode(node))
               ) : (
-                <button
-                  type="button"
-                  onClick={handleRunCode}
-                  disabled={!socket}
-                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-400 dark:disabled:bg-slate-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold shadow-sm shadow-emerald-900/10 hover:shadow-emerald-950/20 active:scale-95 transition"
-                >
-                  <Play className="w-4 h-4 fill-white" />
-                  Run Code
-                </button>
+                <div className="px-3 py-4">
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">No files yet</p>
+                  <button
+                    type="button"
+                    onClick={() => createWorkspaceNode('file', null, 'main.py')}
+                    disabled={Boolean(creatingParentId)}
+                    className="mt-3 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:bg-slate-400"
+                  >
+                    Create main.py
+                  </button>
+                </div>
               )}
             </div>
-          </div>
 
-          {/* Monaco Editor Container */}
-          <div className="flex-1 min-h-0 w-full relative">
-            <Editor
-              height="100%"
-              language={selectedLanguage.monacoLang}
-              theme={isDark ? 'vs-dark' : 'light'}
-              value={code}
-              onChange={(value) => setCode(value || '')}
-              options={{
-                fontSize: fontSize,
-                fontFamily: "'Fira Code', 'Courier New', Courier, monospace",
-                minimap: { enabled: false },
-                automaticLayout: true,
-                padding: { top: 12, bottom: 12 },
-                cursorBlinking: 'smooth',
-                cursorSmoothCaretAnimation: 'on',
-                smoothScrolling: true,
-                scrollbar: {
-                  verticalScrollbarSize: 10,
-                  horizontalScrollbarSize: 10
-                }
-              }}
-            />
-          </div>
+            {(workspaceError || saveError) ? (
+              <div className="border-t border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+                {workspaceError || saveError}
+              </div>
+            ) : null}
+          </aside>
+
+          <div
+            onMouseDown={(event) => {
+              event.preventDefault()
+              setIsDraggingExplorer(true)
+            }}
+            className={`w-1 shrink-0 cursor-col-resize transition ${
+              isDraggingExplorer ? 'bg-blue-600' : 'bg-slate-200 hover:bg-blue-500 dark:bg-slate-800'
+            }`}
+          />
+
+          <main className="flex min-w-0 flex-1 flex-col">
+            <div className="z-10 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  {saveStatus === 'error' ? (
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
+                  ) : isDirty ? (
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                  ) : (
+                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                  )}
+                  <h1 className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
+                    {activeNode?.name || 'No file selected'}
+                  </h1>
+                </div>
+                <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {activeNode ? `${selectedLanguage.label} · ${statusText}` : 'Create or open a file to start coding'}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowSettings(!showSettings)}
+                    title="IDE Settings"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </button>
+                  {showSettings ? (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowSettings(false)} />
+                      <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                        <h3 className="mb-3 select-none text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                          Editor Settings
+                        </h3>
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="select-none text-sm font-semibold text-slate-700 dark:text-slate-300">Font Size</span>
+                          <div className="flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 dark:border-slate-700 dark:bg-slate-950">
+                            <button
+                              type="button"
+                              onClick={handleDecreaseFont}
+                              className="flex h-5 w-5 select-none items-center justify-center rounded text-xs font-bold text-slate-600 transition hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800"
+                            >
+                              -
+                            </button>
+                            <span className="w-8 select-none text-center font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">
+                              {fontSize}px
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleIncreaseFont}
+                              className="flex h-5 w-5 select-none items-center justify-center rounded text-xs font-bold text-slate-600 transition hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleResetCode}
+                  disabled={!activeNode || isRunning}
+                  title="Reset code to default boilerplate"
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset
+                </button>
+
+                <button
+                  type="button"
+                  onClick={saveActiveFile}
+                  disabled={!activeNode || !isDirty || saving}
+                  title="Save file"
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  <Save className="h-4 w-4" />
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+
+                {isRunning ? (
+                  <button
+                    type="button"
+                    onClick={handleStopCode}
+                    className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm shadow-rose-900/10 transition hover:bg-rose-500 hover:shadow-rose-950/20 active:scale-95"
+                  >
+                    <Square className="h-4 w-4 fill-white" />
+                    Stop
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleRunCode}
+                    disabled={!socket || !activeNode}
+                    className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm shadow-emerald-900/10 transition hover:bg-emerald-500 hover:shadow-emerald-950/20 active:scale-95 disabled:bg-slate-400 dark:disabled:bg-slate-700"
+                  >
+                    <Play className="h-4 w-4 fill-white" />
+                    Run
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="relative min-h-0 flex-1">
+              {activeNode ? (
+                <Editor
+                  height="100%"
+                  language={selectedLanguage.monacoLang}
+                  theme={isDark ? 'vs-dark' : 'light'}
+                  value={code}
+                  onChange={(value) => {
+                    setCode(value || '')
+                    setSaveStatus('idle')
+                  }}
+                  options={{
+                    fontSize,
+                    fontFamily: "'Fira Code', 'Courier New', Courier, monospace",
+                    minimap: { enabled: false },
+                    automaticLayout: true,
+                    padding: { top: 12, bottom: 12 },
+                    cursorBlinking: 'smooth',
+                    cursorSmoothCaretAnimation: 'on',
+                    smoothScrolling: true,
+                    scrollbar: {
+                      verticalScrollbarSize: 10,
+                      horizontalScrollbarSize: 10,
+                    },
+                  }}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center bg-white dark:bg-slate-950">
+                  <div className="text-center">
+                    <FileCode className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-700" />
+                    <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">No file selected</p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Create or open a supported code file.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </main>
         </div>
 
-        {/* Draggable Divider (Horizontal) */}
         <div
-          onMouseDown={handleHeightMouseDown}
-          className={`h-1.5 hover:h-2 hover:bg-blue-500 cursor-row-resize select-none transition-all duration-150 rounded shrink-0 ${
-            isDraggingHeight ? 'bg-blue-600 h-2' : 'bg-slate-200 dark:bg-slate-800'
+          onMouseDown={(event) => {
+            event.preventDefault()
+            setIsDraggingHeight(true)
+          }}
+          className={`h-1.5 shrink-0 cursor-row-resize select-none rounded transition-all duration-150 hover:h-2 hover:bg-blue-500 ${
+            isDraggingHeight ? 'h-2 bg-blue-600' : 'bg-slate-200 dark:bg-slate-800'
           }`}
         />
 
-        {/* Interactive Terminal Panel */}
-        <div 
+        <div
           style={{ height: `${terminalHeight}px` }}
-          className="flex flex-col min-h-0 bg-slate-950 text-slate-100 overflow-hidden shadow-2xl relative shrink-0 border-t border-slate-900"
+          className="relative flex min-h-0 shrink-0 flex-col overflow-hidden border-t border-slate-900 bg-slate-950 text-slate-100 shadow-2xl"
         >
-          
-          {/* Terminal Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-950">
+          <div className="flex items-center justify-between border-b border-slate-950 bg-slate-900 px-4 py-3">
             <div className="flex items-center gap-2">
-              <TerminalIcon className="w-4 h-4 text-emerald-400" />
+              <TerminalIcon className="h-4 w-4 text-emerald-400" />
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Interactive Terminal</span>
-              {isRunning && (
-                <span className="flex h-2 w-2 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              {isRunning ? (
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                 </span>
-              )}
+              ) : null}
             </div>
 
             <button
               type="button"
               onClick={handleClearTerminal}
-              className="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded border border-slate-800 hover:border-slate-700 bg-slate-950 font-semibold transition"
+              className="rounded border border-slate-800 bg-slate-950 px-2 py-0.5 text-xs font-semibold text-slate-400 transition hover:border-slate-700 hover:text-white"
             >
               Clear Logs
             </button>
           </div>
 
-          {/* Terminal Console Output */}
-          <div 
+          <div
             ref={terminalRef}
             onClick={handleTerminalClick}
-            className="flex-1 overflow-y-auto px-4 py-3 font-mono text-sm leading-relaxed whitespace-pre-wrap selection:bg-slate-800 cursor-text"
+            className="min-h-0 flex-1 cursor-text overflow-y-auto whitespace-pre-wrap px-4 py-3 font-mono text-sm leading-relaxed selection:bg-slate-800"
           >
             {terminalOutput ? (
               <span className="text-slate-100">{terminalOutput}</span>
             ) : (
-              <div className="flex items-center gap-2 text-slate-500 py-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500/80" />
+              <div className="flex items-center gap-2 py-2 text-slate-500">
+                <AlertTriangle className="h-4 w-4 text-amber-500/80" />
                 <span className="italic">Terminal logs are empty. Run your code to start.</span>
               </div>
             )}
-            {isRunning && (
+            {isRunning ? (
               <input
                 ref={inputRef}
                 type="text"
                 value={inputVal}
-                onChange={(e) => setInputVal(e.target.value)}
+                onChange={(event) => setInputVal(event.target.value)}
                 onKeyDown={handleInputKeyDown}
-                className="inline bg-transparent border-none outline-none font-mono text-sm text-slate-100 m-0 p-0 focus:ring-0 focus:border-none focus:outline-none caret-emerald-400 select-text"
+                className="m-0 inline border-none bg-transparent p-0 font-mono text-sm text-slate-100 caret-emerald-400 outline-none focus:border-none focus:outline-none focus:ring-0"
                 style={{
                   width: `${Math.max(1, inputVal.length)}ch`,
-                  minWidth: '8px'
+                  minWidth: '8px',
                 }}
                 autoFocus
               />
-            )}
+            ) : null}
           </div>
         </div>
-
       </div>
     </div>
   )

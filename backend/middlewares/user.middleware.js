@@ -46,6 +46,7 @@ const authUser = async (req, res, next) => {
         }
 
         req.user = {
+            _id: user._id.toString(),
             name: user.name || '',
             phone: user.phone,
             role: 'user'

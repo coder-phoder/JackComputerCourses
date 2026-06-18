@@ -11,6 +11,7 @@ const {
     getCourseVideoEmbedByUser
 } = require('../controllers/course.controller');
 const authUser = require('../middlewares/user.middleware');
+const workspaceRoutes = require('./workspace.routes');
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/logout', logoutUser);
 router.get('/profile', authUser, getUserProfile);
+router.use('/workspace', authUser, workspaceRoutes);
 router.get('/courses', authUser, getCoursesByUser);
 router.get(
     '/courses/:courseId/chapters/:chapterId/videos/:videoPosition/embed',
