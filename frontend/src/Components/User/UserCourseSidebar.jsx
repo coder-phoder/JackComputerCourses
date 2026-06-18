@@ -68,7 +68,7 @@ const UserCourseSidebar = ({
         onKeyDown={handleCollapsedKeyDown}
         aria-label="Expand chapter navigation"
         title="Expand chapter navigation"
-        className="flex h-full min-h-0 cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-700 lg:flex-col"
+        className="flex min-h-0 cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-700 lg:h-full lg:flex-col"
       >
         <div className="flex shrink-0 items-center justify-between gap-2 border-r border-slate-200 p-2 dark:border-slate-800 lg:flex-col lg:border-b lg:border-r-0">
           <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
@@ -116,7 +116,7 @@ const UserCourseSidebar = ({
   }
 
   return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+    <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:h-full">
       <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
         <div className="min-w-0">
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Chapters</h2>

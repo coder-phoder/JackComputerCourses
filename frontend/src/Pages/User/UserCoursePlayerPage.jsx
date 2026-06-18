@@ -234,8 +234,8 @@ const UserCoursePlayerPage = () => {
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-slate-50 font-sans dark:bg-slate-950">
-      <main className="mx-auto flex h-full max-w-[1800px] flex-col overflow-hidden px-4 py-4 sm:px-5 lg:px-6">
+    <div className="min-h-screen bg-slate-50 font-sans dark:bg-slate-950 lg:h-screen lg:overflow-hidden">
+      <main className="mx-auto flex min-h-screen max-w-[1800px] flex-col px-4 py-4 sm:px-5 lg:h-full lg:min-h-0 lg:overflow-hidden lg:px-6">
         <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
@@ -279,7 +279,7 @@ const UserCoursePlayerPage = () => {
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Loading course player...</p>
           </section>
         ) : (
-          <div className={`grid min-h-0 flex-1 gap-4 ${
+          <div className={`grid flex-1 gap-4 lg:min-h-0 ${
             isSidebarCollapsed
               ? 'lg:grid-cols-[80px_minmax(0,1fr)]'
               : 'lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)]'
@@ -298,12 +298,12 @@ const UserCoursePlayerPage = () => {
             {/* Resizable main workspace (Video Player + Monaco IDE Sidebar) */}
             <div 
               id="workspace-container"
-              className="order-1 min-h-[320px] lg:order-2 flex flex-col xl:flex-row min-w-0 min-h-0 gap-4 relative overflow-hidden"
+              className="relative order-1 flex min-w-0 flex-col gap-4 overflow-visible lg:order-2 lg:min-h-0 lg:overflow-hidden xl:flex-row"
             >
               <UserVideoPlayer
                 course={course}
                 selectedVideo={selectedVideo}
-                className="flex-1 min-w-0 xl:min-h-0"
+                className="min-h-[360px] min-w-0 sm:min-h-[440px] lg:min-h-0 lg:flex-1 xl:min-h-0"
               />
 
               {course?.showIde && !isCodeSidebarCollapsed && (
@@ -317,7 +317,7 @@ const UserCoursePlayerPage = () => {
 
               {course?.showIde && (
                 <div 
-                  className="shrink-0 min-h-0 xl:block"
+                  className="hidden min-h-0 shrink-0 lg:block"
                   style={isCodeSidebarCollapsed ? { width: '72px' } : { width: `${ideWidth}px` }}
                 >
                   <UserCodePlayground
