@@ -8,6 +8,7 @@ import {
   FolderOpen,
   FolderPlus,
   ListCollapse,
+  MessageSquareCode,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react'
 
 const IDExplorer = ({
+  activeActivity = 'explorer',
   activeNodeId,
   activeWorkspace,
   activeWorkspaceId,
@@ -34,6 +36,7 @@ const IDExplorer = ({
   isCollapsed,
   isDirty,
   isDraggingExplorer,
+  isQueryEnabled = false,
   nodeActionId,
   nodeDraft,
   onStartExplorerResize,
@@ -43,6 +46,7 @@ const IDExplorer = ({
   saveError,
   saving,
   setActiveWorkspaceId,
+  setActiveActivity,
   setIsCollapsed,
   setNodeDraft,
   setOpenNodeActionMenuId,
@@ -59,6 +63,7 @@ const IDExplorer = ({
   workspaceDraft,
   workspaceError,
   workspaceLoading,
+  queryNotificationCount = 0,
   workspaces,
   workspacesLoading,
 }) => {
@@ -366,21 +371,45 @@ const IDExplorer = ({
       <nav className="flex w-14 shrink-0 flex-col items-center border-r border-slate-200 bg-slate-100 py-2 dark:border-slate-800 dark:bg-slate-950">
         <button
           type="button"
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={() => {
+            setActiveActivity?.('explorer')
+            setIsCollapsed(activeActivity === 'explorer' ? !isCollapsed : false)
+          }}
           title={isCollapsed ? 'Open Explorer' : 'Close Explorer'}
           aria-label={isCollapsed ? 'Open Explorer' : 'Close Explorer'}
-          aria-pressed={!isCollapsed}
+          aria-pressed={activeActivity === 'explorer' && !isCollapsed}
           className={`flex h-11 w-11 items-center justify-center border-l-2 transition ${
-            isCollapsed
+            activeActivity !== 'explorer' || isCollapsed
               ? 'border-transparent text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-500 dark:hover:bg-slate-900 dark:hover:text-slate-200'
               : 'border-blue-500 bg-white text-slate-900 dark:bg-slate-900 dark:text-white'
           }`}
         >
           <Files className="h-6 w-6" />
         </button>
+        {isQueryEnabled ? (
+          <button
+            type="button"
+            onClick={() => setActiveActivity?.('query')}
+            title="Queries"
+            aria-label="Queries"
+            aria-pressed={activeActivity === 'query'}
+            className={`relative mt-1 flex h-11 w-11 items-center justify-center border-l-2 transition ${
+              activeActivity === 'query'
+                ? 'border-blue-500 bg-white text-slate-900 dark:bg-slate-900 dark:text-white'
+                : 'border-transparent text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-500 dark:hover:bg-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <MessageSquareCode className="h-6 w-6" />
+            {queryNotificationCount > 0 ? (
+              <span className="absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold leading-none text-white">
+                {queryNotificationCount > 9 ? '9+' : queryNotificationCount}
+              </span>
+            ) : null}
+          </button>
+        ) : null}
       </nav>
 
-      {isCollapsed ? null : (
+      {isCollapsed || activeActivity !== 'explorer' ? null : (
         <>
           <aside
             className="flex min-h-0 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"

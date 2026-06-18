@@ -12,6 +12,7 @@ const {
 } = require('../controllers/course.controller');
 const authUser = require('../middlewares/user.middleware');
 const workspaceRoutes = require('./workspace.routes');
+const { userQueryRoutes } = require('./query.routes');
 
 const router = express.Router();
 
@@ -20,6 +21,7 @@ router.post('/login', loginUser);
 router.post('/logout', logoutUser);
 router.get('/profile', authUser, getUserProfile);
 router.use('/workspace', authUser, workspaceRoutes);
+router.use('/', authUser, userQueryRoutes);
 router.get('/courses', authUser, getCoursesByUser);
 router.get(
     '/courses/:courseId/chapters/:chapterId/videos/:videoPosition/embed',

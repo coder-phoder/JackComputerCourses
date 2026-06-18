@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import IDExplorer from '../../Components/IDE/IDExplorer'
 import IDEerminal from '../../Components/IDE/IDEerminal'
+import IDEquery from '../../Components/IDE/IDEquery'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import UserNavbar from '../../Components/User/UserNavbar'
 import { useAuth } from '../../Context/AuthContext'
@@ -317,6 +318,8 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [nodeDraft, setNodeDraft] = useState(null)
   const [showWorkspaceActions, setShowWorkspaceActions] = useState(false)
   const [openNodeActionMenuId, setOpenNodeActionMenuId] = useState('')
+  const [activeActivity, setActiveActivity] = useState('explorer')
+  const [queryNotificationCount, setQueryNotificationCount] = useState(0)
 
   const [terminalOutput, setTerminalOutput] = useState('')
   const [inputVal, setInputVal] = useState('')
@@ -381,6 +384,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     && workspaceSize.height - terminalHeight < MIN_EDITOR_HEIGHT_WITH_TERMINAL
   const isExplorerLayoutCollapsed = isExplorerCollapsed || shouldAutoCollapseExplorer
   const isTerminalLayoutCollapsed = isTerminalCollapsed || shouldAutoCollapseTerminal
+  const isQueryActivity = accessConfig.role === 'user' && activeActivity === 'query'
 
   const registerBoilerplateSnippets = useCallback((monaco) => {
     snippetProviderDisposablesRef.current.forEach((disposable) => disposable.dispose())
@@ -634,6 +638,40 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       setSocket(null)
     }
   }, [isAuthorized])
+
+  useEffect(() => {
+    if (!isAuthorized || accessConfig.role !== 'user') {
+      return undefined
+    }
+
+    let isActive = true
+
+    const fetchQueryNotifications = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/user/queries`, {
+          withCredentials: true,
+        })
+
+        if (!isActive || !response.data?.success) {
+          return
+        }
+
+        setQueryNotificationCount(response.data?.data?.actionRequiredCount || 0)
+      } catch {
+        if (isActive) {
+          setQueryNotificationCount(0)
+        }
+      }
+    }
+
+    fetchQueryNotifications()
+    const notificationTimer = window.setInterval(fetchQueryNotifications, 30000)
+
+    return () => {
+      isActive = false
+      window.clearInterval(notificationTimer)
+    }
+  }, [accessConfig.role, isAuthorized])
 
   useEffect(() => () => {
     formatActionDisposableRef.current?.dispose()
@@ -1422,6 +1460,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       >
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <IDExplorer
+            activeActivity={isQueryActivity ? 'query' : 'explorer'}
             activeNodeId={activeNodeId}
             activeWorkspace={activeWorkspace}
             activeWorkspaceId={activeWorkspaceId}
@@ -1439,6 +1478,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             isCollapsed={isExplorerLayoutCollapsed}
             isDirty={isDirty}
             isDraggingExplorer={isDraggingExplorer}
+            isQueryEnabled={accessConfig.role === 'user'}
             nodeActionId={nodeActionId}
             nodeDraft={nodeDraft}
             onStartExplorerResize={(event) => {
@@ -1451,6 +1491,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             saveError={saveError}
             saving={saving}
             setActiveWorkspaceId={setActiveWorkspaceId}
+            setActiveActivity={setActiveActivity}
             setIsCollapsed={setIsExplorerCollapsed}
             setNodeDraft={setNodeDraft}
             setOpenNodeActionMenuId={setOpenNodeActionMenuId}
@@ -1467,10 +1508,17 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             workspaceDraft={workspaceDraft}
             workspaceError={workspaceError}
             workspaceLoading={workspaceLoading}
+            queryNotificationCount={queryNotificationCount}
             workspaces={workspaces}
             workspacesLoading={workspacesLoading}
           />
 
+          {isQueryActivity ? (
+            <IDEquery
+              isDark={isDark}
+              onNotificationCountChange={setQueryNotificationCount}
+            />
+          ) : (
           <main className="flex min-w-0 flex-1 flex-col">
             <div className="z-10 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="min-w-0">
@@ -1635,24 +1683,27 @@ const UserIdePage = ({ accessRole = 'user' }) => {
               )}
             </div>
           </main>
+          )}
         </div>
 
-        <IDEerminal
-          handleClearTerminal={handleClearTerminal}
-          handleInputKeyDown={handleInputKeyDown}
-          inputVal={inputVal}
-          isCollapsed={isTerminalLayoutCollapsed}
-          isDraggingHeight={isDraggingHeight}
-          isRunning={isRunning}
-          onStartResize={(event) => {
-            event.preventDefault()
-            setIsDraggingHeight(true)
-          }}
-          setInputVal={setInputVal}
-          setIsCollapsed={setIsTerminalCollapsed}
-          terminalHeight={terminalHeight}
-          terminalOutput={terminalOutput}
-        />
+        {isQueryActivity ? null : (
+          <IDEerminal
+            handleClearTerminal={handleClearTerminal}
+            handleInputKeyDown={handleInputKeyDown}
+            inputVal={inputVal}
+            isCollapsed={isTerminalLayoutCollapsed}
+            isDraggingHeight={isDraggingHeight}
+            isRunning={isRunning}
+            onStartResize={(event) => {
+              event.preventDefault()
+              setIsDraggingHeight(true)
+            }}
+            setInputVal={setInputVal}
+            setIsCollapsed={setIsTerminalCollapsed}
+            terminalHeight={terminalHeight}
+            terminalOutput={terminalOutput}
+          />
+        )}
       </div>
     </div>
   )

@@ -1,0 +1,681 @@
+import axios from 'axios'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import Editor from '@monaco-editor/react'
+import {
+  Check,
+  Clock,
+  FileCode,
+  Inbox,
+  Pencil,
+  RefreshCw,
+  Search,
+  Send,
+  Trash2,
+  X,
+} from 'lucide-react'
+
+const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
+
+const STATUS_META = {
+  pending: { label: 'Pending', className: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' },
+  accepted: { label: 'Accepted by faculty', className: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' },
+  declined: { label: 'Declined by faculty', className: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' },
+  changes_submitted: { label: 'Review ready', className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' },
+  changes_accepted: { label: 'Changes applied', className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200' },
+  changes_declined: { label: 'Changes declined', className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200' },
+}
+
+const MONACO_LANGUAGE = {
+  c: 'c',
+  cpp: 'cpp',
+  java: 'java',
+  python: 'python',
+  javascript: 'javascript',
+}
+
+const getErrorMessage = (error, fallback) => (
+  error?.response?.data?.message || error?.message || fallback
+)
+
+const QueryStatusBadge = ({ status }) => {
+  const meta = STATUS_META[status] || STATUS_META.pending
+
+  return (
+    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${meta.className}`}>
+      {meta.label}
+    </span>
+  )
+}
+
+const IDEquery = ({ isDark = false, onNotificationCountChange }) => {
+  const [queries, setQueries] = useState([])
+  const [files, setFiles] = useState([])
+  const [faculties, setFaculties] = useState([])
+  const [fileSearch, setFileSearch] = useState('')
+  const [facultySearch, setFacultySearch] = useState('')
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [selectedFaculty, setSelectedFaculty] = useState(null)
+  const [message, setMessage] = useState('')
+  const [editingQueryId, setEditingQueryId] = useState('')
+  const [selectedQueryId, setSelectedQueryId] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [searchingFiles, setSearchingFiles] = useState(false)
+  const [searchingFaculties, setSearchingFaculties] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [busyQueryId, setBusyQueryId] = useState('')
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const selectedQuery = useMemo(
+    () => queries.find((query) => query._id === selectedQueryId) || null,
+    [queries, selectedQueryId],
+  )
+  const activeQueries = useMemo(
+    () => queries.filter((query) => ['pending', 'accepted', 'changes_submitted'].includes(query.status)),
+    [queries],
+  )
+  const historyQueries = useMemo(
+    () => queries.filter((query) => !['pending', 'accepted', 'changes_submitted'].includes(query.status)),
+    [queries],
+  )
+
+  const syncQueries = useCallback((nextQueries, actionRequiredCount) => {
+    setQueries(nextQueries)
+    onNotificationCountChange?.(actionRequiredCount)
+
+    setSelectedQueryId((currentId) => {
+      if (currentId && nextQueries.some((query) => query._id === currentId)) {
+        return currentId
+      }
+
+      return nextQueries.find((query) => query.status === 'changes_submitted')?._id
+        || nextQueries[0]?._id
+        || ''
+    })
+  }, [onNotificationCountChange])
+
+  const fetchQueries = useCallback(async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/user/queries`, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to load queries')
+      }
+
+      syncQueries(response.data?.data?.queries || [], response.data?.data?.actionRequiredCount || 0)
+    } catch (queryError) {
+      setError(getErrorMessage(queryError, 'Unable to load queries.'))
+      syncQueries([], 0)
+    } finally {
+      setLoading(false)
+    }
+  }, [syncQueries])
+
+  const searchFiles = useCallback(async (searchValue) => {
+    setSearchingFiles(true)
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/user/queries/files/search`, {
+        params: { search: searchValue },
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to search files')
+      }
+
+      setFiles(response.data?.data?.files || [])
+    } catch (fileError) {
+      setError(getErrorMessage(fileError, 'Unable to search files.'))
+      setFiles([])
+    } finally {
+      setSearchingFiles(false)
+    }
+  }, [])
+
+  const searchFaculties = useCallback(async (searchValue) => {
+    setSearchingFaculties(true)
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/user/queries/faculties/search`, {
+        params: { search: searchValue },
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to search faculties')
+      }
+
+      setFaculties(response.data?.data?.faculties || [])
+    } catch (facultyError) {
+      setError(getErrorMessage(facultyError, 'Unable to search faculties.'))
+      setFaculties([])
+    } finally {
+      setSearchingFaculties(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      fetchQueries()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [fetchQueries])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      searchFiles(fileSearch)
+    }, 250)
+
+    return () => window.clearTimeout(timer)
+  }, [fileSearch, searchFiles])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      searchFaculties(facultySearch)
+    }, 250)
+
+    return () => window.clearTimeout(timer)
+  }, [facultySearch, searchFaculties])
+
+  const resetForm = () => {
+    setEditingQueryId('')
+    setSelectedFile(null)
+    setSelectedFaculty(null)
+    setMessage('')
+  }
+
+  const startEditQuery = (query) => {
+    setEditingQueryId(query._id)
+    setSelectedFile({
+      _id: query.fileId,
+      workspaceId: query.workspaceId,
+      workspaceName: query.workspaceName,
+      name: query.fileName,
+      language: query.fileLanguage,
+    })
+    setSelectedFaculty({
+      _id: query.facultyId,
+      name: query.facultyName,
+      phone: query.facultyPhone,
+    })
+    setMessage(query.message)
+    setSelectedQueryId(query._id)
+    setSuccess('')
+    setError('')
+  }
+
+  const submitQuery = async (event) => {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!selectedFile?._id) {
+      setError('Select a code file before sending the query.')
+      return
+    }
+
+    if (!selectedFaculty?._id) {
+      setError('Select a faculty before sending the query.')
+      return
+    }
+
+    if (!message.trim()) {
+      setError('Enter a query message.')
+      return
+    }
+
+    setSubmitting(true)
+
+    try {
+      const payload = {
+        fileId: selectedFile._id,
+        facultyId: selectedFaculty._id,
+        message: message.trim(),
+      }
+      const response = editingQueryId
+        ? await axios.patch(`${API_BASE_URL}/user/queries/${editingQueryId}`, payload, { withCredentials: true })
+        : await axios.post(`${API_BASE_URL}/user/queries`, payload, { withCredentials: true })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to save query')
+      }
+
+      const savedQuery = response.data?.data?.query
+
+      setQueries((currentQueries) => {
+        const exists = currentQueries.some((query) => query._id === savedQuery._id)
+        const nextQueries = exists
+          ? currentQueries.map((query) => (query._id === savedQuery._id ? savedQuery : query))
+          : [savedQuery, ...currentQueries]
+
+        onNotificationCountChange?.(nextQueries.filter((query) => query.status === 'changes_submitted').length)
+        return nextQueries
+      })
+      setSelectedQueryId(savedQuery._id)
+      setSuccess(editingQueryId ? 'Query updated successfully.' : 'Query sent successfully.')
+      resetForm()
+    } catch (submitError) {
+      setError(getErrorMessage(submitError, 'Unable to save query.'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const deleteQuery = async (query) => {
+    if (!window.confirm(`Delete query for ${query.fileName}?`)) {
+      return
+    }
+
+    setBusyQueryId(query._id)
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/user/queries/${query._id}`, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to delete query')
+      }
+
+      setQueries((currentQueries) => {
+        const nextQueries = currentQueries.filter((currentQuery) => currentQuery._id !== query._id)
+        onNotificationCountChange?.(nextQueries.filter((currentQuery) => currentQuery.status === 'changes_submitted').length)
+        return nextQueries
+      })
+      setSelectedQueryId((currentId) => (currentId === query._id ? '' : currentId))
+      if (editingQueryId === query._id) {
+        resetForm()
+      }
+      setSuccess('Query deleted successfully.')
+    } catch (deleteError) {
+      setError(getErrorMessage(deleteError, 'Unable to delete query.'))
+    } finally {
+      setBusyQueryId('')
+    }
+  }
+
+  const decideQuery = async (query, decision) => {
+    setBusyQueryId(query._id)
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await axios.patch(`${API_BASE_URL}/user/queries/${query._id}/decision`, {
+        decision,
+      }, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to save decision')
+      }
+
+      const updatedQuery = response.data?.data?.query
+
+      setQueries((currentQueries) => {
+        const nextQueries = currentQueries.map((currentQuery) => (
+          currentQuery._id === updatedQuery._id ? updatedQuery : currentQuery
+        ))
+        onNotificationCountChange?.(nextQueries.filter((currentQuery) => currentQuery.status === 'changes_submitted').length)
+        return nextQueries
+      })
+      setSelectedQueryId(updatedQuery._id)
+      setSuccess(decision === 'accept' ? 'Faculty changes applied to your file.' : 'Faculty changes declined.')
+    } catch (decisionError) {
+      setError(getErrorMessage(decisionError, 'Unable to save decision.'))
+    } finally {
+      setBusyQueryId('')
+    }
+  }
+
+  const renderQueryButton = (query) => (
+    <button
+      key={query._id}
+      type="button"
+      onClick={() => setSelectedQueryId(query._id)}
+      className={`w-full rounded-lg border p-3 text-left transition ${
+        selectedQueryId === query._id
+          ? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30'
+          : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{query.fileName}</p>
+          <p className="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+            {query.workspaceName} · {query.facultyName}
+          </p>
+        </div>
+        <QueryStatusBadge status={query.status} />
+      </div>
+      <p className="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{query.message}</p>
+    </button>
+  )
+
+  return (
+    <main className="flex min-w-0 flex-1 flex-col bg-slate-50 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+        <div>
+          <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">Queries</h1>
+          <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+            Send code files to faculty and review returned changes.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={fetchQueries}
+          disabled={loading}
+          className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
+
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto p-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <section className="space-y-4">
+          <form onSubmit={submitQuery} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                {editingQueryId ? 'Edit Query' : 'Create Query'}
+              </h2>
+              {editingQueryId ? (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+                  title="Cancel edit"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="query-file-search" className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Code file
+                </label>
+                <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 dark:border-slate-700 dark:bg-slate-900">
+                  <Search className="h-4 w-4 shrink-0 text-slate-400" />
+                  <input
+                    id="query-file-search"
+                    value={fileSearch}
+                    onChange={(event) => setFileSearch(event.target.value)}
+                    placeholder="Search your code files"
+                    className="min-w-0 flex-1 bg-transparent py-2 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
+                  />
+                </div>
+                <div className="mt-2 max-h-44 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800">
+                  {searchingFiles ? (
+                    <p className="p-3 text-sm font-medium text-slate-500 dark:text-slate-400">Searching files...</p>
+                  ) : files.length ? files.map((file) => (
+                    <button
+                      key={file._id}
+                      type="button"
+                      onClick={() => setSelectedFile(file)}
+                      className={`flex w-full items-center gap-2 border-b border-slate-100 px-3 py-2 text-left text-sm transition last:border-b-0 dark:border-slate-800 ${
+                        selectedFile?._id === file._id
+                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200'
+                          : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900'
+                      }`}
+                    >
+                      <FileCode className="h-4 w-4 shrink-0" />
+                      <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                      <span className="shrink-0 text-xs text-slate-400">{file.workspaceName}</span>
+                    </button>
+                  )) : (
+                    <p className="p-3 text-sm font-medium text-slate-500 dark:text-slate-400">No code files found.</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="query-faculty-search" className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Faculty
+                </label>
+                <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 dark:border-slate-700 dark:bg-slate-900">
+                  <Search className="h-4 w-4 shrink-0 text-slate-400" />
+                  <input
+                    id="query-faculty-search"
+                    value={facultySearch}
+                    onChange={(event) => setFacultySearch(event.target.value)}
+                    placeholder="Search faculty name or phone"
+                    className="min-w-0 flex-1 bg-transparent py-2 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
+                  />
+                </div>
+                <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800">
+                  {searchingFaculties ? (
+                    <p className="p-3 text-sm font-medium text-slate-500 dark:text-slate-400">Searching faculty...</p>
+                  ) : faculties.length ? faculties.map((faculty) => (
+                    <button
+                      key={faculty._id}
+                      type="button"
+                      onClick={() => setSelectedFaculty(faculty)}
+                      className={`w-full border-b border-slate-100 px-3 py-2 text-left text-sm transition last:border-b-0 dark:border-slate-800 ${
+                        selectedFaculty?._id === faculty._id
+                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200'
+                          : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900'
+                      }`}
+                    >
+                      <span className="block truncate font-semibold">{faculty.name}</span>
+                      <span className="block truncate text-xs text-slate-400">{faculty.phone}</span>
+                    </button>
+                  )) : (
+                    <p className="p-3 text-sm font-medium text-slate-500 dark:text-slate-400">No faculty found.</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="query-message" className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Message
+                </label>
+                <textarea
+                  id="query-message"
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  rows={5}
+                  maxLength={1000}
+                  placeholder="Describe what you need reviewed."
+                  className="mt-2 w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-900 outline-none transition focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                />
+              </div>
+
+              {error ? (
+                <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+                  {error}
+                </div>
+              ) : null}
+              {success ? (
+                <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  {success}
+                </div>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-500 disabled:bg-slate-400 dark:disabled:bg-slate-700"
+              >
+                <Send className="h-4 w-4" />
+                {submitting ? 'Saving...' : editingQueryId ? 'Update Query' : 'Send Query'}
+              </button>
+            </div>
+          </form>
+
+          <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Active Queries</h2>
+            <div className="mt-3 space-y-2">
+              {loading ? (
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Loading queries...</p>
+              ) : activeQueries.length ? (
+                activeQueries.map(renderQueryButton)
+              ) : (
+                <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center dark:border-slate-800">
+                  <Inbox className="mx-auto h-7 w-7 text-slate-300 dark:text-slate-700" />
+                  <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">No active queries</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <details className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+            <summary className="cursor-pointer text-sm font-bold text-slate-900 dark:text-slate-100">
+              Query History ({historyQueries.length})
+            </summary>
+            <div className="mt-3 space-y-2">
+              {historyQueries.length ? historyQueries.map(renderQueryButton) : (
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No history yet.</p>
+              )}
+            </div>
+          </details>
+        </section>
+
+        <section className="min-h-[560px] rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+          {selectedQuery ? (
+            <div className="flex h-full min-h-[560px] flex-col">
+              <div className="border-b border-slate-200 p-4 dark:border-slate-800">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <FileCode className="h-5 w-5 shrink-0 text-slate-500" />
+                      <h2 className="truncate text-base font-bold text-slate-900 dark:text-slate-100">
+                        {selectedQuery.fileName}
+                      </h2>
+                    </div>
+                    <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                      {selectedQuery.workspaceName} · {selectedQuery.facultyName}
+                    </p>
+                  </div>
+                  <QueryStatusBadge status={selectedQuery.status} />
+                </div>
+                <p className="mt-4 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                  {selectedQuery.message}
+                </p>
+                {selectedQuery.facultyResponse ? (
+                  <p className="mt-3 whitespace-pre-wrap rounded-lg bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                    {selectedQuery.facultyResponse}
+                  </p>
+                ) : null}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {selectedQuery.status === 'pending' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => startEditQuery(selectedQuery)}
+                        className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteQuery(selectedQuery)}
+                        disabled={busyQueryId === selectedQuery._id}
+                        className="flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900/60 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </button>
+                    </>
+                  ) : null}
+                  {selectedQuery.status === 'changes_submitted' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => decideQuery(selectedQuery, 'accept')}
+                        disabled={busyQueryId === selectedQuery._id}
+                        className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:bg-slate-400"
+                      >
+                        <Check className="h-4 w-4" />
+                        Accept Changes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => decideQuery(selectedQuery, 'decline')}
+                        disabled={busyQueryId === selectedQuery._id}
+                        className="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                      >
+                        <X className="h-4 w-4" />
+                        Decline Changes
+                      </button>
+                    </>
+                  ) : null}
+                  {selectedQuery.status === 'accepted' ? (
+                    <span className="inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                      <Clock className="h-4 w-4" />
+                      Faculty is reviewing this file
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-2">
+                <div className="flex min-h-[360px] flex-col border-b border-slate-200 lg:border-b-0 lg:border-r dark:border-slate-800">
+                  <div className="border-b border-slate-200 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                    Original Snapshot
+                  </div>
+                  <div className="min-h-0 flex-1">
+                    <Editor
+                      height="100%"
+                      language={MONACO_LANGUAGE[selectedQuery.fileLanguage] || 'plaintext'}
+                      theme={isDark ? 'vs-dark' : 'light'}
+                      value={selectedQuery.originalContent || ''}
+                      options={{
+                        readOnly: true,
+                        fontSize: 14,
+                        minimap: { enabled: false },
+                        automaticLayout: true,
+                        scrollBeyondLastLine: false,
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="flex min-h-[360px] flex-col">
+                  <div className="border-b border-slate-200 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                    Faculty Version
+                  </div>
+                  <div className="min-h-0 flex-1">
+                    <Editor
+                      height="100%"
+                      language={MONACO_LANGUAGE[selectedQuery.fileLanguage] || 'plaintext'}
+                      theme={isDark ? 'vs-dark' : 'light'}
+                      value={selectedQuery.reviewedContent || selectedQuery.originalContent || ''}
+                      options={{
+                        readOnly: true,
+                        fontSize: 14,
+                        minimap: { enabled: false },
+                        automaticLayout: true,
+                        scrollBeyondLastLine: false,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-full min-h-[560px] items-center justify-center p-6 text-center">
+              <div>
+                <Inbox className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-700" />
+                <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">Select a query</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Create a query or choose one from the list.</p>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  )
+}
+
+export default IDEquery
