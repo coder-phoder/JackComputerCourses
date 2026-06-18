@@ -20,6 +20,7 @@ import FacultyCoursesPage from './Pages/Faculty/FacultyCoursesPage'
 import FacultyCoursePage from './Pages/Faculty/FacultyCoursePage'
 import FacultyNotes from './Pages/Faculty/FacultyNotes'
 import FacultyCourseNotes from './Pages/Faculty/FacultyCourseNotes'
+import FacultyIdePage from './Pages/Faculty/FacultyIdePage'
 
 const App = () => {
   return (
@@ -37,6 +38,7 @@ const App = () => {
             <Route path="/faculty/home" element={<FacultyHomePage />} />
             <Route path="/faculty/courses" element={<FacultyCoursesPage />} />
             <Route path="/faculty/courses/:courseId" element={<FacultyCoursePage />} />
+            <Route path="/faculty/ide" element={<FacultyIdePage />} />
             <Route path="/faculty/notes" element={<FacultyNotes />} />
             <Route path="/faculty/notes/:courseId" element={<FacultyCourseNotes />} />
             <Route path="/admin/home" element={<AdminHomePage />} />

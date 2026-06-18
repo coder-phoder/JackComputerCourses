@@ -4,11 +4,27 @@ import { Navigate } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
 import { io } from 'socket.io-client'
 import { Play, Square, RotateCcw, AlertTriangle, Settings, Terminal as TerminalIcon } from 'lucide-react'
+import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import UserNavbar from '../../Components/User/UserNavbar'
 import { useAuth } from '../../Context/AuthContext'
 import { useTheme } from '../../Context/ThemeContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
+
+const IDE_ACCESS_CONFIG = {
+  user: {
+    role: 'user',
+    profilePath: '/user/profile',
+    profileKey: 'user',
+    Navbar: UserNavbar,
+  },
+  faculty: {
+    role: 'faculty',
+    profilePath: '/faculty/profile',
+    profileKey: 'faculty',
+    Navbar: FacultyNavbar,
+  },
+}
 
 const BOILERPLATES = {
   c: `#include <stdio.h>
@@ -41,8 +57,9 @@ const LANGUAGES = [
   { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript' }
 ]
 
-const UserIdePage = () => {
-  const { auth, clearAuth, setAuth } = useAuth()
+const UserIdePage = ({ accessRole = 'user' }) => {
+  const accessConfig = IDE_ACCESS_CONFIG[accessRole] || IDE_ACCESS_CONFIG.user
+  const { clearAuth, setAuth } = useAuth()
   const { isDark } = useTheme()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
@@ -133,16 +150,16 @@ const UserIdePage = () => {
   useEffect(() => {
     let isActive = true
 
-    const verifyUser = async () => {
+    const verifyAccess = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/user/profile`, {
+        const response = await axios.get(`${API_BASE_URL}${accessConfig.profilePath}`, {
           withCredentials: true,
         })
 
-        const user = response.data?.data?.user
+        const profile = response.data?.data?.[accessConfig.profileKey]
 
-        if (!response.data?.success || user?.role !== 'user') {
-          throw new Error('Unauthorized user')
+        if (!response.data?.success || profile?.role !== accessConfig.role) {
+          throw new Error(`Unauthorized ${accessConfig.role}`)
         }
 
         if (!isActive) {
@@ -150,8 +167,8 @@ const UserIdePage = () => {
         }
 
         setAuth({
-          role: 'user',
-          phone: user.phone,
+          role: accessConfig.role,
+          phone: profile.phone,
           token: null,
         })
         setIsAuthorized(true)
@@ -168,12 +185,12 @@ const UserIdePage = () => {
       }
     }
 
-    verifyUser()
+    verifyAccess()
 
     return () => {
       isActive = false
     }
-  }, [clearAuth, setAuth])
+  }, [accessConfig.profileKey, accessConfig.profilePath, accessConfig.role, clearAuth, setAuth])
 
   // Socket Connection Setup
   useEffect(() => {
@@ -293,15 +310,16 @@ const UserIdePage = () => {
     )
   }
 
-  if (!isAuthorized || auth.role !== 'user') {
+  if (!isAuthorized) {
     return <Navigate to="/login" replace />
   }
 
   const selectedLanguage = LANGUAGES.find(l => l.value === language)
+  const Navbar = accessConfig.Navbar
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-900 font-sans overflow-hidden">
-      <UserNavbar />
+      <Navbar />
 
       {/* Main Workspace Layout */}
       <div 
