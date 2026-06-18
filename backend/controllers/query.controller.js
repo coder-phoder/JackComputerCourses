@@ -233,108 +233,6 @@ const createQuery = async (req, res) => {
     }
 };
 
-const updateQuery = async (req, res) => {
-    try {
-        const { queryId } = req.params;
-
-        if (!isValidObjectId(queryId)) {
-            return sendError(res, 400, 'Invalid query id');
-        }
-
-        const query = await Query.findOne({ _id: queryId, userId: req.user._id });
-
-        if (!query) {
-            return sendError(res, 404, 'Query not found');
-        }
-
-        if (query.status !== 'pending') {
-            return sendError(res, 400, 'Only pending queries can be updated');
-        }
-
-        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'message')) {
-            const message = String(req.body.message || '').trim();
-
-            if (!message) {
-                return sendError(res, 400, 'Query message is required');
-            }
-
-            query.message = message;
-        }
-
-        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'facultyId')) {
-            const faculty = await getFacultyById(req.body.facultyId);
-
-            if (!faculty) {
-                return sendError(res, 404, 'Faculty not found');
-            }
-
-            query.facultyId = faculty._id;
-            query.facultyName = faculty.name;
-            query.facultyPhone = faculty.phone;
-        }
-
-        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'fileId')) {
-            const codeFile = await getUserCodeFile(req.user._id, req.body.fileId);
-
-            if (!codeFile) {
-                return sendError(res, 404, 'Code file not found');
-            }
-
-            query.workspaceId = codeFile.workspace._id;
-            query.workspaceName = codeFile.workspace.name;
-            query.fileId = codeFile.node._id;
-            query.fileName = codeFile.node.name;
-            query.fileLanguage = codeFile.node.language;
-            query.originalContent = codeFile.node.content || '';
-            query.reviewedContent = codeFile.node.content || '';
-        }
-
-        await query.save();
-
-        return res.status(200).json({
-            success: true,
-            message: 'Query updated successfully',
-            data: { query: formatQuery(query) }
-        });
-    } catch (error) {
-        if (error.name === 'ValidationError') {
-            return sendError(res, 400, error.message);
-        }
-
-        return sendError(res, 500, 'Something went wrong while updating query');
-    }
-};
-
-const deleteQuery = async (req, res) => {
-    try {
-        const { queryId } = req.params;
-
-        if (!isValidObjectId(queryId)) {
-            return sendError(res, 400, 'Invalid query id');
-        }
-
-        const query = await Query.findOne({ _id: queryId, userId: req.user._id });
-
-        if (!query) {
-            return sendError(res, 404, 'Query not found');
-        }
-
-        if (!['pending', 'declined', 'changes_declined', 'changes_accepted'].includes(query.status)) {
-            return sendError(res, 400, 'This query cannot be deleted right now');
-        }
-
-        await Query.deleteOne({ _id: query._id });
-
-        return res.status(200).json({
-            success: true,
-            message: 'Query deleted successfully',
-            data: { deletedQueryId: query._id.toString() }
-        });
-    } catch (error) {
-        return sendError(res, 500, 'Something went wrong while deleting query');
-    }
-};
-
 const decideReviewedQuery = async (req, res) => {
     try {
         const { queryId } = req.params;
@@ -523,8 +421,6 @@ module.exports = {
     searchUserCodeFiles,
     searchFacultiesForQuery,
     createQuery,
-    updateQuery,
-    deleteQuery,
     decideReviewedQuery,
     getFacultyQueries,
     respondToFacultyQuery,

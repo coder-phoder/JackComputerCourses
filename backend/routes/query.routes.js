@@ -3,13 +3,11 @@ const {
     closeFacultyQuery,
     createQuery,
     decideReviewedQuery,
-    deleteQuery,
     getFacultyQueries,
     getUserQueries,
     respondToFacultyQuery,
     searchFacultiesForQuery,
-    searchUserCodeFiles,
-    updateQuery
+    searchUserCodeFiles
 } = require('../controllers/query.controller');
 
 const userQueryRoutes = express.Router();
@@ -19,8 +17,6 @@ userQueryRoutes.get('/queries', getUserQueries);
 userQueryRoutes.get('/queries/files/search', searchUserCodeFiles);
 userQueryRoutes.get('/queries/faculties/search', searchFacultiesForQuery);
 userQueryRoutes.post('/queries', createQuery);
-userQueryRoutes.patch('/queries/:queryId', updateQuery);
-userQueryRoutes.delete('/queries/:queryId', deleteQuery);
 userQueryRoutes.patch('/queries/:queryId/decision', decideReviewedQuery);
 
 facultyQueryRoutes.get('/queries', getFacultyQueries);

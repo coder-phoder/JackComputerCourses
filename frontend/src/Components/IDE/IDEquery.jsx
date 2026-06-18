@@ -6,11 +6,9 @@ import {
   Clock,
   FileCode,
   Inbox,
-  Pencil,
   RefreshCw,
   Search,
   Send,
-  Trash2,
   X,
 } from 'lucide-react'
 
@@ -56,7 +54,6 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
   const [selectedFile, setSelectedFile] = useState(null)
   const [selectedFaculty, setSelectedFaculty] = useState(null)
   const [message, setMessage] = useState('')
-  const [editingQueryId, setEditingQueryId] = useState('')
   const [selectedQueryId, setSelectedQueryId] = useState('')
   const [loading, setLoading] = useState(true)
   const [searchingFiles, setSearchingFiles] = useState(false)
@@ -185,30 +182,9 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
   }, [facultySearch, searchFaculties])
 
   const resetForm = () => {
-    setEditingQueryId('')
     setSelectedFile(null)
     setSelectedFaculty(null)
     setMessage('')
-  }
-
-  const startEditQuery = (query) => {
-    setEditingQueryId(query._id)
-    setSelectedFile({
-      _id: query.fileId,
-      workspaceId: query.workspaceId,
-      workspaceName: query.workspaceName,
-      name: query.fileName,
-      language: query.fileLanguage,
-    })
-    setSelectedFaculty({
-      _id: query.facultyId,
-      name: query.facultyName,
-      phone: query.facultyPhone,
-    })
-    setMessage(query.message)
-    setSelectedQueryId(query._id)
-    setSuccess('')
-    setError('')
   }
 
   const submitQuery = async (event) => {
@@ -239,9 +215,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
         facultyId: selectedFaculty._id,
         message: message.trim(),
       }
-      const response = editingQueryId
-        ? await axios.patch(`${API_BASE_URL}/user/queries/${editingQueryId}`, payload, { withCredentials: true })
-        : await axios.post(`${API_BASE_URL}/user/queries`, payload, { withCredentials: true })
+      const response = await axios.post(`${API_BASE_URL}/user/queries`, payload, { withCredentials: true })
 
       if (!response.data?.success) {
         throw new Error(response.data?.message || 'Unable to save query')
@@ -259,47 +233,12 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
         return nextQueries
       })
       setSelectedQueryId(savedQuery._id)
-      setSuccess(editingQueryId ? 'Query updated successfully.' : 'Query sent successfully.')
+      setSuccess('Query sent successfully.')
       resetForm()
     } catch (submitError) {
       setError(getErrorMessage(submitError, 'Unable to save query.'))
     } finally {
       setSubmitting(false)
-    }
-  }
-
-  const deleteQuery = async (query) => {
-    if (!window.confirm(`Delete query for ${query.fileName}?`)) {
-      return
-    }
-
-    setBusyQueryId(query._id)
-    setError('')
-    setSuccess('')
-
-    try {
-      const response = await axios.delete(`${API_BASE_URL}/user/queries/${query._id}`, {
-        withCredentials: true,
-      })
-
-      if (!response.data?.success) {
-        throw new Error(response.data?.message || 'Unable to delete query')
-      }
-
-      setQueries((currentQueries) => {
-        const nextQueries = currentQueries.filter((currentQuery) => currentQuery._id !== query._id)
-        onNotificationCountChange?.(nextQueries.filter((currentQuery) => currentQuery.status === 'changes_submitted').length)
-        return nextQueries
-      })
-      setSelectedQueryId((currentId) => (currentId === query._id ? '' : currentId))
-      if (editingQueryId === query._id) {
-        resetForm()
-      }
-      setSuccess('Query deleted successfully.')
-    } catch (deleteError) {
-      setError(getErrorMessage(deleteError, 'Unable to delete query.'))
-    } finally {
-      setBusyQueryId('')
     }
   }
 
@@ -390,18 +329,8 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
           <form onSubmit={submitQuery} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                {editingQueryId ? 'Edit Query' : 'Create Query'}
+                Create Query
               </h2>
-              {editingQueryId ? (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
-                  title="Cancel edit"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              ) : null}
             </div>
 
             <div className="space-y-4">
@@ -512,7 +441,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-500 disabled:bg-slate-400 dark:disabled:bg-slate-700"
               >
                 <Send className="h-4 w-4" />
-                {submitting ? 'Saving...' : editingQueryId ? 'Update Query' : 'Send Query'}
+                {submitting ? 'Sending...' : 'Send Query'}
               </button>
             </div>
           </form>
@@ -545,9 +474,9 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
           </details>
         </section>
 
-        <section className="min-h-[560px] rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+        <section className="min-h-140 rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
           {selectedQuery ? (
-            <div className="flex h-full min-h-[560px] flex-col">
+            <div className="flex h-full min-h-140 flex-col">
               <div className="border-b border-slate-200 p-4 dark:border-slate-800">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -572,27 +501,6 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                   </p>
                 ) : null}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {selectedQuery.status === 'pending' ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => startEditQuery(selectedQuery)}
-                        className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteQuery(selectedQuery)}
-                        disabled={busyQueryId === selectedQuery._id}
-                        className="flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900/60 dark:text-rose-300 dark:hover:bg-rose-950/40"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                      </button>
-                    </>
-                  ) : null}
                   {selectedQuery.status === 'changes_submitted' ? (
                     <>
                       <button
@@ -625,7 +533,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
               </div>
 
               <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-2">
-                <div className="flex min-h-[360px] flex-col border-b border-slate-200 lg:border-b-0 lg:border-r dark:border-slate-800">
+                <div className="flex min-h-90 flex-col border-b border-slate-200 lg:border-b-0 lg:border-r dark:border-slate-800">
                   <div className="border-b border-slate-200 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
                     Original Snapshot
                   </div>
@@ -645,7 +553,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                     />
                   </div>
                 </div>
-                <div className="flex min-h-[360px] flex-col">
+                <div className="flex min-h-90 flex-col">
                   <div className="border-b border-slate-200 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
                     Faculty Version
                   </div>
@@ -668,7 +576,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
               </div>
             </div>
           ) : (
-            <div className="flex h-full min-h-[560px] items-center justify-center p-6 text-center">
+            <div className="flex h-full min-h-140 items-center justify-center p-6 text-center">
               <div>
                 <Inbox className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-700" />
                 <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">Select a query</p>
