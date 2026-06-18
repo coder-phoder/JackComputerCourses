@@ -235,7 +235,7 @@ const UserCoursePlayerPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans dark:bg-slate-950 lg:h-screen lg:overflow-hidden">
-      <main className="mx-auto flex min-h-screen max-w-[1800px] flex-col px-4 py-4 sm:px-5 lg:h-full lg:min-h-0 lg:overflow-hidden lg:px-6">
+      <main className="mx-auto flex min-h-screen max-w-450 flex-col px-4 py-4 sm:px-5 lg:h-full lg:min-h-0 lg:overflow-hidden lg:px-6">
         <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
@@ -303,7 +303,7 @@ const UserCoursePlayerPage = () => {
               <UserVideoPlayer
                 course={course}
                 selectedVideo={selectedVideo}
-                className="min-h-[360px] min-w-0 sm:min-h-[440px] lg:min-h-0 lg:flex-1 xl:min-h-0"
+                className="min-h-90 min-w-0 sm:min-h-110 lg:min-h-0 lg:flex-1 xl:min-h-0"
               />
 
               {course?.showIde && !isCodeSidebarCollapsed && (

@@ -18,6 +18,8 @@ import AdminNotes from './Pages/Admin/AdminNotes'
 import FacultyHomePage from './Pages/Faculty/FacultyHomePage'
 import FacultyCoursesPage from './Pages/Faculty/FacultyCoursesPage'
 import FacultyCoursePage from './Pages/Faculty/FacultyCoursePage'
+import FacultyNotes from './Pages/Faculty/FacultyNotes'
+import FacultyCourseNotes from './Pages/Faculty/FacultyCourseNotes'
 
 const App = () => {
   return (
@@ -35,6 +37,8 @@ const App = () => {
             <Route path="/faculty/home" element={<FacultyHomePage />} />
             <Route path="/faculty/courses" element={<FacultyCoursesPage />} />
             <Route path="/faculty/courses/:courseId" element={<FacultyCoursePage />} />
+            <Route path="/faculty/notes" element={<FacultyNotes />} />
+            <Route path="/faculty/notes/:courseId" element={<FacultyCourseNotes />} />
             <Route path="/admin/home" element={<AdminHomePage />} />
             <Route path="/admin/users" element={<AdminAllUsers />} />
             <Route path="/admin/faculties" element={<AdminAllFaculties />} />
