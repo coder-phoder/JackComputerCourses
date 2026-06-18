@@ -23,6 +23,8 @@ const STATUS_META = {
   changes_declined: { label: 'Changes declined', className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200' },
 }
 
+const MAIN_QUERY_STATUS_PRIORITY = ['changes_submitted', 'accepted', 'pending']
+
 const MONACO_LANGUAGE = {
   c: 'c',
   cpp: 'cpp',
@@ -34,6 +36,26 @@ const MONACO_LANGUAGE = {
 const getErrorMessage = (error, fallback) => (
   error?.response?.data?.message || error?.message || fallback
 )
+
+const getPriorityQueryStatus = (queries) => (
+  MAIN_QUERY_STATUS_PRIORITY.find((status) => queries.some((query) => query.status === status)) || ''
+)
+
+const getPriorityQueryId = (queries, preferredQueryId = '') => {
+  const priorityStatus = getPriorityQueryStatus(queries)
+
+  if (!priorityStatus) {
+    return ''
+  }
+
+  const preferredQuery = queries.find((query) => query._id === preferredQueryId)
+
+  if (preferredQuery?.status === priorityStatus) {
+    return preferredQuery._id
+  }
+
+  return queries.find((query) => query.status === priorityStatus)?._id || ''
+}
 
 const QueryStatusBadge = ({ status }) => {
   const meta = STATUS_META[status] || STATUS_META.pending
@@ -67,6 +89,20 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
     () => queries.find((query) => query._id === selectedQueryId) || null,
     [queries, selectedQueryId],
   )
+  const mainQuery = useMemo(() => {
+    const priorityStatus = getPriorityQueryStatus(queries)
+
+    if (!priorityStatus) {
+      return null
+    }
+
+    if (selectedQuery?.status === priorityStatus) {
+      return selectedQuery
+    }
+
+    return queries.find((query) => query.status === priorityStatus) || null
+  }, [queries, selectedQuery])
+  const mainFile = mainQuery ? null : selectedFile
   const activeQueries = useMemo(
     () => queries.filter((query) => ['pending', 'accepted', 'changes_submitted'].includes(query.status)),
     [queries],
@@ -76,19 +112,15 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
     [queries],
   )
 
+  useEffect(() => {
+    setSelectedQueryId((currentId) => getPriorityQueryId(queries, currentId))
+  }, [queries])
+
   const syncQueries = useCallback((nextQueries, actionRequiredCount) => {
     setQueries(nextQueries)
     onNotificationCountChange?.(actionRequiredCount)
 
-    setSelectedQueryId((currentId) => {
-      if (currentId && nextQueries.some((query) => query._id === currentId)) {
-        return currentId
-      }
-
-      return nextQueries.find((query) => query.status === 'changes_submitted')?._id
-        || nextQueries[0]?._id
-        || ''
-    })
+    setSelectedQueryId((currentId) => getPriorityQueryId(nextQueries, currentId))
   }, [onNotificationCountChange])
 
   const fetchQueries = useCallback(async () => {
@@ -232,7 +264,6 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
         onNotificationCountChange?.(nextQueries.filter((query) => query.status === 'changes_submitted').length)
         return nextQueries
       })
-      setSelectedQueryId(savedQuery._id)
       setSuccess('Query sent successfully.')
       resetForm()
     } catch (submitError) {
@@ -268,7 +299,6 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
         onNotificationCountChange?.(nextQueries.filter((currentQuery) => currentQuery.status === 'changes_submitted').length)
         return nextQueries
       })
-      setSelectedQueryId(updatedQuery._id)
       if (decision === 'accept' && updatedNode?._id) {
         onWorkspaceNodeApplied?.(updatedNode)
       }
@@ -286,7 +316,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
       type="button"
       onClick={() => setSelectedQueryId(query._id)}
       className={`w-full rounded-lg border p-3 text-left transition ${
-        selectedQueryId === query._id
+        mainQuery?._id === query._id
           ? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30'
           : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700'
       }`}
@@ -475,7 +505,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
         </section>
 
         <section className="min-h-140 rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-          {selectedQuery ? (
+          {mainQuery ? (
             <div className="flex h-full min-h-140 flex-col">
               <div className="border-b border-slate-200 p-4 dark:border-slate-800">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -483,30 +513,30 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                     <div className="flex min-w-0 items-center gap-2">
                       <FileCode className="h-5 w-5 shrink-0 text-slate-500" />
                       <h2 className="truncate text-base font-bold text-slate-900 dark:text-slate-100">
-                        {selectedQuery.fileName}
+                        {mainQuery.fileName}
                       </h2>
                     </div>
                     <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                      {selectedQuery.workspaceName} · {selectedQuery.facultyName}
+                      {mainQuery.workspaceName} · {mainQuery.facultyName}
                     </p>
                   </div>
-                  <QueryStatusBadge status={selectedQuery.status} />
+                  <QueryStatusBadge status={mainQuery.status} />
                 </div>
                 <p className="mt-4 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                  {selectedQuery.message}
+                  {mainQuery.message}
                 </p>
-                {selectedQuery.facultyResponse ? (
+                {mainQuery.facultyResponse ? (
                   <p className="mt-3 whitespace-pre-wrap rounded-lg bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                    {selectedQuery.facultyResponse}
+                    {mainQuery.facultyResponse}
                   </p>
                 ) : null}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {selectedQuery.status === 'changes_submitted' ? (
+                  {mainQuery.status === 'changes_submitted' ? (
                     <>
                       <button
                         type="button"
-                        onClick={() => decideQuery(selectedQuery, 'accept')}
-                        disabled={busyQueryId === selectedQuery._id}
+                        onClick={() => decideQuery(mainQuery, 'accept')}
+                        disabled={busyQueryId === mainQuery._id}
                         className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:bg-slate-400"
                       >
                         <Check className="h-4 w-4" />
@@ -514,8 +544,8 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                       </button>
                       <button
                         type="button"
-                        onClick={() => decideQuery(selectedQuery, 'decline')}
-                        disabled={busyQueryId === selectedQuery._id}
+                        onClick={() => decideQuery(mainQuery, 'decline')}
+                        disabled={busyQueryId === mainQuery._id}
                         className="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                       >
                         <X className="h-4 w-4" />
@@ -523,7 +553,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                       </button>
                     </>
                   ) : null}
-                  {selectedQuery.status === 'accepted' ? (
+                  {mainQuery.status === 'accepted' ? (
                     <span className="inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
                       <Clock className="h-4 w-4" />
                       Faculty is reviewing this file
@@ -540,9 +570,9 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                   <div className="min-h-0 flex-1">
                     <Editor
                       height="100%"
-                      language={MONACO_LANGUAGE[selectedQuery.fileLanguage] || 'plaintext'}
+                      language={MONACO_LANGUAGE[mainQuery.fileLanguage] || 'plaintext'}
                       theme={isDark ? 'vs-dark' : 'light'}
-                      value={selectedQuery.originalContent || ''}
+                      value={mainQuery.originalContent || ''}
                       options={{
                         readOnly: true,
                         fontSize: 14,
@@ -560,9 +590,9 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                   <div className="min-h-0 flex-1">
                     <Editor
                       height="100%"
-                      language={MONACO_LANGUAGE[selectedQuery.fileLanguage] || 'plaintext'}
+                      language={MONACO_LANGUAGE[mainQuery.fileLanguage] || 'plaintext'}
                       theme={isDark ? 'vs-dark' : 'light'}
-                      value={selectedQuery.reviewedContent || selectedQuery.originalContent || ''}
+                      value={mainQuery.reviewedContent || mainQuery.originalContent || ''}
                       options={{
                         readOnly: true,
                         fontSize: 14,
@@ -575,14 +605,43 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="flex h-full min-h-140 items-center justify-center p-6 text-center">
-              <div>
-                <Inbox className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-700" />
-                <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">Select a query</p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Create a query or choose one from the list.</p>
+          ) : mainFile ? (
+            <div className="flex h-full min-h-140 flex-col">
+              <div className="border-b border-slate-200 p-4 dark:border-slate-800">
+                <div className="flex min-w-0 items-center gap-2">
+                  <FileCode className="h-5 w-5 shrink-0 text-slate-500" />
+                  <h2 className="truncate text-base font-bold text-slate-900 dark:text-slate-100">
+                    {mainFile.name}
+                  </h2>
+                </div>
+                <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                  {mainFile.workspaceName} · {mainFile.language}
+                </p>
+              </div>
+
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="border-b border-slate-200 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                  Selected File
+                </div>
+                <div className="min-h-0 flex-1">
+                  <Editor
+                    height="100%"
+                    language={MONACO_LANGUAGE[mainFile.language] || 'plaintext'}
+                    theme={isDark ? 'vs-dark' : 'light'}
+                    value={mainFile.content || ''}
+                    options={{
+                      readOnly: true,
+                      fontSize: 14,
+                      minimap: { enabled: false },
+                      automaticLayout: true,
+                      scrollBeyondLastLine: false,
+                    }}
+                  />
+                </div>
               </div>
             </div>
+          ) : (
+            <div className="h-full min-h-140" />
           )}
         </section>
       </div>

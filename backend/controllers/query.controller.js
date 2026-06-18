@@ -55,6 +55,7 @@ const formatCodeFile = (node, workspace) => ({
     workspaceName: workspace?.name || '',
     name: node.name,
     language: node.language,
+    content: node.content || '',
     updatedAt: node.updatedAt
 });
 
