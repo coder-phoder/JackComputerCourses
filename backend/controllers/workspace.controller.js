@@ -9,14 +9,6 @@ const {
 const MAX_WORKSPACE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_WORKSPACE_NAME = 'demo';
 
-const BOILERPLATES = {
-    c: '#include <stdio.h>\n\nint main() {\n    printf("hello world\\n");\n    return 0;\n}\n',
-    cpp: '#include <iostream>\n\nint main() {\n    std::cout << "hello world" << std::endl;\n    return 0;\n}\n',
-    java: 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("hello world");\n    }\n}\n',
-    python: 'print("hello world")\n',
-    javascript: 'console.log("hello world");\n'
-};
-
 const sendError = (res, statusCode, message) => res.status(statusCode).json({
     success: false,
     message,
@@ -437,7 +429,6 @@ const createWorkspaceNode = async (req, res) => {
 
         const type = String(req.body?.type || '').trim();
         const name = String(req.body?.name || '').trim();
-        const content = req.body?.content === undefined ? undefined : String(req.body.content);
 
         if (!['file', 'folder'].includes(type)) {
             return sendError(res, 400, 'Node type must be file or folder');
@@ -465,9 +456,7 @@ const createWorkspaceNode = async (req, res) => {
             return sendError(res, 400, 'Only .c, .cpp, .java, .py and .js files are supported');
         }
 
-        const initialContent = type === 'file'
-            ? (content === undefined ? BOILERPLATES[language] : content)
-            : '';
+        const initialContent = '';
         const quotaError = await ensureCreateSizeQuota(owner, workspace._id, type, getContentSize(initialContent));
 
         if (quotaError) {
@@ -658,6 +647,5 @@ module.exports = {
     formatWorkspace,
     getWorkspaceOwner,
     MAX_WORKSPACE_SIZE_BYTES,
-    DEFAULT_WORKSPACE_NAME,
-    BOILERPLATES
+    DEFAULT_WORKSPACE_NAME
 };

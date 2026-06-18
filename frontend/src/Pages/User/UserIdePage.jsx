@@ -15,7 +15,6 @@ import {
   Pencil,
   Play,
   Plus,
-  RotateCcw,
   Save,
   Settings,
   Square,
@@ -46,30 +45,30 @@ const IDE_ACCESS_CONFIG = {
   },
 }
 
-const BOILERPLATES = {
+const BOILERPLATE_SNIPPETS = {
   c: `#include <stdio.h>
 
 int main() {
-    printf("hello world\\n");
+    printf("\${1:hello world}\\n");
     return 0;
 }
 `,
   cpp: `#include <iostream>
 
 int main() {
-    std::cout << "hello world" << std::endl;
+    std::cout << "\${1:hello world}" << std::endl;
     return 0;
 }
 `,
   java: `public class Main {
     public static void main(String[] args) {
-        System.out.println("hello world");
+        System.out.println("\${1:hello world}");
     }
 }
 `,
-  python: `print("hello world")
+  python: `print("\${1:hello world}")
 `,
-  javascript: `console.log("hello world");
+  javascript: `console.log("\${1:hello world}");
 `,
 }
 
@@ -175,6 +174,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const inputRef = useRef(null)
   const workspaceDraftInputRef = useRef(null)
   const nodeDraftInputRef = useRef(null)
+  const snippetProviderDisposablesRef = useRef([])
   const workspaceDraftSubmittingRef = useRef(false)
   const nodeDraftSubmittingRef = useRef(false)
   const workspaceDraftCancelingRef = useRef(false)
@@ -215,6 +215,36 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   )
   const selectedLanguage = getLanguageMeta(activeNode?.language)
   const isDirty = Boolean(activeNode) && code !== savedCode
+
+  const registerBoilerplateSnippets = useCallback((monaco) => {
+    snippetProviderDisposablesRef.current.forEach((disposable) => disposable.dispose())
+    snippetProviderDisposablesRef.current = Object.entries(BOILERPLATE_SNIPPETS).map(([language, insertText]) => (
+      monaco.languages.registerCompletionItemProvider(language, {
+        triggerCharacters: ['b'],
+        provideCompletionItems: (model, position) => {
+          const word = model.getWordUntilPosition(position)
+          const range = {
+            startLineNumber: position.lineNumber,
+            endLineNumber: position.lineNumber,
+            startColumn: word.startColumn,
+            endColumn: word.endColumn,
+          }
+
+          return {
+            suggestions: [{
+              label: 'boilerplate',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText,
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              detail: `${getLanguageMeta(language).label} boilerplate`,
+              range,
+              sortText: '0000',
+            }],
+          }
+        },
+      })
+    ))
+  }, [])
 
   const childrenByParentId = useMemo(() => {
     const groupedChildren = new Map()
@@ -434,6 +464,11 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     }
   }, [isAuthorized])
 
+  useEffect(() => () => {
+    snippetProviderDisposablesRef.current.forEach((disposable) => disposable.dispose())
+    snippetProviderDisposablesRef.current = []
+  }, [])
+
   const saveActiveFile = useCallback(async () => {
     if (!activeNode || !workspaceNodesUrl || saving || code === savedCode) {
       return
@@ -633,7 +668,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     setWorkspaceDraft({
       id: `workspace-create-${Date.now()}`,
       mode: 'create',
-      value: 'new-workspace',
+      value: '',
     })
   }
 
@@ -734,6 +769,15 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     }
   }
 
+  const handleWorkspaceDraftBlur = () => {
+    if (workspaceDraft?.mode === 'create') {
+      cancelWorkspaceDraft()
+      return
+    }
+
+    submitWorkspaceDraft()
+  }
+
   const deleteActiveWorkspace = async () => {
     if (!activeWorkspace) {
       return
@@ -790,7 +834,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       mode: 'create',
       type,
       parentId: normalizedParentId,
-      value: type === 'file' ? 'main.py' : 'New Folder',
+      value: '',
     })
   }
 
@@ -991,6 +1035,15 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     }
   }
 
+  const handleNodeDraftBlur = () => {
+    if (nodeDraft?.mode === 'create') {
+      cancelNodeDraft()
+      return
+    }
+
+    submitNodeDraft()
+  }
+
   const deleteWorkspaceNode = async (node) => {
     const confirmed = window.confirm(`Delete ${node.name}${node.type === 'folder' ? ' and everything inside it' : ''}?`)
 
@@ -1043,15 +1096,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
       return nextFolders
     })
-  }
-
-  const handleResetCode = () => {
-    if (!activeNode) {
-      return
-    }
-
-    setCode(BOILERPLATES[activeNode.language] || '')
-    setSaveStatus('idle')
   }
 
   const handleRunCode = () => {
@@ -1129,7 +1173,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
           }}
           onClick={(event) => event.stopPropagation()}
           onMouseDown={(event) => event.stopPropagation()}
-          onBlur={submitNodeDraft}
+          onBlur={handleNodeDraftBlur}
           onKeyDown={(event) => {
             event.stopPropagation()
 
@@ -1144,6 +1188,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             }
           }}
           disabled={Boolean(creatingParentId)}
+          placeholder={isFileDraft ? 'File name' : 'Folder name'}
           className="h-6 min-w-0 flex-1 rounded border border-blue-500 bg-white px-1.5 text-sm font-medium text-slate-900 outline-none dark:bg-slate-900 dark:text-slate-100"
           autoComplete="off"
           spellCheck="false"
@@ -1220,7 +1265,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
               }}
               onClick={(event) => event.stopPropagation()}
               onMouseDown={(event) => event.stopPropagation()}
-              onBlur={submitNodeDraft}
+              onBlur={handleNodeDraftBlur}
               onKeyDown={(event) => {
                 event.stopPropagation()
 
@@ -1375,7 +1420,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                           currentDraft ? { ...currentDraft, value: event.target.value } : currentDraft
                         ))
                       }}
-                      onBlur={submitWorkspaceDraft}
+                      onBlur={handleWorkspaceDraftBlur}
                       onKeyDown={(event) => {
                         if (event.key === 'Escape') {
                           event.preventDefault()
@@ -1383,6 +1428,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                         }
                       }}
                       disabled={workspacesLoading}
+                      placeholder={workspaceDraft.mode === 'create' ? 'Workspace name' : 'Rename workspace'}
                       className="w-full rounded-lg border border-blue-500 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 outline-none dark:bg-slate-900 dark:text-slate-100"
                       autoComplete="off"
                       spellCheck="false"
@@ -1574,17 +1620,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
                 <button
                   type="button"
-                  onClick={handleResetCode}
-                  disabled={!activeNode || isRunning}
-                  title="Reset code to default boilerplate"
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Reset
-                </button>
-
-                <button
-                  type="button"
                   onClick={saveActiveFile}
                   disabled={!activeNode || !isDirty || saving}
                   title="Save file"
@@ -1624,6 +1659,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                   language={selectedLanguage.monacoLang}
                   theme={isDark ? 'vs-dark' : 'light'}
                   value={code}
+                  onMount={(_, monaco) => {
+                    registerBoilerplateSnippets(monaco)
+                  }}
                   onChange={(value) => {
                     setCode(value || '')
                     setSaveStatus('idle')
