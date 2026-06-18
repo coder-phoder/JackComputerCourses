@@ -22,6 +22,13 @@ import { useTheme } from '../../Context/ThemeContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
 const EXPLORER_ACTIVITY_BAR_WIDTH = 56
+const EXPLORER_MIN_WIDTH = 220
+const EXPLORER_MAX_WIDTH = 420
+const EXPLORER_DRAG_COLLAPSE_WIDTH = 150
+const TERMINAL_MIN_HEIGHT = 120
+const TERMINAL_DRAG_COLLAPSE_HEIGHT = 90
+const MIN_EDITOR_WIDTH_WITH_EXPLORER = 560
+const MIN_EDITOR_HEIGHT_WITH_TERMINAL = 360
 
 const IDE_ACCESS_CONFIG = {
   user: {
@@ -324,6 +331,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const nodeDraftSubmittingRef = useRef(false)
   const workspaceDraftCancelingRef = useRef(false)
   const nodeDraftCancelingRef = useRef(false)
+  const workspaceContainerRef = useRef(null)
 
   const [fontSize, setFontSize] = useState(() => {
     const saved = localStorage.getItem(storageKeys.fontSize)
@@ -346,6 +354,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(() => (
     localStorage.getItem(storageKeys.explorerCollapsed) === 'true'
   ))
+  const [workspaceSize, setWorkspaceSize] = useState({ width: 0, height: 0 })
 
   const workspaceBaseUrl = `${API_BASE_URL}${accessConfig.workspacePath}`
   const workspaceNodesUrl = activeWorkspaceId
@@ -364,6 +373,14 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   )
   const selectedLanguage = getLanguageMeta(activeNode?.language)
   const isDirty = Boolean(activeNode) && code !== savedCode
+  const shouldAutoCollapseExplorer = !isExplorerCollapsed
+    && workspaceSize.width > 0
+    && workspaceSize.width - EXPLORER_ACTIVITY_BAR_WIDTH - explorerWidth < MIN_EDITOR_WIDTH_WITH_EXPLORER
+  const shouldAutoCollapseTerminal = !isTerminalCollapsed
+    && workspaceSize.height > 0
+    && workspaceSize.height - terminalHeight < MIN_EDITOR_HEIGHT_WITH_TERMINAL
+  const isExplorerLayoutCollapsed = isExplorerCollapsed || shouldAutoCollapseExplorer
+  const isTerminalLayoutCollapsed = isTerminalCollapsed || shouldAutoCollapseTerminal
 
   const registerBoilerplateSnippets = useCallback((monaco) => {
     snippetProviderDisposablesRef.current.forEach((disposable) => disposable.dispose())
@@ -626,6 +643,48 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     snippetProviderDisposablesRef.current = []
   }, [])
 
+  useEffect(() => {
+    const containerElement = workspaceContainerRef.current
+
+    if (!containerElement) {
+      return undefined
+    }
+
+    const updateWorkspaceSize = () => {
+      const rect = containerElement.getBoundingClientRect()
+      const nextWidth = Math.round(rect.width)
+      const nextHeight = Math.round(rect.height)
+
+      setWorkspaceSize((currentSize) => {
+        if (currentSize.width === nextWidth && currentSize.height === nextHeight) {
+          return currentSize
+        }
+
+        return {
+          width: nextWidth,
+          height: nextHeight,
+        }
+      })
+    }
+
+    updateWorkspaceSize()
+    window.addEventListener('resize', updateWorkspaceSize)
+
+    if (typeof ResizeObserver === 'undefined') {
+      return () => {
+        window.removeEventListener('resize', updateWorkspaceSize)
+      }
+    }
+
+    const resizeObserver = new ResizeObserver(updateWorkspaceSize)
+    resizeObserver.observe(containerElement)
+
+    return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', updateWorkspaceSize)
+    }
+  }, [])
+
   const saveActiveFile = useCallback(async () => {
     if (!activeNode || !workspaceNodesUrl || saving || code === savedCode) {
       return
@@ -732,7 +791,14 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       if (containerElement) {
         const rect = containerElement.getBoundingClientRect()
         const newHeight = rect.bottom - event.clientY
-        if (newHeight > 120 && newHeight < rect.height - 180) {
+
+        if (newHeight <= TERMINAL_DRAG_COLLAPSE_HEIGHT) {
+          setIsTerminalCollapsed(true)
+          setIsDraggingHeight(false)
+          return
+        }
+
+        if (newHeight >= TERMINAL_MIN_HEIGHT && rect.height - newHeight >= MIN_EDITOR_HEIGHT_WITH_TERMINAL) {
           setTerminalHeight(newHeight)
         }
       }
@@ -763,7 +829,13 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       const rect = containerElement.getBoundingClientRect()
       const nextWidth = event.clientX - rect.left - EXPLORER_ACTIVITY_BAR_WIDTH
 
-      if (nextWidth >= 220 && nextWidth <= 420) {
+      if (nextWidth <= EXPLORER_DRAG_COLLAPSE_WIDTH) {
+        setIsExplorerCollapsed(true)
+        setIsDraggingExplorer(false)
+        return
+      }
+
+      if (nextWidth >= EXPLORER_MIN_WIDTH && nextWidth <= EXPLORER_MAX_WIDTH) {
         setExplorerWidth(nextWidth)
       }
     }
@@ -1345,6 +1417,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
       <div
         id="ide-workspace-container"
+        ref={workspaceContainerRef}
         className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
       >
         <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -1363,7 +1436,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             explorerWidth={explorerWidth}
             handleNodeDraftBlur={handleNodeDraftBlur}
             handleWorkspaceDraftBlur={handleWorkspaceDraftBlur}
-            isCollapsed={isExplorerCollapsed}
+            isCollapsed={isExplorerLayoutCollapsed}
             isDirty={isDirty}
             isDraggingExplorer={isDraggingExplorer}
             nodeActionId={nodeActionId}
@@ -1568,7 +1641,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
           handleClearTerminal={handleClearTerminal}
           handleInputKeyDown={handleInputKeyDown}
           inputVal={inputVal}
-          isCollapsed={isTerminalCollapsed}
+          isCollapsed={isTerminalLayoutCollapsed}
           isDraggingHeight={isDraggingHeight}
           isRunning={isRunning}
           onStartResize={(event) => {
