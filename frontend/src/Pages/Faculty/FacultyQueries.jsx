@@ -56,7 +56,7 @@ const getPriorityQueryId = (queries, preferredQueryId = '') => {
   const priorityStatus = getPriorityQueryStatus(queries)
 
   if (!priorityStatus) {
-    return queries[0]?._id || ''
+    return ''
   }
 
   return queries.find((query) => query.status === priorityStatus)?._id || ''
@@ -531,13 +531,7 @@ const FacultyQueries = () => {
               </div>
             </div>
           ) : (
-            <div className="flex h-full min-h-0 items-center justify-center p-6 text-center">
-              <div>
-                <Inbox className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-700" />
-                <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">No query selected</p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Choose a query from the list.</p>
-              </div>
-            </div>
+            <div className="h-full min-h-0" />
           )}
         </section>
       </main>

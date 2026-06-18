@@ -89,7 +89,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [createQueryOpen, setCreateQueryOpen] = useState(false)
-  const [activeQueriesOpen, setActiveQueriesOpen] = useState(true)
+  const [querySectionOpen, setQuerySectionOpen] = useState('active')
 
   const selectedQuery = useMemo(
     () => queries.find((query) => query._id === selectedQueryId) || null,
@@ -277,6 +277,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
       setSuccess('Query sent successfully.')
       resetForm()
       setCreateQueryOpen(false)
+      setQuerySectionOpen('active')
     } catch (submitError) {
       setError(getErrorMessage(submitError, 'Unable to save query.'))
     } finally {
@@ -319,6 +320,27 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
     } finally {
       setBusyQueryId('')
     }
+  }
+
+  const toggleCreateQuery = () => {
+    if (createQueryOpen) {
+      setCreateQueryOpen(false)
+      setQuerySectionOpen('active')
+    } else {
+      setCreateQueryOpen(true)
+      setQuerySectionOpen('')
+    }
+  }
+
+  const toggleQuerySection = (section) => {
+    setCreateQueryOpen(false)
+    setQuerySectionOpen((currentSection) => {
+      if (currentSection !== section) {
+        return section
+      }
+
+      return section === 'active' ? 'history' : 'active'
+    })
   }
 
   const renderQueryButton = (query) => (
@@ -385,7 +407,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
           <form onSubmit={submitQuery} className="shrink-0 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
             <button
               type="button"
-              onClick={() => setCreateQueryOpen((isOpen) => !isOpen)}
+              onClick={toggleCreateQuery}
               aria-expanded={createQueryOpen}
               className="flex w-full items-center justify-between gap-3 text-left"
             >
@@ -543,23 +565,23 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
             ) : null}
           </form>
 
-          <div className={`flex min-h-0 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950 ${activeQueriesOpen ? 'flex-1' : 'shrink-0'}`}>
+          <div className={`flex min-h-0 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950 ${!createQueryOpen && querySectionOpen === 'active' ? 'flex-1' : 'shrink-0'}`}>
             <button
               type="button"
-              onClick={() => setActiveQueriesOpen((isOpen) => !isOpen)}
-              aria-expanded={activeQueriesOpen}
+              onClick={() => toggleQuerySection('active')}
+              aria-expanded={!createQueryOpen && querySectionOpen === 'active'}
               className="flex w-full items-center justify-between gap-3 text-left"
             >
               <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
                 Active Queries ({activeQueries.length})
               </span>
-              {activeQueriesOpen ? (
+              {!createQueryOpen && querySectionOpen === 'active' ? (
                 <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
               ) : (
                 <ChevronRight className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
               )}
             </button>
-            {activeQueriesOpen ? (
+            {!createQueryOpen && querySectionOpen === 'active' ? (
               <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
               {loading ? (
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Loading queries...</p>
@@ -575,16 +597,30 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
             ) : null}
           </div>
 
-          <details className="max-h-44 shrink-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
-            <summary className="cursor-pointer text-sm font-bold text-slate-900 dark:text-slate-100">
-              Query History ({historyQueries.length})
-            </summary>
-            <div className="mt-3 space-y-2">
-              {historyQueries.length ? historyQueries.map(renderQueryButton) : (
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No history yet.</p>
+          <div className={`flex min-h-0 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950 ${!createQueryOpen && querySectionOpen === 'history' ? 'flex-1' : 'shrink-0'}`}>
+            <button
+              type="button"
+              onClick={() => toggleQuerySection('history')}
+              aria-expanded={!createQueryOpen && querySectionOpen === 'history'}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Query History ({historyQueries.length})
+              </span>
+              {!createQueryOpen && querySectionOpen === 'history' ? (
+                <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
               )}
-            </div>
-          </details>
+            </button>
+            {!createQueryOpen && querySectionOpen === 'history' ? (
+              <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
+                {historyQueries.length ? historyQueries.map(renderQueryButton) : (
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No history yet.</p>
+                )}
+              </div>
+            ) : null}
+          </div>
         </section>
 
         <section className="min-h-140 rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
