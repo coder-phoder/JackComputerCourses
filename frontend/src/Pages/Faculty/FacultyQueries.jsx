@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
 import {
+  ChevronDown,
+  ChevronRight,
   Check,
   Clock,
   FileCode,
@@ -45,16 +47,16 @@ const getPriorityQueryStatus = (queries) => (
 )
 
 const getPriorityQueryId = (queries, preferredQueryId = '') => {
+  const preferredQuery = queries.find((query) => query._id === preferredQueryId)
+
+  if (preferredQuery) {
+    return preferredQuery._id
+  }
+
   const priorityStatus = getPriorityQueryStatus(queries)
 
   if (!priorityStatus) {
-    return ''
-  }
-
-  const preferredQuery = queries.find((query) => query._id === preferredQueryId)
-
-  if (preferredQuery?.status === priorityStatus) {
-    return preferredQuery._id
+    return queries[0]?._id || ''
   }
 
   return queries.find((query) => query.status === priorityStatus)?._id || ''
@@ -83,24 +85,13 @@ const FacultyQueries = () => {
   const [busyQueryId, setBusyQueryId] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [querySectionOpen, setQuerySectionOpen] = useState('open')
 
   const selectedQuery = useMemo(
     () => queries.find((query) => query._id === selectedQueryId) || null,
     [queries, selectedQueryId],
   )
-  const mainQuery = useMemo(() => {
-    const priorityStatus = getPriorityQueryStatus(queries)
-
-    if (!priorityStatus) {
-      return null
-    }
-
-    if (selectedQuery?.status === priorityStatus) {
-      return selectedQuery
-    }
-
-    return queries.find((query) => query.status === priorityStatus) || null
-  }, [queries, selectedQuery])
+  const mainQuery = selectedQuery
   const activeQueries = useMemo(
     () => queries.filter((query) => ['pending', 'accepted'].includes(query.status)),
     [queries],
@@ -115,10 +106,6 @@ const FacultyQueries = () => {
   const facultyResponse = mainQuery
     ? (responseDrafts[mainQuery._id] ?? mainQuery.facultyResponse) || ''
     : ''
-
-  useEffect(() => {
-    setSelectedQueryId((currentId) => getPriorityQueryId(queries, currentId))
-  }, [queries])
 
   const syncQueries = useCallback((nextQueries) => {
     setQueries(nextQueries)
@@ -267,6 +254,16 @@ const FacultyQueries = () => {
     }
   }
 
+  const toggleQuerySection = (section) => {
+    setQuerySectionOpen((currentSection) => {
+      if (currentSection !== section) {
+        return section
+      }
+
+      return section === 'open' ? 'history' : 'open'
+    })
+  }
+
   const renderQueryButton = (query) => (
     <button
       key={query._id}
@@ -338,30 +335,60 @@ const FacultyQueries = () => {
             </div>
           ) : null}
 
-          <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Open Queries</h2>
-            <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
-              {loading ? (
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Loading queries...</p>
-              ) : activeQueries.length ? activeQueries.map(renderQueryButton) : (
-                <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center dark:border-slate-800">
-                  <Inbox className="mx-auto h-7 w-7 text-slate-300 dark:text-slate-700" />
-                  <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">No open queries</p>
-                </div>
+          <div className={`flex min-h-0 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 ${querySectionOpen === 'open' ? 'flex-1' : 'shrink-0'}`}>
+            <button
+              type="button"
+              onClick={() => toggleQuerySection('open')}
+              aria-expanded={querySectionOpen === 'open'}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Open Queries ({activeQueries.length})
+              </span>
+              {querySectionOpen === 'open' ? (
+                <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
               )}
-            </div>
+            </button>
+            {querySectionOpen === 'open' ? (
+              <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
+                {loading ? (
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Loading queries...</p>
+                ) : activeQueries.length ? activeQueries.map(renderQueryButton) : (
+                  <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center dark:border-slate-800">
+                    <Inbox className="mx-auto h-7 w-7 text-slate-300 dark:text-slate-700" />
+                    <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">No open queries</p>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
 
-          <details className="max-h-44 shrink-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-            <summary className="cursor-pointer text-sm font-bold text-slate-900 dark:text-slate-100">
-              Query History ({historyQueries.length})
-            </summary>
-            <div className="mt-3 space-y-2">
-              {historyQueries.length ? historyQueries.map(renderQueryButton) : (
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No history yet.</p>
+          <div className={`flex min-h-0 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 ${querySectionOpen === 'history' ? 'flex-1' : 'shrink-0'}`}>
+            <button
+              type="button"
+              onClick={() => toggleQuerySection('history')}
+              aria-expanded={querySectionOpen === 'history'}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Query History ({historyQueries.length})
+              </span>
+              {querySectionOpen === 'history' ? (
+                <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
               )}
-            </div>
-          </details>
+            </button>
+            {querySectionOpen === 'history' ? (
+              <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
+                {historyQueries.length ? historyQueries.map(renderQueryButton) : (
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No history yet.</p>
+                )}
+              </div>
+            ) : null}
+          </div>
         </section>
 
         <section className="min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
