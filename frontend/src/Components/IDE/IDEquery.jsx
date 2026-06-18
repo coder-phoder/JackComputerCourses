@@ -276,6 +276,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
       })
       setSuccess('Query sent successfully.')
       resetForm()
+      setCreateQueryOpen(false)
     } catch (submitError) {
       setError(getErrorMessage(submitError, 'Unable to save query.'))
     } finally {

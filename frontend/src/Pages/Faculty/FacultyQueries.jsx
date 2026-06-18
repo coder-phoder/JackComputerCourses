@@ -34,9 +34,31 @@ const MONACO_LANGUAGE = {
   javascript: 'javascript',
 }
 
+const MAIN_QUERY_STATUS_PRIORITY = ['pending', 'accepted']
+
 const getErrorMessage = (error, fallback) => (
   error?.response?.data?.message || error?.message || fallback
 )
+
+const getPriorityQueryStatus = (queries) => (
+  MAIN_QUERY_STATUS_PRIORITY.find((status) => queries.some((query) => query.status === status)) || ''
+)
+
+const getPriorityQueryId = (queries, preferredQueryId = '') => {
+  const priorityStatus = getPriorityQueryStatus(queries)
+
+  if (!priorityStatus) {
+    return ''
+  }
+
+  const preferredQuery = queries.find((query) => query._id === preferredQueryId)
+
+  if (preferredQuery?.status === priorityStatus) {
+    return preferredQuery._id
+  }
+
+  return queries.find((query) => query.status === priorityStatus)?._id || ''
+}
 
 const QueryStatusBadge = ({ status }) => {
   const meta = STATUS_META[status] || STATUS_META.pending
@@ -66,6 +88,19 @@ const FacultyQueries = () => {
     () => queries.find((query) => query._id === selectedQueryId) || null,
     [queries, selectedQueryId],
   )
+  const mainQuery = useMemo(() => {
+    const priorityStatus = getPriorityQueryStatus(queries)
+
+    if (!priorityStatus) {
+      return null
+    }
+
+    if (selectedQuery?.status === priorityStatus) {
+      return selectedQuery
+    }
+
+    return queries.find((query) => query.status === priorityStatus) || null
+  }, [queries, selectedQuery])
   const activeQueries = useMemo(
     () => queries.filter((query) => ['pending', 'accepted'].includes(query.status)),
     [queries],
@@ -74,25 +109,20 @@ const FacultyQueries = () => {
     () => queries.filter((query) => !['pending', 'accepted'].includes(query.status)),
     [queries],
   )
-  const reviewedCode = selectedQuery
-    ? (reviewDrafts[selectedQuery._id] ?? selectedQuery.reviewedContent) || selectedQuery.originalContent || ''
+  const reviewedCode = mainQuery
+    ? (reviewDrafts[mainQuery._id] ?? mainQuery.reviewedContent) || mainQuery.originalContent || ''
     : ''
-  const facultyResponse = selectedQuery
-    ? (responseDrafts[selectedQuery._id] ?? selectedQuery.facultyResponse) || ''
+  const facultyResponse = mainQuery
+    ? (responseDrafts[mainQuery._id] ?? mainQuery.facultyResponse) || ''
     : ''
+
+  useEffect(() => {
+    setSelectedQueryId((currentId) => getPriorityQueryId(queries, currentId))
+  }, [queries])
 
   const syncQueries = useCallback((nextQueries) => {
     setQueries(nextQueries)
-    setSelectedQueryId((currentId) => {
-      if (currentId && nextQueries.some((query) => query._id === currentId)) {
-        return currentId
-      }
-
-      return nextQueries.find((query) => query.status === 'pending')?._id
-        || nextQueries.find((query) => query.status === 'accepted')?._id
-        || nextQueries[0]?._id
-        || ''
-    })
+    setSelectedQueryId((currentId) => getPriorityQueryId(nextQueries, currentId))
   }, [])
 
   const fetchQueries = useCallback(async () => {
@@ -243,7 +273,7 @@ const FacultyQueries = () => {
       type="button"
       onClick={() => setSelectedQueryId(query._id)}
       className={`w-full rounded-lg border p-3 text-left transition ${
-        selectedQueryId === query._id
+        mainQuery?._id === query._id
           ? 'border-indigo-500 bg-indigo-50 dark:border-indigo-500 dark:bg-indigo-950/30'
           : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700'
       }`}
@@ -274,12 +304,12 @@ const FacultyQueries = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 font-sans dark:bg-slate-950">
+    <div className="flex h-screen flex-col overflow-hidden bg-slate-50 font-sans dark:bg-slate-950">
       <FacultyNavbar />
 
-      <main className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-4 px-4 py-6 sm:px-6 lg:px-8 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <section className="space-y-4">
-          <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      <main className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 grid-cols-1 gap-4 overflow-hidden px-4 py-4 sm:px-6 lg:px-8 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <section className="flex min-h-0 flex-col gap-4 overflow-hidden">
+          <div className="shrink-0 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h1 className="text-base font-bold text-slate-900 dark:text-slate-100">Faculty Queries</h1>
@@ -298,19 +328,19 @@ const FacultyQueries = () => {
           </div>
 
           {error ? (
-            <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+            <div className="shrink-0 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
               {error}
             </div>
           ) : null}
           {success ? (
-            <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <div className="shrink-0 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
               {success}
             </div>
           ) : null}
 
-          <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Open Queries</h2>
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
               {loading ? (
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Loading queries...</p>
               ) : activeQueries.length ? activeQueries.map(renderQueryButton) : (
@@ -322,7 +352,7 @@ const FacultyQueries = () => {
             </div>
           </div>
 
-          <details className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <details className="max-h-44 shrink-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <summary className="cursor-pointer text-sm font-bold text-slate-900 dark:text-slate-100">
               Query History ({historyQueries.length})
             </summary>
@@ -334,27 +364,27 @@ const FacultyQueries = () => {
           </details>
         </section>
 
-        <section className="min-h-[680px] rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-          {selectedQuery ? (
-            <div className="flex h-full min-h-[680px] flex-col">
-              <div className="border-b border-slate-200 p-4 dark:border-slate-800">
+        <section className="min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          {mainQuery ? (
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="shrink-0 border-b border-slate-200 p-4 dark:border-slate-800">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex min-w-0 items-center gap-2">
                       <FileCode className="h-5 w-5 shrink-0 text-slate-500" />
                       <h2 className="truncate text-base font-bold text-slate-900 dark:text-slate-100">
-                        {selectedQuery.fileName}
+                        {mainQuery.fileName}
                       </h2>
                     </div>
                     <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                      {selectedQuery.workspaceName} · {selectedQuery.userName || selectedQuery.userPhone}
+                      {mainQuery.workspaceName} · {mainQuery.userName || mainQuery.userPhone}
                     </p>
                   </div>
-                  <QueryStatusBadge status={selectedQuery.status} />
+                  <QueryStatusBadge status={mainQuery.status} />
                 </div>
 
                 <p className="mt-4 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-950 dark:text-slate-300">
-                  {selectedQuery.message}
+                  {mainQuery.message}
                 </p>
 
                 <div className="mt-4">
@@ -368,10 +398,10 @@ const FacultyQueries = () => {
                       const nextValue = event.target.value
                       setResponseDrafts((currentDrafts) => ({
                         ...currentDrafts,
-                        [selectedQuery._id]: nextValue,
+                        [mainQuery._id]: nextValue,
                       }))
                     }}
-                    disabled={!['pending', 'accepted'].includes(selectedQuery.status)}
+                    disabled={!['pending', 'accepted'].includes(mainQuery.status)}
                     rows={3}
                     maxLength={1000}
                     placeholder="Optional response for the student."
@@ -380,12 +410,12 @@ const FacultyQueries = () => {
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {selectedQuery.status === 'pending' ? (
+                  {mainQuery.status === 'pending' ? (
                     <>
                       <button
                         type="button"
-                        onClick={() => respondToQuery(selectedQuery, 'accept')}
-                        disabled={busyQueryId === selectedQuery._id}
+                        onClick={() => respondToQuery(mainQuery, 'accept')}
+                        disabled={busyQueryId === mainQuery._id}
                         className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-500 disabled:bg-slate-400"
                       >
                         <Check className="h-4 w-4" />
@@ -393,8 +423,8 @@ const FacultyQueries = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => respondToQuery(selectedQuery, 'decline')}
-                        disabled={busyQueryId === selectedQuery._id}
+                        onClick={() => respondToQuery(mainQuery, 'decline')}
+                        disabled={busyQueryId === mainQuery._id}
                         className="flex items-center gap-2 rounded-lg border border-rose-200 px-4 py-2 text-sm font-bold text-rose-700 transition hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900/60 dark:text-rose-300 dark:hover:bg-rose-950/40"
                       >
                         <X className="h-4 w-4" />
@@ -402,18 +432,18 @@ const FacultyQueries = () => {
                       </button>
                     </>
                   ) : null}
-                  {selectedQuery.status === 'accepted' ? (
+                  {mainQuery.status === 'accepted' ? (
                     <button
                       type="button"
-                      onClick={() => closeQuery(selectedQuery)}
-                      disabled={busyQueryId === selectedQuery._id}
+                      onClick={() => closeQuery(mainQuery)}
+                      disabled={busyQueryId === mainQuery._id}
                       className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:bg-slate-400"
                     >
                       <Save className="h-4 w-4" />
                       Close Query
                     </button>
                   ) : null}
-                  {selectedQuery.status === 'changes_submitted' ? (
+                  {mainQuery.status === 'changes_submitted' ? (
                     <span className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                       <Clock className="h-4 w-4" />
                       Waiting for user decision
@@ -423,16 +453,16 @@ const FacultyQueries = () => {
               </div>
 
               <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-2">
-                <div className="flex min-h-[380px] flex-col border-b border-slate-200 lg:border-b-0 lg:border-r dark:border-slate-800">
+                <div className="flex min-h-0 flex-col border-b border-slate-200 lg:border-b-0 lg:border-r dark:border-slate-800">
                   <div className="border-b border-slate-200 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
                     Student Snapshot
                   </div>
                   <div className="min-h-0 flex-1">
                     <Editor
                       height="100%"
-                      language={MONACO_LANGUAGE[selectedQuery.fileLanguage] || 'plaintext'}
+                      language={MONACO_LANGUAGE[mainQuery.fileLanguage] || 'plaintext'}
                       theme={isDark ? 'vs-dark' : 'light'}
-                      value={selectedQuery.originalContent || ''}
+                      value={mainQuery.originalContent || ''}
                       options={{
                         readOnly: true,
                         fontSize: 14,
@@ -443,24 +473,24 @@ const FacultyQueries = () => {
                     />
                   </div>
                 </div>
-                <div className="flex min-h-[380px] flex-col">
+                <div className="flex min-h-0 flex-col">
                   <div className="border-b border-slate-200 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
                     Faculty Review
                   </div>
                   <div className="min-h-0 flex-1">
                     <Editor
                       height="100%"
-                      language={MONACO_LANGUAGE[selectedQuery.fileLanguage] || 'plaintext'}
+                      language={MONACO_LANGUAGE[mainQuery.fileLanguage] || 'plaintext'}
                       theme={isDark ? 'vs-dark' : 'light'}
                       value={reviewedCode}
                       onChange={(value) => {
                         setReviewDrafts((currentDrafts) => ({
                           ...currentDrafts,
-                          [selectedQuery._id]: value || '',
+                          [mainQuery._id]: value || '',
                         }))
                       }}
                       options={{
-                        readOnly: selectedQuery.status !== 'accepted',
+                        readOnly: mainQuery.status !== 'accepted',
                         fontSize: 14,
                         minimap: { enabled: false },
                         automaticLayout: true,
@@ -474,7 +504,7 @@ const FacultyQueries = () => {
               </div>
             </div>
           ) : (
-            <div className="flex h-full min-h-[680px] items-center justify-center p-6 text-center">
+            <div className="flex h-full min-h-0 items-center justify-center p-6 text-center">
               <div>
                 <Inbox className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-700" />
                 <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">No query selected</p>
