@@ -1,6 +1,21 @@
 import axios from 'axios'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Download, ImageDown, Share2, Wand2 } from 'lucide-react'
+import {
+  Archive,
+  CalendarDays,
+  CheckCircle2,
+  Download,
+  FileCode2,
+  FolderTree,
+  HardDrive,
+  ImageDown,
+  Layers3,
+  Loader2,
+  Share2,
+  ShieldCheck,
+  Sparkles,
+  Wand2,
+} from 'lucide-react'
 
 const getErrorMessage = (error, fallback) => (
   error?.response?.data?.message || error?.message || fallback
@@ -103,6 +118,15 @@ const getWorkspaceStats = (workspace, nodes) => {
     topLanguageLabel: LANGUAGE_LABELS[topLanguage] || 'Mixed',
     updatedLabel: updatedAt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
   }
+}
+
+const getWorkspaceInitials = (name) => {
+  const words = String(name || 'Workspace')
+    .trim()
+    .split(/\s+/u)
+    .filter(Boolean)
+
+  return (words[0]?.[0] || 'W').toUpperCase() + (words[1]?.[0] || '').toUpperCase()
 }
 
 const drawRoundedRect = (context, x, y, width, height, radius) => {
@@ -244,6 +268,7 @@ const IDEWorkspace = ({
   const [downloadError, setDownloadError] = useState('')
   const [shareBlob, setShareBlob] = useState(null)
   const [shareImageUrl, setShareImageUrl] = useState('')
+  const [shareWorkspaceId, setShareWorkspaceId] = useState('')
   const [shareStats, setShareStats] = useState(null)
   const [shareLoading, setShareLoading] = useState(false)
   const [shareError, setShareError] = useState('')
@@ -266,27 +291,11 @@ const IDEWorkspace = ({
     [selectedWorkspaceId, workspaces],
   )
 
-  const clearShareImage = useCallback(() => {
-    if (shareImageUrlRef.current) {
-      window.URL.revokeObjectURL(shareImageUrlRef.current)
-      shareImageUrlRef.current = ''
-    }
-
-    setShareBlob(null)
-    setShareImageUrl('')
-    setShareStats(null)
-    setShareError('')
-  }, [])
-
   useEffect(() => () => {
     if (shareImageUrlRef.current) {
       window.URL.revokeObjectURL(shareImageUrlRef.current)
     }
   }, [])
-
-  useEffect(() => {
-    clearShareImage()
-  }, [clearShareImage, selectedWorkspaceId])
 
   const downloadWorkspace = useCallback(async () => {
     if (!selectedWorkspace?._id) {
@@ -350,6 +359,23 @@ const IDEWorkspace = ({
   ])
 
   const isDownloading = Boolean(downloadingWorkspaceId)
+  const selectedWorkspaceIndex = useMemo(
+    () => workspaces.findIndex((workspace) => workspace._id === selectedWorkspaceId),
+    [selectedWorkspaceId, workspaces],
+  )
+  const selectedWorkspaceInitials = useMemo(
+    () => getWorkspaceInitials(selectedWorkspace?.name),
+    [selectedWorkspace?.name],
+  )
+  const isShareImageVisible = Boolean(shareImageUrl && shareWorkspaceId === selectedWorkspaceId)
+  const visibleShareStats = isShareImageVisible ? shareStats : null
+  const visibleShareBlob = isShareImageVisible ? shareBlob : null
+  const shareMetricItems = visibleShareStats ? [
+    { label: 'Lines', value: visibleShareStats.lines.toLocaleString(), Icon: FileCode2, accent: 'text-blue-600 dark:text-blue-300' },
+    { label: 'Files', value: visibleShareStats.files.toLocaleString(), Icon: Layers3, accent: 'text-emerald-600 dark:text-emerald-300' },
+    { label: 'Folders', value: visibleShareStats.folders.toLocaleString(), Icon: FolderTree, accent: 'text-amber-600 dark:text-amber-300' },
+    { label: 'Storage', value: visibleShareStats.sizeLabel, Icon: HardDrive, accent: 'text-rose-600 dark:text-rose-300' },
+  ] : []
 
   const revealShareImage = useCallback(async () => {
     if (!selectedWorkspace?._id) {
@@ -387,6 +413,7 @@ const IDEWorkspace = ({
       }
 
       shareImageUrlRef.current = imageUrl
+      setShareWorkspaceId(selectedWorkspace._id)
       setShareStats(stats)
       setShareBlob(imageBlob)
       setShareImageUrl(imageUrl)
@@ -404,11 +431,11 @@ const IDEWorkspace = ({
   ])
 
   const downloadShareImage = useCallback(() => {
-    if (!shareBlob || !selectedWorkspace) {
+    if (!visibleShareBlob || !selectedWorkspace) {
       return
     }
 
-    const imageUrl = window.URL.createObjectURL(shareBlob)
+    const imageUrl = window.URL.createObjectURL(visibleShareBlob)
     const downloadLink = document.createElement('a')
 
     downloadLink.href = imageUrl
@@ -417,14 +444,14 @@ const IDEWorkspace = ({
     downloadLink.click()
     downloadLink.remove()
     window.URL.revokeObjectURL(imageUrl)
-  }, [selectedWorkspace, shareBlob])
+  }, [selectedWorkspace, visibleShareBlob])
 
   const shareWorkspaceImage = useCallback(async () => {
-    if (!shareBlob || !selectedWorkspace) {
+    if (!visibleShareBlob || !selectedWorkspace) {
       return
     }
 
-    const imageFile = new File([shareBlob], getWorkspaceImageFileName(selectedWorkspace.name), {
+    const imageFile = new File([visibleShareBlob], getWorkspaceImageFileName(selectedWorkspace.name), {
       type: 'image/png',
     })
 
@@ -447,106 +474,247 @@ const IDEWorkspace = ({
     }
 
     downloadShareImage()
-  }, [downloadShareImage, selectedWorkspace, shareBlob])
+  }, [downloadShareImage, selectedWorkspace, visibleShareBlob])
 
   return (
-    <main className="flex min-w-0 flex-1 justify-center overflow-y-auto bg-slate-50 px-4 py-6 dark:bg-slate-900">
-      <section className="w-full max-w-3xl">
-        <div className="mx-auto w-full max-w-sm">
-          <label htmlFor="ide-workspace-download-select" className="sr-only">Workspace</label>
-          <select
-            id="ide-workspace-download-select"
-            value={selectedWorkspaceId}
-            onChange={(event) => setDownloadWorkspaceId(event.target.value)}
-            disabled={workspacesLoading || !workspaces.length || isDownloading || shareLoading}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:ring-2 focus:ring-blue-500 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-          >
-            {workspaces.map((workspace) => (
-              <option key={workspace._id} value={workspace._id}>
-                {workspace.name}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="button"
-            onClick={downloadWorkspace}
-            disabled={workspacesLoading || !selectedWorkspace || isDownloading || saving || shareLoading}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:bg-slate-400 dark:disabled:bg-slate-700"
-          >
-            <Download className="h-4 w-4" />
-            {downloadingWorkspaceId === selectedWorkspaceId ? 'Downloading...' : 'Download ZIP'}
-          </button>
-
-          <button
-            type="button"
-            onClick={revealShareImage}
-            disabled={workspacesLoading || !selectedWorkspace || saving || shareLoading || isDownloading}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-800"
-          >
-            <Wand2 className="h-4 w-4" />
-            {shareLoading ? 'Creating share card...' : shareImageUrl ? 'Refresh Share Card' : 'Reveal Share Card'}
-          </button>
-
-          {workspacesLoading ? (
-            <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">Loading workspaces...</p>
-          ) : !selectedWorkspace ? (
-            <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">No workspace available</p>
-          ) : null}
-
-          {downloadError ? (
-            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
-              {downloadError}
-            </p>
-          ) : null}
-
-          {shareError ? (
-            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
-              {shareError}
-            </p>
-          ) : null}
-        </div>
-
-        {shareImageUrl ? (
-          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-              <img
-                src={shareImageUrl}
-                alt={`${selectedWorkspace?.name || 'Workspace'} share card preview`}
-                className="aspect-square w-full rounded-md object-cover"
-              />
-            </div>
-
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={shareWorkspaceImage}
-                disabled={!shareBlob}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:bg-slate-400 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 dark:disabled:bg-slate-700 dark:disabled:text-slate-300"
-              >
-                <Share2 className="h-4 w-4" />
-                Share Image
-              </button>
-              <button
-                type="button"
-                onClick={downloadShareImage}
-                disabled={!shareBlob}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-800"
-              >
-                <ImageDown className="h-4 w-4" />
-                Download PNG
-              </button>
-
-              {shareStats ? (
-                <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
-                  <p>{shareStats.lines.toLocaleString()} lines</p>
-                  <p>{shareStats.files.toLocaleString()} files</p>
-                  <p>{shareStats.folders.toLocaleString()} folders</p>
+    <main className="min-w-0 flex-1 overflow-y-auto bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
+      <section className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="border-b border-slate-200 bg-slate-950 px-5 py-5 text-white dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-cyan-400 text-lg font-black text-slate-950 shadow-lg shadow-cyan-950/20">
+                  {selectedWorkspaceInitials}
                 </div>
-              ) : null}
+                <div className="min-w-0">
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-bold text-cyan-100 ring-1 ring-white/10">
+                      <Archive className="h-3.5 w-3.5" />
+                      Workspace
+                    </span>
+                    {selectedWorkspace?._id === activeWorkspaceId ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-2.5 py-1 text-xs font-bold text-emerald-200 ring-1 ring-emerald-300/20">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Active
+                      </span>
+                    ) : null}
+                  </div>
+                  <h1 className="truncate text-2xl font-black tracking-normal sm:text-3xl">
+                    {selectedWorkspace?.name || 'Workspace Center'}
+                  </h1>
+                  <p className="mt-1 text-sm font-semibold text-slate-300">
+                    {workspacesLoading
+                      ? 'Loading workspaces...'
+                      : selectedWorkspace
+                        ? `${selectedWorkspaceIndex + 1} of ${workspaces.length} workspaces`
+                        : 'No workspace available'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2 lg:w-[360px]">
+                <button
+                  type="button"
+                  onClick={downloadWorkspace}
+                  disabled={workspacesLoading || !selectedWorkspace || isDownloading || saving || shareLoading}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-cyan-400 px-4 text-sm font-black text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+                >
+                  {downloadingWorkspaceId === selectedWorkspaceId ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  {downloadingWorkspaceId === selectedWorkspaceId ? 'Downloading' : 'Download ZIP'}
+                </button>
+                <button
+                  type="button"
+                  onClick={revealShareImage}
+                  disabled={workspacesLoading || !selectedWorkspace || saving || shareLoading || isDownloading}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-black text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+                >
+                  {shareLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-4 w-4" />
+                  )}
+                  {shareLoading ? 'Creating' : isShareImageVisible ? 'Refresh Card' : 'Share Card'}
+                </button>
+              </div>
             </div>
           </div>
-        ) : null}
+
+          <div className="grid gap-5 p-5 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
+            <aside className="space-y-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+                <label htmlFor="ide-workspace-download-select" className="mb-2 block text-xs font-black uppercase text-slate-500 dark:text-slate-400">
+                  Select Workspace
+                </label>
+                <select
+                  id="ide-workspace-download-select"
+                  value={selectedWorkspaceId}
+                  onChange={(event) => setDownloadWorkspaceId(event.target.value)}
+                  disabled={workspacesLoading || !workspaces.length || isDownloading || shareLoading}
+                  className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                >
+                  {!workspaces.length ? (
+                    <option value="">No workspaces</option>
+                  ) : null}
+                  {workspaces.map((workspace) => (
+                    <option key={workspace._id} value={workspace._id}>
+                      {workspace.name}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+                      <Layers3 className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                      Total
+                    </div>
+                    <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{workspaces.length}</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+                      <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                      Status
+                    </div>
+                    <p className="mt-2 truncate text-sm font-black text-slate-950 dark:text-white">
+                      {saving ? 'Saving' : isActiveWorkspaceDirty ? 'Unsaved' : 'Ready'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {(downloadError || shareError) ? (
+                <div className="space-y-2">
+                  {downloadError ? (
+                    <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-300">
+                      {downloadError}
+                    </p>
+                  ) : null}
+
+                  {shareError ? (
+                    <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-300">
+                      {shareError}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {visibleShareStats ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {shareMetricItems.map(({ label, value, Icon, accent }) => (
+                    <div key={label} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                      <div className={`mb-2 flex items-center gap-2 text-xs font-black uppercase ${accent}`}>
+                        <Icon className="h-4 w-4" />
+                        {label}
+                      </div>
+                      <p className="truncate text-lg font-black text-slate-950 dark:text-white">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-slate-300 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-slate-900 dark:text-white">Share card not generated</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        Stats appear after creating a card.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </aside>
+
+            <div className="min-w-0">
+              {isShareImageVisible ? (
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px]">
+                  <div className="overflow-hidden rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                    <img
+                      src={shareImageUrl}
+                      alt={`${selectedWorkspace?.name || 'Workspace'} share card preview`}
+                      className="aspect-square w-full rounded-lg object-cover"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <button
+                      type="button"
+                      onClick={shareWorkspaceImage}
+                      disabled={!visibleShareBlob}
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 dark:disabled:bg-slate-700 dark:disabled:text-slate-300"
+                    >
+                      <Share2 className="h-4 w-4" />
+                      Share Image
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadShareImage}
+                      disabled={!visibleShareBlob}
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <ImageDown className="h-4 w-4" />
+                      Download PNG
+                    </button>
+
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+                      <div className="flex items-center gap-2 text-xs font-black uppercase text-slate-500 dark:text-slate-400">
+                        <CalendarDays className="h-4 w-4 text-rose-600 dark:text-rose-300" />
+                        Updated
+                      </div>
+                      <p className="mt-2 text-sm font-black text-slate-950 dark:text-white">{visibleShareStats?.updatedLabel}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+                      <div className="flex items-center gap-2 text-xs font-black uppercase text-slate-500 dark:text-slate-400">
+                        <FileCode2 className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                        Largest
+                      </div>
+                      <p className="mt-2 truncate text-sm font-black text-slate-950 dark:text-white">{visibleShareStats?.largestFileName}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                  {workspacesLoading ? (
+                    <div className="text-center">
+                      <Loader2 className="mx-auto h-9 w-9 animate-spin text-cyan-600 dark:text-cyan-300" />
+                      <p className="mt-4 text-sm font-black text-slate-900 dark:text-white">Loading workspaces...</p>
+                    </div>
+                  ) : selectedWorkspace ? (
+                    <div className="w-full max-w-md text-center">
+                      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-lg bg-slate-950 text-2xl font-black text-white shadow-lg dark:bg-white dark:text-slate-950">
+                        {selectedWorkspaceInitials}
+                      </div>
+                      <h2 className="mt-5 truncate text-2xl font-black text-slate-950 dark:text-white">
+                        {selectedWorkspace.name}
+                      </h2>
+                      <div className="mt-5 grid grid-cols-2 gap-3 text-left">
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Package</p>
+                          <p className="mt-1 text-sm font-black text-slate-950 dark:text-white">ZIP archive</p>
+                        </div>
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Card</p>
+                          <p className="mt-1 text-sm font-black text-slate-950 dark:text-white">PNG image</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <Archive className="mx-auto h-10 w-10 text-slate-400" />
+                      <p className="mt-4 text-sm font-black text-slate-900 dark:text-white">No workspace available</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   )
