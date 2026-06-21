@@ -11,6 +11,7 @@ import {
   FileCode,
   Folder,
   HardDrive,
+  Keyboard,
   Loader2,
   Play,
   Save,
@@ -91,6 +92,15 @@ const LANGUAGES = [
   { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript' },
 ]
 
+const KEYBOARD_SHORTCUTS = [
+  { keys: ['Ctrl', 'S'], label: 'Save active file' },
+  { keys: ['Ctrl', "'"], label: 'Run active file' },
+  { keys: ['Ctrl', '.'], label: 'Stop running code' },
+  { keys: ['Ctrl', 'Shift', 'F'], label: 'Format active file' },
+  { keys: ['Ctrl', '`'], label: 'Show or hide terminal' },
+  { keys: ['Ctrl', ','], label: 'Open editor settings' },
+]
+
 const LANGUAGE_BY_EXTENSION = {
   '.c': 'c',
   '.cpp': 'cpp',
@@ -112,6 +122,21 @@ const getLastOpenedFileKey = (role, workspaceId) => `jack_ide_${role}_${workspac
 const getErrorMessage = (error, fallback) => (
   error?.response?.data?.message || error?.message || fallback
 )
+
+const isEditableShortcutTarget = (target) => {
+  if (!target) {
+    return false
+  }
+
+  const tagName = target.tagName?.toLowerCase()
+  const isMonacoTarget = Boolean(target.closest?.('.monaco-editor'))
+
+  if (isMonacoTarget) {
+    return false
+  }
+
+  return target.isContentEditable || ['input', 'select', 'textarea'].includes(tagName)
+}
 
 const getFileExtension = (name) => {
   const normalizedName = String(name || '').trim().toLowerCase()
@@ -1673,7 +1698,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     })
   }
 
-  const handleRunCode = () => {
+  const handleRunCode = useCallback(() => {
     if (!socket || isRunning || !activeNode) return
 
     setIsTerminalCollapsed(false)
@@ -1685,12 +1710,12 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       language: activeNode.language,
       code,
     })
-  }
+  }, [activeNode, code, isRunning, socket])
 
-  const handleStopCode = () => {
+  const handleStopCode = useCallback(() => {
     if (!socket || !isRunning) return
     socket.emit('stop-code')
-  }
+  }, [isRunning, socket])
 
   const handleInputKeyDown = (event) => {
     if (event.key !== 'Enter') {
@@ -1711,6 +1736,68 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const handleClearTerminal = () => {
     setTerminalOutput('')
   }
+
+  useEffect(() => {
+    if (!isAuthorized) {
+      return undefined
+    }
+
+    const handleKeyDown = (event) => {
+      const hasShortcutModifier = event.ctrlKey || event.metaKey
+
+      if (!hasShortcutModifier || event.altKey || isEditableShortcutTarget(event.target)) {
+        return
+      }
+
+      const key = event.key.toLowerCase()
+      const code = event.code
+
+      if (key === ',' && !event.shiftKey) {
+        event.preventDefault()
+        setShowSettings((currentValue) => !currentValue)
+        return
+      }
+
+      if (key === '.' && !event.shiftKey) {
+        event.preventDefault()
+        handleStopCode()
+        return
+      }
+
+      if ((key === '`' || code === 'Backquote') && !event.shiftKey) {
+        event.preventDefault()
+        setIsTerminalCollapsed((currentValue) => !currentValue)
+        return
+      }
+
+      if (!activeNode) {
+        return
+      }
+
+      if (key === 's' && !event.shiftKey) {
+        event.preventDefault()
+        saveActiveFile()
+        return
+      }
+
+      if ((key === "'" || code === 'Quote') && !event.shiftKey) {
+        event.preventDefault()
+        handleRunCode()
+        return
+      }
+
+      if (key === 'f' && event.shiftKey) {
+        event.preventDefault()
+        formatActiveCode()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeNode, formatActiveCode, handleRunCode, handleStopCode, isAuthorized, saveActiveFile])
 
   if (checkingAuth) {
     return (
@@ -1887,10 +1974,13 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                   {showSettings ? (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setShowSettings(false)} />
-                      <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-                        <h3 className="mb-3 select-none text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                          Editor Settings
-                        </h3>
+                      <div className="absolute right-0 z-20 mt-2 w-80 rounded-lg border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                          <h3 className="select-none text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            Editor Settings
+                          </h3>
+                          <Keyboard className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                        </div>
                         <div className="flex items-center justify-between gap-4">
                           <span className="select-none text-sm font-semibold text-slate-700 dark:text-slate-300">Font Size</span>
                           <div className="flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 dark:border-slate-700 dark:bg-slate-950">
@@ -1911,6 +2001,30 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                             >
                               +
                             </button>
+                          </div>
+                        </div>
+                        <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800">
+                          <p className="select-none text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            Keyboard Shortcuts
+                          </p>
+                          <div className="mt-3 space-y-2">
+                            {KEYBOARD_SHORTCUTS.map((shortcut) => (
+                              <div key={shortcut.label} className="flex items-center justify-between gap-3">
+                                <span className="select-none text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                  {shortcut.label}
+                                </span>
+                                <span className="flex shrink-0 items-center gap-1">
+                                  {shortcut.keys.map((keyLabel) => (
+                                    <kbd
+                                      key={`${shortcut.label}-${keyLabel}`}
+                                      className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1 font-mono text-[10px] font-black leading-none text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                                    >
+                                      {keyLabel}
+                                    </kbd>
+                                  ))}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
