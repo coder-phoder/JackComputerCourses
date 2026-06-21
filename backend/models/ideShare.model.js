@@ -163,6 +163,24 @@ const ideShareSchema = new mongoose.Schema({
         }],
         default: []
     },
+    sourceSelections: {
+        type: [{
+            type: {
+                type: String,
+                enum: ['workspace', 'folder', 'file'],
+                required: true
+            },
+            workspaceId: {
+                type: mongoose.Schema.Types.ObjectId,
+                required: true
+            },
+            nodeId: {
+                type: mongoose.Schema.Types.ObjectId,
+                default: null
+            }
+        }],
+        default: []
+    },
     payload: {
         workspaces: {
             type: [sharedWorkspaceSchema],

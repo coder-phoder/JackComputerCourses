@@ -77,6 +77,20 @@ const formatShareSummary = (share) => ({
     createdAt: share.createdAt
 });
 
+const formatSourceSelections = (selections) => (
+    (selections || [])
+        .map((selection) => ({
+            type: selection.type,
+            workspaceId: selection.workspaceId ? selection.workspaceId.toString() : '',
+            nodeId: selection.nodeId ? selection.nodeId.toString() : null
+        }))
+        .filter((selection) => (
+            ['workspace', 'folder', 'file'].includes(selection.type)
+            && isValidObjectId(selection.workspaceId)
+            && (selection.type === 'workspace' || isValidObjectId(selection.nodeId))
+        ))
+);
+
 const formatShareDetail = (share) => ({
     ...formatShareSummary(share),
     payload: {
@@ -119,6 +133,14 @@ const formatShareDetail = (share) => ({
         }))
     }
 });
+
+const hasPayloadContent = (payload) => (
+    Boolean(
+        payload?.workspaces?.length
+        || payload?.folders?.length
+        || payload?.files?.length
+    )
+);
 
 const createToken = () => crypto.randomBytes(24).toString('base64url');
 
@@ -214,7 +236,8 @@ const normalizeSelections = (rawSelections) => {
     return normalizedSelections;
 };
 
-const buildSharePayload = async (owner, selections) => {
+const buildSharePayload = async (owner, selections, options = {}) => {
+    const allowMissing = Boolean(options.allowMissing);
     const workspaceIds = [...new Set(selections.map((selection) => selection.workspaceId))];
     const workspaces = await Workspace.find({
         ...getOwnerQuery(owner),
@@ -222,13 +245,17 @@ const buildSharePayload = async (owner, selections) => {
     });
     const workspaceById = new Map(workspaces.map((workspace) => [workspace._id.toString(), workspace]));
 
-    if (workspaceById.size !== workspaceIds.length) {
+    if (!allowMissing && workspaceById.size !== workspaceIds.length) {
         return { error: 'One or more selected workspaces were not found' };
     }
 
     const nodesByWorkspaceId = new Map();
 
     for (const workspaceId of workspaceIds) {
+        if (!workspaceById.has(workspaceId)) {
+            continue;
+        }
+
         const nodes = await WorkspaceNode.find(getWorkspaceNodeQuery(owner, workspaceId));
         nodesByWorkspaceId.set(workspaceId, nodes);
     }
@@ -248,6 +275,11 @@ const buildSharePayload = async (owner, selections) => {
 
     for (const workspaceId of selectedWorkspaceIds) {
         const workspace = workspaceById.get(workspaceId);
+
+        if (!workspace) {
+            continue;
+        }
+
         const nodes = nodesByWorkspaceId.get(workspaceId) || [];
 
         payload.workspaces.push({
@@ -273,11 +305,20 @@ const buildSharePayload = async (owner, selections) => {
         }
 
         const workspace = workspaceById.get(selection.workspaceId);
+
+        if (!workspace) {
+            continue;
+        }
+
         const nodes = nodesByWorkspaceId.get(selection.workspaceId) || [];
         const nodesById = new Map(nodes.map((node) => [String(node._id), node]));
         const folder = nodesById.get(selection.nodeId);
 
         if (!folder || folder.type !== 'folder') {
+            if (allowMissing) {
+                continue;
+            }
+
             return { error: 'One or more selected folders were not found' };
         }
 
@@ -313,6 +354,11 @@ const buildSharePayload = async (owner, selections) => {
         }
 
         const workspace = workspaceById.get(selection.workspaceId);
+
+        if (!workspace) {
+            continue;
+        }
+
         const nodes = nodesByWorkspaceId.get(selection.workspaceId) || [];
         const nodesById = new Map(nodes.map((node) => [String(node._id), node]));
         const folderIds = new Set(
@@ -323,6 +369,10 @@ const buildSharePayload = async (owner, selections) => {
         const file = nodesById.get(selection.nodeId);
 
         if (!file || file.type !== 'file') {
+            if (allowMissing) {
+                continue;
+            }
+
             return { error: 'One or more selected files were not found' };
         }
 
@@ -341,11 +391,64 @@ const buildSharePayload = async (owner, selections) => {
         });
     }
 
-    if (!payload.workspaces.length && !payload.folders.length && !payload.files.length) {
+    if (!allowMissing && !payload.workspaces.length && !payload.folders.length && !payload.files.length) {
         return { error: 'Select at least one workspace, folder or file' };
     }
 
     return { payload };
+};
+
+const deriveSelectionsFromPayload = (payload) => {
+    const selections = [
+        ...(payload?.workspaces || []).map((workspace) => ({
+            type: 'workspace',
+            workspaceId: workspace.originalWorkspaceId,
+            nodeId: null
+        })),
+        ...(payload?.folders || []).map((folder) => ({
+            type: 'folder',
+            workspaceId: folder.workspaceId,
+            nodeId: folder.originalNodeId
+        })),
+        ...(payload?.files || []).map((file) => ({
+            type: 'file',
+            workspaceId: file.workspaceId,
+            nodeId: file.originalNodeId
+        }))
+    ];
+
+    return formatSourceSelections(selections);
+};
+
+const getLiveShareDetail = async (share) => {
+    const storedSelections = formatSourceSelections(share.sourceSelections || []);
+    const sourceSelections = storedSelections.length
+        ? storedSelections
+        : deriveSelectionsFromPayload(share.payload);
+
+    if (!sourceSelections.length) {
+        return formatShareDetail(share);
+    }
+
+    const payloadResult = await buildSharePayload({
+        ownerRole: share.createdByRole,
+        ownerId: share.createdBy
+    }, sourceSelections, { allowMissing: true });
+
+    if (payloadResult.error) {
+        return formatShareDetail(share);
+    }
+
+    if (!storedSelections.length && !hasPayloadContent(payloadResult.payload)) {
+        return formatShareDetail(share);
+    }
+
+    const shareData = typeof share.toObject === 'function' ? share.toObject() : share;
+
+    return formatShareDetail({
+        ...shareData,
+        payload: payloadResult.payload
+    });
 };
 
 const getValidatedRecipients = async (owner, body) => {
@@ -455,6 +558,7 @@ const createIDEShare = async (req, res) => {
             createdByName: owner.name,
             createdByPhone: owner.phone,
             recipients: recipientResult.recipients,
+            sourceSelections: selections,
             payload: payloadResult.payload
         });
 
@@ -538,10 +642,12 @@ const getIDEShareByToken = async (req, res) => {
             return sendError(res, 404, 'IDE share link not found');
         }
 
+        const shareDetail = await getLiveShareDetail(share);
+
         return res.status(200).json({
             success: true,
             message: 'IDE share fetched successfully',
-            data: { share: formatShareDetail(share) }
+            data: { share: shareDetail }
         });
     } catch (error) {
         return sendError(res, 500, 'Something went wrong while fetching IDE share');
@@ -553,5 +659,8 @@ module.exports = {
     createIDEShare,
     getCreatedIDEShares,
     getReceivedIDEShares,
-    getIDEShareByToken
+    getIDEShareByToken,
+    buildSharePayload,
+    deriveSelectionsFromPayload,
+    getLiveShareDetail
 };

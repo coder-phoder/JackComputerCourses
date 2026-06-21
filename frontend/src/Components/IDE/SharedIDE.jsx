@@ -65,6 +65,36 @@ const normalizeNodeFile = (node, contextName = '') => ({
   contextName,
 })
 
+const findSharedFileById = (payload, fileId) => {
+  if (!fileId) {
+    return null
+  }
+
+  for (const workspace of payload.workspaces || []) {
+    const node = (workspace.nodes || []).find((currentNode) => (
+      currentNode.originalNodeId === fileId && currentNode.type === 'file'
+    ))
+
+    if (node) {
+      return normalizeNodeFile(node, workspace.name)
+    }
+  }
+
+  for (const folder of payload.folders || []) {
+    const node = (folder.nodes || []).find((currentNode) => (
+      currentNode.originalNodeId === fileId && currentNode.type === 'file'
+    ))
+
+    if (node) {
+      return normalizeNodeFile(node, folder.workspaceName)
+    }
+  }
+
+  const file = (payload.files || []).find((currentFile) => currentFile.originalNodeId === fileId)
+
+  return file ? normalizeNodeFile(file, file.workspaceName) : null
+}
+
 const SharedIDE = () => {
   const { token } = useParams()
   const { isDark } = useTheme()
@@ -94,10 +124,13 @@ const SharedIDE = () => {
     }))
   ), [payload.folders])
 
-  const loadShare = useCallback(async () => {
-    setLoading(true)
+  const loadShare = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true)
+      setActiveFile(null)
+    }
+
     setError('')
-    setActiveFile(null)
 
     try {
       const response = await axios.get(`${API_BASE_URL}/ide-share/shared/${token}`)
@@ -110,7 +143,9 @@ const SharedIDE = () => {
     } catch (loadError) {
       setError(getErrorMessage(loadError, 'Unable to load shared IDE.'))
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }, [token])
 
@@ -123,6 +158,40 @@ const SharedIDE = () => {
       window.clearTimeout(loadTimer)
     }
   }, [loadShare])
+
+  useEffect(() => {
+    const refreshTimer = window.setInterval(() => {
+      if (document.visibilityState !== 'hidden') {
+        loadShare({ silent: true })
+      }
+    }, 10000)
+
+    return () => {
+      window.clearInterval(refreshTimer)
+    }
+  }, [loadShare])
+
+  useEffect(() => {
+    if (!activeFile) {
+      return
+    }
+
+    const updatedFile = findSharedFileById(payload, activeFile.id)
+
+    if (!updatedFile) {
+      setActiveFile(null)
+      return
+    }
+
+    if (
+      updatedFile.name !== activeFile.name
+      || updatedFile.language !== activeFile.language
+      || updatedFile.content !== activeFile.content
+      || updatedFile.contextName !== activeFile.contextName
+    ) {
+      setActiveFile(updatedFile)
+    }
+  }, [activeFile, payload])
 
   const toggleExpanded = (id) => {
     setExpandedIds((currentIds) => {
