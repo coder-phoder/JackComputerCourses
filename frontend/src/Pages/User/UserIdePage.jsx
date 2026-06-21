@@ -195,6 +195,30 @@ const getDescendantNodeIds = (nodeId, nodes) => {
   return descendantIds
 }
 
+const hasSelectedAncestor = (node, selectedIds, nodes) => {
+  let currentParentId = node?.parentId || null
+
+  while (currentParentId) {
+    if (selectedIds.has(currentParentId)) {
+      return true
+    }
+
+    const parentNode = nodes.find((currentNode) => currentNode._id === currentParentId)
+    currentParentId = parentNode?.parentId || null
+  }
+
+  return false
+}
+
+const getRootNodeIdsFromSelection = (nodeIds, nodes) => {
+  const selectedIds = new Set(nodeIds)
+
+  return nodeIds.filter((nodeId) => {
+    const node = nodes.find((currentNode) => currentNode._id === nodeId)
+    return node && !hasSelectedAncestor(node, selectedIds, nodes)
+  })
+}
+
 const getDeleteSummary = (targetNodes) => {
   const files = targetNodes.filter((node) => node.type === 'file').length
   const folders = targetNodes.filter((node) => node.type === 'folder').length
@@ -537,6 +561,10 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [deleteConfirmation, setDeleteConfirmation] = useState(null)
   const [deleteConfirmationError, setDeleteConfirmationError] = useState('')
   const [deleteConfirmationLoading, setDeleteConfirmationLoading] = useState(false)
+  const [selectedNodeIds, setSelectedNodeIds] = useState(() => new Set())
+  const [nodeClipboard, setNodeClipboard] = useState(null)
+  const [draggingNodeIds, setDraggingNodeIds] = useState(() => new Set())
+  const [dropTargetParentId, setDropTargetParentId] = useState('')
 
   const [terminalOutput, setTerminalOutput] = useState('')
   const [inputVal, setInputVal] = useState('')
@@ -592,6 +620,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     () => nodes.find((node) => node._id === activeNodeId && node.type === 'file') || null,
     [activeNodeId, nodes],
   )
+  const nodeById = useMemo(() => (
+    new Map(nodes.map((node) => [node._id, node]))
+  ), [nodes])
   const selectedLanguage = getLanguageMeta(activeNode?.language)
   const isDirty = Boolean(activeNode) && code !== savedCode
   const shouldAutoCollapseExplorer = !isExplorerCollapsed
@@ -836,6 +867,10 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
     const workspaceNodesLoadTimer = window.setTimeout(() => {
       setNodes([])
+      setSelectedNodeIds(new Set())
+      setDraggingNodeIds(new Set())
+      setDropTargetParentId('')
+      setNodeClipboard(null)
       activateFile(null, [])
       fetchWorkspaceNodes()
     }, 0)
@@ -1192,6 +1227,310 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     }
 
     activateFile(node, nodes)
+  }
+
+  const handleExplorerNodeClick = (node, event) => {
+    if (!node?._id) {
+      return
+    }
+
+    const isMultiSelect = event?.ctrlKey || event?.metaKey
+
+    if (isMultiSelect) {
+      setSelectedNodeIds((currentIds) => {
+        const nextIds = new Set(currentIds)
+
+        if (nextIds.has(node._id)) {
+          nextIds.delete(node._id)
+        } else {
+          nextIds.add(node._id)
+        }
+
+        return nextIds
+      })
+      return
+    }
+
+    setSelectedNodeIds(new Set([node._id]))
+
+    if (node.type === 'folder') {
+      toggleFolder(node._id)
+    } else {
+      openFile(node)
+    }
+  }
+
+  const prepareNodeContextSelection = (node) => {
+    if (!node?._id) {
+      return []
+    }
+
+    if (selectedNodeIds.has(node._id)) {
+      return [...selectedNodeIds]
+    }
+
+    setSelectedNodeIds(new Set([node._id]))
+    return [node._id]
+  }
+
+  const canMoveNodesToParent = (nodeIds, parentId = null) => {
+    const targetParentId = parentId || null
+    const rootNodeIds = getRootNodeIdsFromSelection(nodeIds, nodes)
+
+    if (!rootNodeIds.length) {
+      return false
+    }
+
+    return rootNodeIds.every((nodeId) => {
+      const node = nodeById.get(nodeId)
+
+      if (!node) {
+        return false
+      }
+
+      if (targetParentId && node.type === 'folder') {
+        if (targetParentId === node._id) {
+          return false
+        }
+
+        if (getDescendantNodeIds(node._id, nodes).includes(targetParentId)) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }
+
+  const canPasteToParent = (parentId = null) => {
+    if (!nodeClipboard?.nodeIds?.length) {
+      return false
+    }
+
+    if (nodeClipboard.mode === 'copy') {
+      return true
+    }
+
+    return canMoveNodesToParent(nodeClipboard.nodeIds, parentId)
+  }
+
+  const cutWorkspaceNodes = (nodeIds) => {
+    const nextNodeIds = getRootNodeIdsFromSelection(nodeIds, nodes)
+
+    if (!nextNodeIds.length) {
+      return
+    }
+
+    setWorkspaceError('')
+    setNodeClipboard({ mode: 'cut', nodeIds: nextNodeIds })
+    setSelectedNodeIds(new Set(nextNodeIds))
+  }
+
+  const copyWorkspaceNodesToClipboard = (nodeIds) => {
+    const nextNodeIds = getRootNodeIdsFromSelection(nodeIds, nodes)
+
+    if (!nextNodeIds.length) {
+      return
+    }
+
+    setWorkspaceError('')
+    setNodeClipboard({ mode: 'copy', nodeIds: nextNodeIds })
+    setSelectedNodeIds(new Set(nextNodeIds))
+  }
+
+  const moveWorkspaceNodesToParent = async (nodeIds, parentId = null) => {
+    const rootNodeIds = getRootNodeIdsFromSelection(nodeIds, nodes)
+    const targetParentId = parentId || null
+
+    if (!workspaceNodesUrl) {
+      setWorkspaceError('Select a workspace before moving files.')
+      return false
+    }
+
+    if (!canMoveNodesToParent(rootNodeIds, targetParentId)) {
+      setWorkspaceError('Selected folder cannot be moved there.')
+      return false
+    }
+
+    setNodeActionId(rootNodeIds[0] || 'bulk')
+    setWorkspaceError('')
+
+    try {
+      const response = await axios.post(`${workspaceNodesUrl}/move`, {
+        nodeIds: rootNodeIds,
+        parentId: targetParentId,
+      }, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to move workspace items')
+      }
+
+      const movedNodes = response.data?.data?.nodes || []
+      const movedNodeById = new Map(movedNodes.map((node) => [node._id, node]))
+
+      setNodes((currentNodes) => currentNodes.map((node) => (
+        movedNodeById.get(node._id) || node
+      )))
+
+      if (targetParentId) {
+        setExpandedFolders((currentFolders) => {
+          const nextFolders = new Set(currentFolders)
+          nextFolders.add(targetParentId)
+          return nextFolders
+        })
+      }
+
+      setSelectedNodeIds(new Set(rootNodeIds))
+      return true
+    } catch (moveError) {
+      setWorkspaceError(getErrorMessage(moveError, 'Unable to move workspace items.'))
+      return false
+    } finally {
+      setNodeActionId('')
+      setDropTargetParentId('')
+      setDraggingNodeIds(new Set())
+    }
+  }
+
+  const copyWorkspaceNodesToParent = async (nodeIds, parentId = null) => {
+    const rootNodeIds = getRootNodeIdsFromSelection(nodeIds, nodes)
+    const targetParentId = parentId || null
+
+    if (!workspaceNodesUrl) {
+      setWorkspaceError('Select a workspace before copying files.')
+      return false
+    }
+
+    if (!rootNodeIds.length) {
+      return false
+    }
+
+    setNodeActionId(rootNodeIds[0] || 'bulk')
+    setWorkspaceError('')
+
+    try {
+      const response = await axios.post(`${workspaceNodesUrl}/copy`, {
+        nodeIds: rootNodeIds,
+        parentId: targetParentId,
+      }, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to copy workspace items')
+      }
+
+      const copiedNodes = response.data?.data?.nodes || []
+
+      setNodes((currentNodes) => [...currentNodes, ...copiedNodes])
+
+      setSelectedNodeIds(new Set(copiedNodes.map((node) => node._id)))
+
+      if (targetParentId || copiedNodes.some((node) => node.type === 'folder')) {
+        setExpandedFolders((currentFolders) => {
+          const nextFolders = new Set(currentFolders)
+
+          if (targetParentId) {
+            nextFolders.add(targetParentId)
+          }
+
+          copiedNodes
+            .filter((node) => node.type === 'folder')
+            .forEach((node) => nextFolders.add(node._id))
+
+          return nextFolders
+        })
+      }
+
+      return true
+    } catch (copyError) {
+      setWorkspaceError(getErrorMessage(copyError, 'Unable to copy workspace items.'))
+      return false
+    } finally {
+      setNodeActionId('')
+    }
+  }
+
+  const pasteWorkspaceNodesToParent = async (parentId = null) => {
+    if (!nodeClipboard?.nodeIds?.length) {
+      return false
+    }
+
+    if (!canPasteToParent(parentId)) {
+      setWorkspaceError('Selected folder cannot be pasted there.')
+      return false
+    }
+
+    const didPaste = nodeClipboard.mode === 'cut'
+      ? await moveWorkspaceNodesToParent(nodeClipboard.nodeIds, parentId)
+      : await copyWorkspaceNodesToParent(nodeClipboard.nodeIds, parentId)
+
+    if (didPaste && nodeClipboard.mode === 'cut') {
+      setNodeClipboard(null)
+    }
+
+    return didPaste
+  }
+
+  const handleNodeDragStart = (node, event) => {
+    if (!node?._id || nodeDraft || saving || workspaceLoading) {
+      event.preventDefault()
+      return
+    }
+
+    const nextNodeIds = selectedNodeIds.has(node._id)
+      ? getRootNodeIdsFromSelection([...selectedNodeIds], nodes)
+      : [node._id]
+
+    setSelectedNodeIds(new Set(nextNodeIds))
+    setDraggingNodeIds(new Set(nextNodeIds))
+    setWorkspaceError('')
+
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('application/x-jack-node-ids', JSON.stringify(nextNodeIds))
+    event.dataTransfer.setData('text/plain', nextNodeIds.join(','))
+  }
+
+  const getDraggedNodeIds = (event) => {
+    try {
+      const rawIds = event.dataTransfer.getData('application/x-jack-node-ids')
+      const parsedIds = JSON.parse(rawIds || '[]')
+      return Array.isArray(parsedIds) ? parsedIds : []
+    } catch {
+      return []
+    }
+  }
+
+  const handleNodeDragOverParent = (parentId, event) => {
+    const nodeIds = draggingNodeIds.size ? [...draggingNodeIds] : getDraggedNodeIds(event)
+
+    if (!canMoveNodesToParent(nodeIds, parentId)) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    event.dataTransfer.dropEffect = 'move'
+    setDropTargetParentId(parentId || 'root')
+  }
+
+  const handleNodeDropOnParent = async (parentId, event) => {
+    const nodeIds = draggingNodeIds.size ? [...draggingNodeIds] : getDraggedNodeIds(event)
+
+    if (!nodeIds.length) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    await moveWorkspaceNodesToParent(nodeIds, parentId)
+  }
+
+  const clearNodeDragState = () => {
+    setDraggingNodeIds(new Set())
+    setDropTargetParentId('')
   }
 
   const startCreateWorkspace = () => {
@@ -1641,6 +1980,17 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       const remainingNodes = nodes.filter((currentNode) => !deletedIds.includes(currentNode._id))
 
       setNodes(remainingNodes)
+      setSelectedNodeIds((currentIds) => (
+        new Set([...currentIds].filter((nodeId) => !deletedIds.includes(nodeId)))
+      ))
+      setNodeClipboard((currentClipboard) => {
+        if (!currentClipboard) {
+          return currentClipboard
+        }
+
+        const nextNodeIds = currentClipboard.nodeIds.filter((nodeId) => !deletedIds.includes(nodeId))
+        return nextNodeIds.length ? { ...currentClipboard, nodeIds: nextNodeIds } : null
+      })
 
       if (activeNodeId && deletedIds.includes(activeNodeId)) {
         const nextActiveFile = sortWorkspaceNodes(remainingNodes).find((currentNode) => currentNode.type === 'file') || null
@@ -1849,13 +2199,23 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             cancelWorkspaceDraft={cancelWorkspaceDraft}
             childrenByParentId={childrenByParentId}
             collapseWorkspaceFolders={collapseWorkspaceFolders}
+            clipboardMode={nodeClipboard?.mode || ''}
+            clipboardNodeCount={nodeClipboard?.nodeIds?.length || 0}
             creatingParentId={creatingParentId}
             deleteActiveWorkspace={deleteActiveWorkspace}
             deleteWorkspaceNode={deleteWorkspaceNode}
+            dropTargetParentId={dropTargetParentId}
             expandedFolders={expandedFolders}
             explorerWidth={explorerWidth}
             handleNodeDraftBlur={handleNodeDraftBlur}
             handleWorkspaceDraftBlur={handleWorkspaceDraftBlur}
+            canPasteToParent={canPasteToParent}
+            copyWorkspaceNodesToClipboard={copyWorkspaceNodesToClipboard}
+            cutWorkspaceNodes={cutWorkspaceNodes}
+            handleNodeDragOverParent={handleNodeDragOverParent}
+            handleNodeDragStart={handleNodeDragStart}
+            handleNodeDropOnParent={handleNodeDropOnParent}
+            clearNodeDragState={clearNodeDragState}
             isCollapsed={isExplorerLayoutCollapsed}
             isDirty={isDirty}
             isDraggingExplorer={isDraggingExplorer}
@@ -1866,11 +2226,15 @@ const UserIdePage = ({ accessRole = 'user' }) => {
               event.preventDefault()
               setIsDraggingExplorer(true)
             }}
+            onNodeClick={handleExplorerNodeClick}
+            pasteWorkspaceNodesToParent={pasteWorkspaceNodesToParent}
             openFile={openFile}
             openNodeActionMenuId={openNodeActionMenuId}
+            prepareNodeContextSelection={prepareNodeContextSelection}
             rootNodes={rootNodes}
             saveError={saveError}
             saving={saving}
+            selectedNodeIds={selectedNodeIds}
             setActiveWorkspaceId={setActiveWorkspaceId}
             setActiveActivity={setActiveActivity}
             setIsCollapsed={setIsExplorerCollapsed}

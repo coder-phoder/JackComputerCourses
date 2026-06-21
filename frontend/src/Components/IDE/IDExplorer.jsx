@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ChevronDown,
   ChevronRight,
+  ClipboardPaste,
+  Copy,
   Download,
   FileCode,
   Files,
@@ -16,6 +18,7 @@ import {
   PanelLeftOpen,
   Pencil,
   Plus,
+  Scissors,
   Trash2,
 } from 'lucide-react'
 
@@ -26,13 +29,23 @@ const IDExplorer = ({
   activeWorkspaceId,
   cancelNodeDraft,
   cancelWorkspaceDraft,
+  canPasteToParent,
   childrenByParentId,
+  clearNodeDragState,
   collapseWorkspaceFolders,
+  clipboardMode = '',
+  clipboardNodeCount = 0,
+  copyWorkspaceNodesToClipboard,
   creatingParentId,
+  cutWorkspaceNodes,
   deleteActiveWorkspace,
   deleteWorkspaceNode,
+  dropTargetParentId = '',
   expandedFolders,
   explorerWidth,
+  handleNodeDragOverParent,
+  handleNodeDragStart,
+  handleNodeDropOnParent,
   handleNodeDraftBlur,
   handleWorkspaceDraftBlur,
   isCollapsed,
@@ -41,12 +54,16 @@ const IDExplorer = ({
   isQueryEnabled = false,
   nodeActionId,
   nodeDraft,
+  onNodeClick,
   onStartExplorerResize,
   openFile,
   openNodeActionMenuId,
+  pasteWorkspaceNodesToParent,
+  prepareNodeContextSelection,
   rootNodes,
   saveError,
   saving,
+  selectedNodeIds = new Set(),
   setActiveWorkspaceId,
   setActiveActivity,
   setIsCollapsed,
@@ -71,6 +88,7 @@ const IDExplorer = ({
 }) => {
   const workspaceDraftInputRef = useRef(null)
   const nodeDraftInputRef = useRef(null)
+  const [contextMenu, setContextMenu] = useState(null)
 
   useEffect(() => {
     if (!workspaceDraftInputRef.current) {
@@ -89,6 +107,106 @@ const IDExplorer = ({
     nodeDraftInputRef.current.focus()
     nodeDraftInputRef.current.select()
   }, [nodeDraft?.id])
+
+  useEffect(() => {
+    if (!contextMenu) {
+      return undefined
+    }
+
+    const closeCurrentContextMenu = () => setContextMenu(null)
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeCurrentContextMenu()
+      }
+    }
+
+    window.addEventListener('resize', closeCurrentContextMenu)
+    window.addEventListener('scroll', closeCurrentContextMenu, true)
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('resize', closeCurrentContextMenu)
+      window.removeEventListener('scroll', closeCurrentContextMenu, true)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [contextMenu])
+
+  const closeContextMenu = () => setContextMenu(null)
+
+  const openNodeContextMenu = (node, event) => {
+    if (nodeDraft) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    setOpenNodeActionMenuId('')
+
+    const nodeIds = prepareNodeContextSelection?.(node) || [node._id]
+
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      node,
+      nodeIds,
+      parentId: node.type === 'folder' ? node._id : null,
+      kind: 'node',
+    })
+  }
+
+  const openRootContextMenu = (event) => {
+    if (nodeDraft) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    setOpenNodeActionMenuId('')
+
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      node: null,
+      nodeIds: [],
+      parentId: null,
+      kind: 'root',
+    })
+  }
+
+  const handleContextAction = async (action) => {
+    if (!contextMenu) {
+      return
+    }
+
+    if (action === 'cut') {
+      cutWorkspaceNodes?.(contextMenu.nodeIds)
+      closeContextMenu()
+      return
+    }
+
+    if (action === 'copy') {
+      copyWorkspaceNodesToClipboard?.(contextMenu.nodeIds)
+      closeContextMenu()
+      return
+    }
+
+    if (action === 'paste') {
+      await pasteWorkspaceNodesToParent?.(contextMenu.parentId)
+      closeContextMenu()
+      return
+    }
+
+    if (action === 'rename' && contextMenu.node) {
+      startRenameWorkspaceNode(contextMenu.node)
+      closeContextMenu()
+      return
+    }
+
+    if (action === 'delete' && contextMenu.node) {
+      deleteWorkspaceNode(contextMenu.node)
+      closeContextMenu()
+    }
+  }
 
   const renderNodeDraft = (depth = 0) => {
     if (!nodeDraft || nodeDraft.mode !== 'create') {
@@ -150,25 +268,42 @@ const IDExplorer = ({
     const isExpanded = expandedFolders.has(node._id)
     const children = childrenByParentId.get(node._id) || []
     const isActive = activeNodeId === node._id
+    const isSelected = selectedNodeIds.has(node._id)
     const isBusy = nodeActionId === node._id || creatingParentId === node._id
     const isRenaming = nodeDraft?.mode === 'rename' && nodeDraft.nodeId === node._id
     const isCreatingChild = nodeDraft?.mode === 'create' && nodeDraft.parentId === node._id
     const isNodeMenuOpen = openNodeActionMenuId === node._id
+    const isDropTarget = isFolder && dropTargetParentId === node._id
 
     return (
       <div key={node._id}>
         <div
           role="button"
           tabIndex={0}
-          onClick={() => {
+          draggable={!isRenaming && !nodeDraft && !saving && !workspaceLoading}
+          onClick={(event) => {
             if (isRenaming) {
               return
             }
 
+            closeContextMenu()
+            onNodeClick?.(node, event)
+          }}
+          onContextMenu={(event) => openNodeContextMenu(node, event)}
+          onDragStart={(event) => handleNodeDragStart?.(node, event)}
+          onDragEnd={clearNodeDragState}
+          onDragOver={(event) => {
             if (isFolder) {
-              toggleFolder(node._id)
+              handleNodeDragOverParent?.(node._id, event)
             } else {
-              openFile(node)
+              event.stopPropagation()
+            }
+          }}
+          onDrop={(event) => {
+            if (isFolder) {
+              handleNodeDropOnParent?.(node._id, event)
+            } else {
+              event.stopPropagation()
             }
           }}
           onKeyDown={(event) => {
@@ -187,6 +322,10 @@ const IDExplorer = ({
           className={`group flex h-8 items-center gap-1 pr-1 text-sm transition ${
             isActive
               ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200'
+              : isDropTarget
+                ? 'bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-400 dark:bg-emerald-950/40 dark:text-emerald-100 dark:ring-emerald-600'
+                : isSelected
+                  ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100'
               : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
           }`}
           style={{ paddingLeft: `${8 + depth * 14}px` }}
@@ -368,8 +507,100 @@ const IDExplorer = ({
     )
   }
 
+  const renderContextMenu = () => {
+    if (!contextMenu) {
+      return null
+    }
+
+    const hasNodeSelection = contextMenu.kind === 'node' && contextMenu.nodeIds.length > 0
+    const canPaste = Boolean(clipboardNodeCount) && canPasteToParent?.(contextMenu.parentId)
+    const pasteLabel = contextMenu.parentId ? 'Paste into folder' : 'Paste in workspace'
+    const clipboardLabel = clipboardNodeCount
+      ? `${clipboardMode === 'cut' ? 'Move' : 'Copy'} ${clipboardNodeCount} item${clipboardNodeCount === 1 ? '' : 's'}`
+      : ''
+
+    return (
+      <>
+        <div
+          className="fixed inset-0 z-30"
+          onClick={closeContextMenu}
+          onContextMenu={(event) => {
+            event.preventDefault()
+            closeContextMenu()
+          }}
+        />
+        <div
+          className="fixed z-40 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-900"
+          style={{
+            left: `${contextMenu.x}px`,
+            top: `${contextMenu.y}px`,
+          }}
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          {hasNodeSelection ? (
+            <>
+              <button
+                type="button"
+                onClick={() => handleContextAction('cut')}
+                disabled={saving || workspaceLoading}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <Scissors className="h-4 w-4" />
+                Cut
+              </button>
+              <button
+                type="button"
+                onClick={() => handleContextAction('copy')}
+                disabled={saving || workspaceLoading}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <Copy className="h-4 w-4" />
+                Copy
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => handleContextAction('paste')}
+            disabled={!canPaste || saving || workspaceLoading}
+            title={clipboardLabel || 'Nothing to paste'}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <ClipboardPaste className="h-4 w-4" />
+            {pasteLabel}
+          </button>
+          {contextMenu.node ? (
+            <>
+              <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+              <button
+                type="button"
+                onClick={() => handleContextAction('rename')}
+                disabled={saving || workspaceLoading || Boolean(nodeDraft)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <Pencil className="h-4 w-4" />
+                Rename
+              </button>
+              <button
+                type="button"
+                onClick={() => handleContextAction('delete')}
+                disabled={saving || workspaceLoading || Boolean(nodeDraft)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-40 dark:text-rose-300 dark:hover:bg-rose-950/40"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </button>
+            </>
+          ) : null}
+        </div>
+      </>
+    )
+  }
+
   return (
     <div className="flex min-h-0 shrink-0">
+      {renderContextMenu()}
       <nav className="flex w-14 shrink-0 flex-col items-center border-r border-slate-200 bg-slate-100 py-2 dark:border-slate-800 dark:bg-slate-950">
         <button
           type="button"
@@ -599,7 +830,19 @@ const IDExplorer = ({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto py-2">
+            <div
+              className={`min-h-0 flex-1 overflow-y-auto py-2 ${
+                dropTargetParentId === 'root' ? 'bg-emerald-50/70 dark:bg-emerald-950/20' : ''
+              }`}
+              onContextMenu={openRootContextMenu}
+              onDragOver={(event) => handleNodeDragOverParent?.(null, event)}
+              onDrop={(event) => handleNodeDropOnParent?.(null, event)}
+              onDragLeave={(event) => {
+                if (event.currentTarget === event.target) {
+                  clearNodeDragState?.()
+                }
+              }}
+            >
               {workspacesLoading || workspaceLoading ? (
                 <div className="px-3 py-3 text-sm font-medium text-slate-500 dark:text-slate-400">
                   Loading workspace...

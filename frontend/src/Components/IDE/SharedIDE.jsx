@@ -105,7 +105,9 @@ const SharedIDE = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [expandedIds, setExpandedIds] = useState(() => new Set())
 
-  const payload = share?.payload || { workspaces: [], folders: [], files: [] }
+  const payload = useMemo(() => (
+    share?.payload || { workspaces: [], folders: [], files: [] }
+  ), [share?.payload])
   const mode = payload.workspaces?.length
     ? 'workspaces'
     : payload.folders?.length
@@ -173,23 +175,29 @@ const SharedIDE = () => {
 
   useEffect(() => {
     if (!activeFile) {
-      return
+      return undefined
     }
 
-    const updatedFile = findSharedFileById(payload, activeFile.id)
+    const activeFileSyncTimer = window.setTimeout(() => {
+      const updatedFile = findSharedFileById(payload, activeFile.id)
 
-    if (!updatedFile) {
-      setActiveFile(null)
-      return
-    }
+      if (!updatedFile) {
+        setActiveFile(null)
+        return
+      }
 
-    if (
-      updatedFile.name !== activeFile.name
-      || updatedFile.language !== activeFile.language
-      || updatedFile.content !== activeFile.content
-      || updatedFile.contextName !== activeFile.contextName
-    ) {
-      setActiveFile(updatedFile)
+      if (
+        updatedFile.name !== activeFile.name
+        || updatedFile.language !== activeFile.language
+        || updatedFile.content !== activeFile.content
+        || updatedFile.contextName !== activeFile.contextName
+      ) {
+        setActiveFile(updatedFile)
+      }
+    }, 0)
+
+    return () => {
+      window.clearTimeout(activeFileSyncTimer)
     }
   }, [activeFile, payload])
 

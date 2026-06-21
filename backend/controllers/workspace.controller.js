@@ -7,6 +7,7 @@ const {
 } = require('../models/workspaceNode.model');
 
 const MAX_WORKSPACE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_NODE_NAME_LENGTH = 120;
 const DEFAULT_WORKSPACE_NAME = 'demo';
 const MAX_IMPORT_ENTRIES = 1500;
 const ZIP_UNIX_DIRECTORY_MODE = 0o40755 * 0x10000;
@@ -518,6 +519,155 @@ const findSiblingByName = async (owner, workspaceId, name, parentId, excludedNod
     return WorkspaceNode.findOne(query);
 };
 
+const getUniqueCopyName = (name, reservedNames = new Set()) => {
+    const normalizedName = String(name || '').trim();
+    const dotIndex = normalizedName.lastIndexOf('.');
+    const hasExtension = dotIndex > 0;
+    const baseName = hasExtension ? normalizedName.slice(0, dotIndex) : normalizedName;
+    const extension = hasExtension ? normalizedName.slice(dotIndex) : '';
+    const buildCandidate = (suffix) => {
+        const maxBaseLength = Math.max(1, MAX_NODE_NAME_LENGTH - suffix.length - extension.length);
+        const trimmedBaseName = baseName.slice(0, maxBaseLength).trim() || 'item';
+
+        return `${trimmedBaseName}${suffix}${extension}`.slice(0, MAX_NODE_NAME_LENGTH);
+    };
+
+    for (let index = 1; index <= 999; index += 1) {
+        const suffix = index === 1 ? ' copy' : ` copy ${index}`;
+        const candidate = buildCandidate(suffix);
+        const normalizedCandidate = candidate.toLowerCase();
+
+        if (!reservedNames.has(normalizedCandidate)) {
+            reservedNames.add(normalizedCandidate);
+            return candidate;
+        }
+    }
+
+    const fallback = buildCandidate(` copy ${Date.now()}`);
+    reservedNames.add(fallback.toLowerCase());
+    return fallback;
+};
+
+const getNodeIdSelection = (nodeIds) => {
+    if (!Array.isArray(nodeIds)) {
+        return { error: 'Select at least one file or folder' };
+    }
+
+    const uniqueNodeIds = [...new Set(nodeIds.map((nodeId) => String(nodeId || '').trim()).filter(Boolean))];
+
+    if (!uniqueNodeIds.length) {
+        return { error: 'Select at least one file or folder' };
+    }
+
+    if (uniqueNodeIds.length > 100) {
+        return { error: 'You can move or copy up to 100 selected items at once' };
+    }
+
+    if (uniqueNodeIds.some((nodeId) => !isValidObjectId(nodeId))) {
+        return { error: 'Invalid workspace node id' };
+    }
+
+    return { nodeIds: uniqueNodeIds };
+};
+
+const buildNodeTreeIndexes = (nodes) => {
+    const nodeById = new Map();
+    const childrenByParentId = new Map();
+
+    nodes.forEach((node) => {
+        const nodeId = String(node._id);
+        const parentKey = node.parentId ? String(node.parentId) : 'root';
+        const children = childrenByParentId.get(parentKey) || [];
+
+        nodeById.set(nodeId, node);
+        children.push(node);
+        childrenByParentId.set(parentKey, children);
+    });
+
+    return {
+        nodeById,
+        childrenByParentId
+    };
+};
+
+const hasSelectedAncestor = (node, selectedIds, nodeById) => {
+    let currentParentId = node.parentId ? String(node.parentId) : null;
+
+    while (currentParentId) {
+        if (selectedIds.has(currentParentId)) {
+            return true;
+        }
+
+        const parentNode = nodeById.get(currentParentId);
+        currentParentId = parentNode?.parentId ? String(parentNode.parentId) : null;
+    }
+
+    return false;
+};
+
+const getRootSelectionNodes = (nodeIds, nodeById) => {
+    const selectedIds = new Set(nodeIds);
+
+    return nodeIds
+        .map((nodeId) => nodeById.get(nodeId))
+        .filter((node) => node && !hasSelectedAncestor(node, selectedIds, nodeById));
+};
+
+const getNodeCopyTraversal = (rootNodes, childrenByParentId) => {
+    const traversal = [];
+
+    const visitNode = (node) => {
+        traversal.push(node);
+
+        const children = (childrenByParentId.get(String(node._id)) || [])
+            .slice()
+            .sort((first, second) => {
+                if (first.type !== second.type) {
+                    return first.type === 'folder' ? -1 : 1;
+                }
+
+                return String(first.name).localeCompare(String(second.name));
+            });
+
+        children.forEach(visitNode);
+    };
+
+    rootNodes.forEach(visitNode);
+
+    return traversal;
+};
+
+const getExistingSiblingNames = (nodes, parentId, excludedIds = new Set()) => {
+    const parentKey = parentId ? String(parentId) : null;
+
+    return new Set(
+        nodes
+            .filter((node) => {
+                const nodeParentKey = node.parentId ? String(node.parentId) : null;
+                return nodeParentKey === parentKey && !excludedIds.has(String(node._id));
+            })
+            .map((node) => String(node.name).toLowerCase())
+    );
+};
+
+const ensureRootMoveConflicts = (allNodes, rootNodes, targetParentId) => {
+    const rootIds = new Set(rootNodes.map((node) => String(node._id)));
+    const siblingNames = getExistingSiblingNames(allNodes, targetParentId, rootIds);
+    const selectedNames = new Set();
+
+    for (const node of rootNodes) {
+        const normalizedName = String(node.name).toLowerCase();
+
+        if (selectedNames.has(normalizedName) || siblingNames.has(normalizedName)) {
+            return 'A file or folder with this name already exists here';
+        }
+
+        selectedNames.add(normalizedName);
+    }
+
+    return '';
+};
+
 const ensureCreateQuota = async (type, contentSize) => {
     if (type === 'folder') {
         return '';
@@ -540,6 +690,16 @@ const ensureCreateSizeQuota = async (owner, workspaceId, type, contentSize) => {
     const currentTotalSize = await getWorkspaceTotalSize(owner, workspaceId);
 
     if (currentTotalSize + contentSize > MAX_WORKSPACE_SIZE_BYTES) {
+        return 'Workspace storage limit reached';
+    }
+
+    return '';
+};
+
+const ensureAdditionalWorkspaceSizeQuota = async (owner, workspaceId, additionalSize) => {
+    const currentTotalSize = await getWorkspaceTotalSize(owner, workspaceId);
+
+    if (currentTotalSize + additionalSize > MAX_WORKSPACE_SIZE_BYTES) {
         return 'Workspace storage limit reached';
     }
 
@@ -943,6 +1103,194 @@ const createWorkspaceNode = async (req, res) => {
     }
 };
 
+const moveWorkspaceNodes = async (req, res) => {
+    try {
+        const owner = getWorkspaceOwner(req);
+        const { workspaceId } = req.params;
+
+        if (!owner) {
+            return sendError(res, 401, 'Workspace authentication is required');
+        }
+
+        const workspace = await getWorkspaceById(owner, workspaceId);
+
+        if (!workspace) {
+            return sendError(res, 404, 'Workspace not found');
+        }
+
+        const selection = getNodeIdSelection(req.body?.nodeIds);
+
+        if (selection.error) {
+            return sendError(res, 400, selection.error);
+        }
+
+        const parentValidation = await validateParentNode(owner, workspace._id, req.body?.parentId);
+
+        if (parentValidation.error) {
+            return sendError(res, 400, parentValidation.error);
+        }
+
+        const allNodes = await WorkspaceNode.find(getNodeQuery(owner, workspace._id));
+        const { nodeById } = buildNodeTreeIndexes(allNodes);
+        const selectedNodes = selection.nodeIds.map((nodeId) => nodeById.get(nodeId));
+
+        if (selectedNodes.some((node) => !node)) {
+            return sendError(res, 404, 'Workspace node not found');
+        }
+
+        const rootNodes = getRootSelectionNodes(selection.nodeIds, nodeById);
+
+        for (const node of rootNodes) {
+            if (node.type === 'folder' && parentValidation.parentId) {
+                if (String(parentValidation.parentId) === String(node._id)) {
+                    return sendError(res, 400, 'Folder cannot be moved into itself');
+                }
+
+                const descendantIds = await getDescendantIds(owner, workspace._id, node._id);
+
+                if (descendantIds.includes(String(parentValidation.parentId))) {
+                    return sendError(res, 400, 'Folder cannot be moved into its own descendant');
+                }
+            }
+        }
+
+        const conflictError = ensureRootMoveConflicts(allNodes, rootNodes, parentValidation.parentId);
+
+        if (conflictError) {
+            return sendError(res, 409, conflictError);
+        }
+
+        const rootIds = rootNodes.map((node) => node._id);
+
+        await WorkspaceNode.updateMany(
+            {
+                ...getNodeQuery(owner, workspace._id),
+                _id: { $in: rootIds }
+            },
+            { $set: { parentId: parentValidation.parentId } }
+        );
+
+        const movedNodes = await WorkspaceNode.find({
+            ...getNodeQuery(owner, workspace._id),
+            _id: { $in: rootIds }
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Workspace nodes moved successfully',
+            data: { nodes: movedNodes.map(formatWorkspaceNode) }
+        });
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while moving workspace nodes');
+    }
+};
+
+const copyWorkspaceNodes = async (req, res) => {
+    const createdNodeIds = [];
+
+    try {
+        const owner = getWorkspaceOwner(req);
+        const { workspaceId } = req.params;
+
+        if (!owner) {
+            return sendError(res, 401, 'Workspace authentication is required');
+        }
+
+        const workspace = await getWorkspaceById(owner, workspaceId);
+
+        if (!workspace) {
+            return sendError(res, 404, 'Workspace not found');
+        }
+
+        const selection = getNodeIdSelection(req.body?.nodeIds);
+
+        if (selection.error) {
+            return sendError(res, 400, selection.error);
+        }
+
+        const parentValidation = await validateParentNode(owner, workspace._id, req.body?.parentId);
+
+        if (parentValidation.error) {
+            return sendError(res, 400, parentValidation.error);
+        }
+
+        const allNodes = await WorkspaceNode.find(getNodeQuery(owner, workspace._id));
+        const { nodeById, childrenByParentId } = buildNodeTreeIndexes(allNodes);
+        const selectedNodes = selection.nodeIds.map((nodeId) => nodeById.get(nodeId));
+
+        if (selectedNodes.some((node) => !node)) {
+            return sendError(res, 404, 'Workspace node not found');
+        }
+
+        const rootNodes = getRootSelectionNodes(selection.nodeIds, nodeById);
+        const traversal = getNodeCopyTraversal(rootNodes, childrenByParentId);
+
+        if (traversal.length > MAX_IMPORT_ENTRIES) {
+            return sendError(res, 400, `You can copy up to ${MAX_IMPORT_ENTRIES} files and folders at once`);
+        }
+
+        const copySize = traversal.reduce((totalSize, node) => (
+            node.type === 'file' ? totalSize + (node.size || 0) : totalSize
+        ), 0);
+        const quotaError = await ensureAdditionalWorkspaceSizeQuota(owner, workspace._id, copySize);
+
+        if (quotaError) {
+            return sendError(res, 400, quotaError);
+        }
+
+        const rootIds = new Set(rootNodes.map((node) => String(node._id)));
+        const copiedIdByOriginalId = new Map();
+        const siblingNames = getExistingSiblingNames(allNodes, parentValidation.parentId);
+        const createdNodes = [];
+
+        for (const sourceNode of traversal) {
+            const sourceNodeId = String(sourceNode._id);
+            const isRootCopy = rootIds.has(sourceNodeId);
+            const copiedParentId = isRootCopy
+                ? parentValidation.parentId
+                : copiedIdByOriginalId.get(String(sourceNode.parentId));
+
+            if (!isRootCopy && !copiedParentId) {
+                return sendError(res, 400, 'Selected folder tree is invalid');
+            }
+
+            const nextName = isRootCopy
+                ? getUniqueCopyName(sourceNode.name, siblingNames)
+                : sourceNode.name;
+
+            const copiedNode = await WorkspaceNode.create({
+                ...owner,
+                workspaceId: workspace._id,
+                type: sourceNode.type,
+                name: nextName,
+                parentId: copiedParentId || null,
+                language: sourceNode.type === 'file' ? sourceNode.language : null,
+                content: sourceNode.type === 'file' ? sourceNode.content || '' : ''
+            });
+
+            createdNodeIds.push(copiedNode._id);
+            copiedIdByOriginalId.set(sourceNodeId, copiedNode._id);
+            createdNodes.push(copiedNode);
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: 'Workspace nodes copied successfully',
+            data: { nodes: createdNodes.map(formatWorkspaceNode) }
+        });
+    } catch (error) {
+        if (createdNodeIds.length) {
+            await WorkspaceNode.deleteMany({ _id: { $in: createdNodeIds } });
+        }
+
+        if (error.name === 'ValidationError') {
+            return sendError(res, 400, error.message);
+        }
+
+        return sendError(res, 500, 'Something went wrong while copying workspace nodes');
+    }
+};
+
 const updateWorkspaceNode = async (req, res) => {
     try {
         const owner = getWorkspaceOwner(req);
@@ -1099,6 +1447,8 @@ module.exports = {
     downloadWorkspace,
     importWorkspace,
     createWorkspaceNode,
+    copyWorkspaceNodes,
+    moveWorkspaceNodes,
     updateWorkspaceNode,
     deleteWorkspaceNode,
     formatWorkspaceNode,
@@ -1107,6 +1457,10 @@ module.exports = {
     buildZipArchive,
     buildWorkspaceZipEntries,
     buildImportPlan,
+    getUniqueCopyName,
+    buildNodeTreeIndexes,
+    getRootSelectionNodes,
+    getNodeCopyTraversal,
     MAX_WORKSPACE_SIZE_BYTES,
     DEFAULT_WORKSPACE_NAME
 };

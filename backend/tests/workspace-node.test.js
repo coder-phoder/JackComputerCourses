@@ -12,7 +12,11 @@ const {
     buildWorkspaceZipEntries,
     buildZipArchive,
     formatWorkspaceNode,
-    buildImportPlan
+    buildImportPlan,
+    getUniqueCopyName,
+    buildNodeTreeIndexes,
+    getRootSelectionNodes,
+    getNodeCopyTraversal
 } = require('../controllers/workspace.controller');
 
 const ownerId = new mongoose.Types.ObjectId();
@@ -207,4 +211,58 @@ test('buildImportPlan rejects unsafe paths and unsupported files', () => {
         buildImportPlan([{ type: 'file', path: 'notes.txt', content: 'plain text' }]).error,
         /Only \.c/u
     );
+});
+
+test('workspace copy helpers skip selected descendants and preserve traversal order', () => {
+    const folderId = new mongoose.Types.ObjectId();
+    const childFolderId = new mongoose.Types.ObjectId();
+    const fileId = new mongoose.Types.ObjectId();
+    const nestedFileId = new mongoose.Types.ObjectId();
+    const nodes = [
+        {
+            _id: folderId,
+            type: 'folder',
+            name: 'src',
+            parentId: null
+        },
+        {
+            _id: childFolderId,
+            type: 'folder',
+            name: 'lib',
+            parentId: folderId
+        },
+        {
+            _id: fileId,
+            type: 'file',
+            name: 'main.py',
+            parentId: folderId
+        },
+        {
+            _id: nestedFileId,
+            type: 'file',
+            name: 'util.js',
+            parentId: childFolderId
+        }
+    ];
+    const { nodeById, childrenByParentId } = buildNodeTreeIndexes(nodes);
+    const rootNodes = getRootSelectionNodes(
+        [String(folderId), String(fileId), String(nestedFileId)],
+        nodeById
+    );
+    const traversal = getNodeCopyTraversal(rootNodes, childrenByParentId);
+
+    assert.deepEqual(rootNodes.map((node) => String(node._id)), [String(folderId)]);
+    assert.deepEqual(
+        traversal.map((node) => node.name),
+        ['src', 'lib', 'util.js', 'main.py']
+    );
+});
+
+test('getUniqueCopyName preserves file extensions and reserved names', () => {
+    const reservedNames = new Set(['main.py', 'main copy.py', 'src']);
+
+    assert.equal(getUniqueCopyName('main.py', reservedNames), 'main copy 2.py');
+    assert.equal(getUniqueCopyName('src', reservedNames), 'src copy');
+    assert.equal(getUniqueCopyName('Main.py', reservedNames), 'Main copy 3.py');
+    assert.equal(getUniqueCopyName(`${'a'.repeat(118)}.js`).length, 120);
 });
