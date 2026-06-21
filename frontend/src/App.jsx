@@ -22,6 +22,7 @@ import FacultyNotes from './Pages/Faculty/FacultyNotes'
 import FacultyCourseNotes from './Pages/Faculty/FacultyCourseNotes'
 import FacultyIdePage from './Pages/Faculty/FacultyIdePage'
 import FacultyQueries from './Pages/Faculty/FacultyQueries'
+import SharedIDE from './Components/IDE/SharedIDE'
 
 const App = () => {
   return (
@@ -32,6 +33,7 @@ const App = () => {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/shared-ide/:token" element={<SharedIDE />} />
             <Route path="/user/home" element={<UserHomePage />} />
             <Route path="/user/courses" element={<UserCoursesPage />} />
             <Route path="/user/courses/:courseId/player" element={<UserCoursePlayerPage />} />

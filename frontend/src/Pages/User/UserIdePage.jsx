@@ -14,6 +14,7 @@ import {
   Square,
 } from 'lucide-react'
 import IDExplorer from '../../Components/IDE/IDExplorer'
+import IDEImportExport from '../../Components/IDE/IDEImportExport'
 import IDEerminal from '../../Components/IDE/IDEerminal'
 import IDEquery from '../../Components/IDE/IDEquery'
 import IDEWorkspace from '../../Components/IDE/IDEWorkspace'
@@ -361,6 +362,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [workspaceSize, setWorkspaceSize] = useState({ width: 0, height: 0 })
 
   const workspaceBaseUrl = `${API_BASE_URL}${accessConfig.workspacePath}`
+  const shareBaseUrl = `${API_BASE_URL}/${accessConfig.role}/ide-share`
   const workspaceNodesUrl = activeWorkspaceId
     ? `${workspaceBaseUrl}/workspaces/${activeWorkspaceId}/nodes`
     : ''
@@ -387,6 +389,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const isTerminalLayoutCollapsed = isTerminalCollapsed || shouldAutoCollapseTerminal
   const isQueryActivity = accessConfig.role === 'user' && activeActivity === 'query'
   const isWorkspaceActivity = activeActivity === 'download'
+  const isImportExportActivity = activeActivity === 'importExport'
 
   const registerBoilerplateSnippets = useCallback((monaco) => {
     snippetProviderDisposablesRef.current.forEach((disposable) => disposable.dispose())
@@ -1555,6 +1558,12 @@ const UserIdePage = ({ accessRole = 'user' }) => {
               workspaceBaseUrl={workspaceBaseUrl}
               workspaces={workspaces}
               workspacesLoading={workspacesLoading}
+            />
+          ) : isImportExportActivity ? (
+            <IDEImportExport
+              accessRole={accessConfig.role}
+              shareBaseUrl={shareBaseUrl}
+              workspaceBaseUrl={workspaceBaseUrl}
             />
           ) : (
             <main className="flex min-w-0 flex-1 flex-col">

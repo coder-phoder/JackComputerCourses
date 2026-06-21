@@ -9,6 +9,7 @@ const cookieParser = require('cookie-parser');
 const adminRoutes = require('./routes/admin.routes');
 const userRoutes = require('./routes/user.routes');
 const facultyRoutes = require('./routes/faculty.routes');
+const ideShareRoutes = require('./routes/ideShare.routes');
 
 app.use(cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
@@ -33,6 +34,7 @@ app.get('/', (req, res) => {
 app.use('/admin', adminRoutes);
 app.use('/user', userRoutes);
 app.use('/faculty', facultyRoutes);
+app.use('/ide-share', ideShareRoutes);
 
 app.use((req, res) => {
     res.status(404).json({

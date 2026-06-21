@@ -8,6 +8,7 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  Import,
   ListCollapse,
   MessageSquareCode,
   MoreHorizontal,
@@ -421,6 +422,20 @@ const IDExplorer = ({
           }`}
         >
           <Download className="h-6 w-6" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveActivity?.('importExport')}
+          title="Import and export"
+          aria-label="Import and export"
+          aria-pressed={activeActivity === 'importExport'}
+          className={`mt-1 flex h-11 w-11 items-center justify-center border-l-2 transition ${
+            activeActivity === 'importExport'
+              ? 'border-blue-500 bg-white text-slate-900 dark:bg-slate-900 dark:text-white'
+              : 'border-transparent text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-500 dark:hover:bg-slate-900 dark:hover:text-slate-200'
+          }`}
+        >
+          <Import className="h-6 w-6" />
         </button>
       </nav>
 
