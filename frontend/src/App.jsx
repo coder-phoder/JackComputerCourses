@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './Context/AuthContext'
 import { ThemeProvider } from './Context/ThemeContext'
 import LandingPage from './Pages/Common/LandingPage'
 import LoginPage from './Pages/Common/LoginPage'
+import NotFoundPage from './Pages/Common/NotFoundPage'
 import RegisterPage from './Pages/Common/RegisterPage'
 import UserHomePage from './Pages/User/UserHomePage'
 import UserCoursesPage from './Pages/User/UserCoursesPage'
@@ -160,6 +161,7 @@ const App = () => {
             <Route path="/admin/courses/:courseId/access" element={protect('admin', <CourseAccessPage />)} />
             <Route path="/admin/courses/:courseId/notes" element={protect('admin', <AdminNotes />)} />
             <Route path="/admin/courses/:courseId" element={protect('admin', <Course />)} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Router>
       </ThemeProvider>
