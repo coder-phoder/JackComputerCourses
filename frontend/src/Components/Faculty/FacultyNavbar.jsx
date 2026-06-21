@@ -70,12 +70,6 @@ const FacultyNavbar = () => {
             <NavLink to="/faculty/courses" onClick={closeMobileMenu} className={getNavLinkClass}>
               Courses
             </NavLink>
-            <NavLink to="/faculty/ide" onClick={closeMobileMenu} className={getNavLinkClass}>
-              IDE
-            </NavLink>
-            <NavLink to="/faculty/queries" onClick={closeMobileMenu} className={getNavLinkClass}>
-              Queries
-            </NavLink>
             <NavLink to="/faculty/notes" onClick={closeMobileMenu} className={getNavLinkClass}>
               Notes
             </NavLink>

@@ -108,9 +108,6 @@ const UserNavbar = () => {
             <NavLink to="/user/courses" onClick={closeMobileMenu} className={getNavLinkClass}>
               Courses
             </NavLink>
-            <NavLink to="/user/ide" onClick={closeMobileMenu} className={getNavLinkClass}>
-              IDE
-            </NavLink>
             <button
               type="button"
               onClick={handleLogout}
