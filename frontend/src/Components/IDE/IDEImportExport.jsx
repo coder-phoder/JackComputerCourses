@@ -79,11 +79,12 @@ const IDEImportExport = ({
   const [workspaces, setWorkspaces] = useState([])
   const [nodesByWorkspaceId, setNodesByWorkspaceId] = useState({})
   const [contacts, setContacts] = useState([])
-  const [createdShares, setCreatedShares] = useState([])
   const [receivedShares, setReceivedShares] = useState([])
   const [selectedItemsByKey, setSelectedItemsByKey] = useState({})
   const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState(() => new Set())
   const [expandedFolderIds, setExpandedFolderIds] = useState(() => new Set())
+  const [exportStep, setExportStep] = useState(1)
+  const [sharedWithYouOpen, setSharedWithYouOpen] = useState(true)
   const [contactDropdownOpen, setContactDropdownOpen] = useState(false)
   const [contactSearch, setContactSearch] = useState('')
   const [selectedRecipientIds, setSelectedRecipientIds] = useState([])
@@ -142,10 +143,9 @@ const IDEImportExport = ({
     setError('')
 
     try {
-      const [workspacesResponse, contactsResponse, createdResponse, receivedResponse] = await Promise.all([
+      const [workspacesResponse, contactsResponse, receivedResponse] = await Promise.all([
         axios.get(`${workspaceBaseUrl}/workspaces`, { withCredentials: true }),
         axios.get(`${shareBaseUrl}/contacts`, { withCredentials: true }),
-        axios.get(`${shareBaseUrl}/exports`, { withCredentials: true }),
         axios.get(`${shareBaseUrl}/imports`, { withCredentials: true }),
       ])
 
@@ -174,7 +174,6 @@ const IDEImportExport = ({
       setWorkspaces(nextWorkspaces)
       setNodesByWorkspaceId(nextNodesByWorkspaceId)
       setContacts(contactsResponse.data?.data?.contacts || [])
-      setCreatedShares(createdResponse.data?.data?.shares || [])
       setReceivedShares(receivedResponse.data?.data?.shares || [])
     } catch (loadError) {
       setError(getErrorMessage(loadError, 'Unable to load IDE import/export data.'))
@@ -278,7 +277,6 @@ const IDEImportExport = ({
 
       setGeneratedLink(link)
       await copyLink(link)
-      setCreatedShares((currentShares) => [share, ...currentShares].slice(0, 30))
     } catch (shareError) {
       setError(getErrorMessage(shareError, 'Unable to create IDE share.'))
     } finally {
@@ -383,14 +381,14 @@ const IDEImportExport = ({
   }
 
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-5 py-5">
-        <section className="border-b border-slate-200 pb-4 dark:border-slate-800">
+    <main className="min-w-0 flex-1 overflow-hidden bg-slate-50 dark:bg-slate-900">
+      <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 px-3 py-3 sm:px-5 sm:py-4">
+        <section className="shrink-0 border-b border-slate-200 pb-3 dark:border-slate-800">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-bold text-slate-950 dark:text-slate-50">IDE Import / Export</h1>
-              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                Share selected workspace content or open IDE content shared with you.
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold text-slate-950 dark:text-slate-50">IDE Import / Export</h1>
+              <p className="mt-1 truncate text-sm font-medium text-slate-500 dark:text-slate-400">
+                Export selected IDE content or open content shared with you.
               </p>
             </div>
             <button
@@ -406,284 +404,357 @@ const IDEImportExport = ({
         </section>
 
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+          <div className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
             {error}
           </div>
         ) : null}
 
-        <section className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-          <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-            <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">1</span>
-                <div>
-                  <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Choose content to export</h2>
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                    Workspaces and folders start collapsed. Select any full workspace, folder or individual file.
+        <section className="grid min-h-0 flex-1 grid-rows-2 gap-4 lg:grid-cols-2 lg:grid-rows-1">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+            <div className="shrink-0 border-b border-slate-200 px-4 py-4 dark:border-slate-800">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="truncate text-base font-bold text-slate-900 dark:text-slate-100">Exports</h2>
+                  <p className="mt-1 truncate text-sm font-medium text-slate-500 dark:text-slate-400">
+                    Step {exportStep} of 2
                   </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setExportStep(1)}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition ${
+                      exportStep === 1
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800'
+                    }`}
+                    aria-label="Go to export step 1"
+                  >
+                    1
+                  </button>
+                  <span className="h-0.5 w-6 bg-slate-200 dark:bg-slate-800" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedItems.length) {
+                        setExportStep(2)
+                      }
+                    }}
+                    disabled={!selectedItems.length}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition ${
+                      exportStep === 2
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800'
+                    }`}
+                    aria-label="Go to export step 2"
+                  >
+                    2
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div className="max-h-[520px] overflow-y-auto py-2">
-              {loading ? (
-                <div className="flex items-center gap-2 px-4 py-5 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading workspaces...
-                </div>
-              ) : workspaces.length ? (
-                workspaces.map((workspace) => {
-                  const workspaceSelection = { type: 'workspace', workspaceId: workspace._id }
-                  const isWorkspaceSelected = Boolean(selectedItemsByKey[getSelectionKey(workspaceSelection)])
-                  const isExpanded = expandedWorkspaceIds.has(workspace._id)
-                  const rootNodes = treeState[workspace._id]?.childrenByParentId.get('root') || []
-
-                  return (
-                    <div key={workspace._id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800/70">
-                      <div className="flex h-11 items-center gap-2 px-4 text-sm text-slate-800 dark:text-slate-100">
-                        <input
-                          type="checkbox"
-                          checked={isWorkspaceSelected}
-                          onChange={() => toggleSelection(workspaceSelection)}
-                          aria-label={`Select ${workspace.name}`}
-                          className="h-4 w-4 shrink-0 rounded-full border-slate-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => toggleWorkspaceExpanded(workspace._id)}
-                          className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
-                        >
-                          {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />}
-                          <FolderOpen className="h-4 w-4 shrink-0 text-blue-500" />
-                          <span className="truncate font-bold">{workspace.name}</span>
-                          <span className="shrink-0 text-xs font-semibold text-slate-400">
-                            {treeState[workspace._id]?.nodes.length || 0} items
-                          </span>
-                        </button>
-                      </div>
-                      {isExpanded ? (
-                        rootNodes.length ? rootNodes.map((node) => renderWorkspaceNode(workspace, node)) : (
-                          <p className="px-16 pb-4 text-sm font-medium text-slate-400 dark:text-slate-500">
-                            No files in this workspace
-                          </p>
-                        )
-                      ) : null}
+            {exportStep === 1 ? (
+              <>
+                <div className="shrink-0 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">Choose content</p>
+                      <p className="mt-0.5 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {selectedItems.length} selected item{selectedItems.length === 1 ? '' : 's'}
+                      </p>
                     </div>
-                  )
-                })
-              ) : (
-                <p className="px-4 py-5 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  No workspaces available to export.
-                </p>
-              )}
-            </div>
-          </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedItemsByKey({})}
+                      disabled={!selectedItems.length}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
 
-          <div className="flex flex-col gap-5">
-            <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-              <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-800">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">2</span>
-                  <div>
-                    <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Create and share link</h2>
-                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                <div className="min-h-0 flex-1 overflow-y-auto border-y border-slate-100 py-2 dark:border-slate-800">
+                  {loading ? (
+                    <div className="flex items-center gap-2 px-4 py-5 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading workspaces...
+                    </div>
+                  ) : workspaces.length ? (
+                    workspaces.map((workspace) => {
+                      const workspaceSelection = { type: 'workspace', workspaceId: workspace._id }
+                      const isWorkspaceSelected = Boolean(selectedItemsByKey[getSelectionKey(workspaceSelection)])
+                      const isExpanded = expandedWorkspaceIds.has(workspace._id)
+                      const rootNodes = treeState[workspace._id]?.childrenByParentId.get('root') || []
+
+                      return (
+                        <div key={workspace._id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800/70">
+                          <div className="flex h-11 items-center gap-2 px-4 text-sm text-slate-800 dark:text-slate-100">
+                            <input
+                              type="checkbox"
+                              checked={isWorkspaceSelected}
+                              onChange={() => toggleSelection(workspaceSelection)}
+                              aria-label={`Select ${workspace.name}`}
+                              className="h-4 w-4 shrink-0 rounded-full border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleWorkspaceExpanded(workspace._id)}
+                              className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                            >
+                              {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />}
+                              <FolderOpen className="h-4 w-4 shrink-0 text-blue-500" />
+                              <span className="truncate font-bold">{workspace.name}</span>
+                              <span className="shrink-0 text-xs font-semibold text-slate-400">
+                                {treeState[workspace._id]?.nodes.length || 0} items
+                              </span>
+                            </button>
+                          </div>
+                          {isExpanded ? (
+                            rootNodes.length ? rootNodes.map((node) => renderWorkspaceNode(workspace, node)) : (
+                              <p className="px-16 pb-4 text-sm font-medium text-slate-400 dark:text-slate-500">
+                                No files in this workspace
+                              </p>
+                            )
+                          ) : null}
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <p className="px-4 py-5 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                      No workspaces available to export.
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex shrink-0 items-center justify-end gap-2 p-4">
+                  <button
+                    type="button"
+                    onClick={() => setExportStep(2)}
+                    disabled={!selectedItems.length}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-500 disabled:bg-slate-400"
+                  >
+                    Next
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                  <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Create and share link</p>
+                    <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
                       {selectedItems.length} selected item{selectedItems.length === 1 ? '' : 's'}
                     </p>
                   </div>
-                </div>
-              </div>
 
-              <div className="space-y-4 p-4">
-                <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Case 1: Generate copyable link</p>
-                  <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                    Anyone with this link can view the exported content in read-only mode.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => createShare('link')}
-                    disabled={Boolean(shareLoadingMode) || !selectedItems.length}
-                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-blue-500 disabled:bg-slate-400"
-                  >
-                    {shareLoadingMode === 'link' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
-                    Generate and copy
-                  </button>
-                </div>
-
-                <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Case 2: Share directly</p>
-                  <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                    {accessRole === 'faculty'
-                      ? 'Faculty can share with one or more users.'
-                      : 'Users can share with one faculty at a time.'}
-                  </p>
-
-                  <div className="relative mt-3">
-                    <button
-                      type="button"
-                      onClick={() => setContactDropdownOpen((currentValue) => !currentValue)}
-                      className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                    >
-                      <span className="min-w-0 truncate">
-                        {selectedContacts.length
-                          ? selectedContacts.map((contact) => contact.name || contact.phone).join(', ')
-                          : `Select ${recipientLabel}`}
-                      </span>
-                      <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
-                    </button>
-
-                    {contactDropdownOpen ? (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setContactDropdownOpen(false)} />
-                        <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-950">
-                          <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-800">
-                            <Search className="h-4 w-4 text-slate-400" />
-                            <input
-                              value={contactSearch}
-                              onChange={(event) => setContactSearch(event.target.value)}
-                              placeholder={`Search ${recipientLabel}`}
-                              className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100"
-                            />
-                          </div>
-                          <div className="max-h-56 overflow-y-auto py-1">
-                            {filteredContacts.length ? filteredContacts.map((contact) => {
-                              const isSelected = selectedRecipientIds.includes(contact._id)
-
-                              return (
-                                <button
-                                  type="button"
-                                  key={contact._id}
-                                  onClick={() => toggleRecipient(contact)}
-                                  className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition hover:bg-slate-100 dark:hover:bg-slate-800"
-                                >
-                                  <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                                    isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300'
-                                  }`}
-                                  >
-                                    {isSelected ? <Check className="h-3 w-3" /> : null}
-                                  </span>
-                                  <span className="min-w-0 flex-1">
-                                    <span className="block truncate font-bold text-slate-800 dark:text-slate-100">{contact.name || 'Unnamed'}</span>
-                                    <span className="block truncate text-xs font-medium text-slate-500 dark:text-slate-400">{contact.phone}</span>
-                                  </span>
-                                </button>
-                              )
-                            }) : (
-                              <p className="px-3 py-3 text-sm font-semibold text-slate-500 dark:text-slate-400">No contacts found</p>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    ) : null}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => createShare('direct')}
-                    disabled={Boolean(shareLoadingMode) || !selectedItems.length || !selectedRecipientIds.length}
-                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:bg-slate-400"
-                  >
-                    {shareLoadingMode === 'direct' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
-                    Share directly
-                  </button>
-                </div>
-
-                {generatedLink ? (
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                    <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">{copyStatus || 'Link ready'}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <input
-                        value={generatedLink}
-                        readOnly
-                        className="min-w-0 flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none dark:border-emerald-900 dark:bg-slate-950 dark:text-slate-200"
-                      />
+                  <div className="space-y-4">
+                    <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Generate copyable link</p>
+                      <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                        Anyone with this link can view the exported content.
+                      </p>
                       <button
                         type="button"
-                        onClick={() => copyLink(generatedLink)}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-white transition hover:bg-emerald-600"
-                        title="Copy link"
-                        aria-label="Copy link"
+                        onClick={() => createShare('link')}
+                        disabled={Boolean(shareLoadingMode) || !selectedItems.length}
+                        className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-blue-500 disabled:bg-slate-400"
                       >
-                        <Copy className="h-4 w-4" />
+                        {shareLoadingMode === 'link' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                        Generate and copy
                       </button>
                     </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
 
-            <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-              <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-800">
-                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Imports</h2>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Open a shared IDE link or choose one shared directly with you.</p>
-              </div>
+                    <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Share directly</p>
+                      <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                        {accessRole === 'faculty'
+                          ? 'Select one or more users.'
+                          : 'Select one faculty.'}
+                      </p>
 
-              <div className="space-y-4 p-4">
-                <form onSubmit={openPastedShare} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Option 1: Paste shared link</p>
-                  <div className="mt-3 flex gap-2">
-                    <input
-                      value={pastedLink}
-                      onChange={(event) => setPastedLink(event.target.value)}
-                      placeholder="Paste /shared-ide/... link"
-                      className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                    />
-                    <button
-                      type="submit"
-                      className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      Open
-                    </button>
-                  </div>
-                  {importError ? <p className="mt-2 text-sm font-semibold text-red-600 dark:text-red-300">{importError}</p> : null}
-                </form>
-
-                <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Option 2: Shared with you</p>
-                  <div className="mt-3 space-y-2">
-                    {receivedShares.length ? receivedShares.map((share) => (
-                      <button
-                        type="button"
-                        key={share._id}
-                        onClick={() => openShareToken(share.token)}
-                        className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-left transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-bold text-slate-800 dark:text-slate-100">
-                            {share.createdByName || share.createdByPhone || 'Shared IDE'}
-                          </span>
-                          <span className="block truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
-                            {formatShareCounts(share)}
-                          </span>
-                        </span>
-                        <ExternalLink className="h-4 w-4 shrink-0 text-slate-400" />
-                      </button>
-                    )) : (
-                      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No direct IDE shares yet.</p>
-                    )}
-                  </div>
-                </div>
-
-                {createdShares.length ? (
-                  <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Recent exports</p>
-                    <div className="mt-3 space-y-2">
-                      {createdShares.slice(0, 3).map((share) => (
+                      <div className="relative mt-3">
                         <button
                           type="button"
-                          key={share._id}
-                          onClick={() => copyLink(getShareUrl(share))}
-                          className="flex w-full items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-left transition hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800"
+                          onClick={() => setContactDropdownOpen((currentValue) => !currentValue)}
+                          className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                         >
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-bold text-slate-800 dark:text-slate-100">{formatShareCounts(share)}</span>
-                            <span className="block truncate text-xs font-semibold text-slate-500 dark:text-slate-400">Copy export link</span>
+                          <span className="min-w-0 truncate">
+                            {selectedContacts.length
+                              ? selectedContacts.map((contact) => contact.name || contact.phone).join(', ')
+                              : `Select ${recipientLabel}`}
                           </span>
-                          <Copy className="h-4 w-4 shrink-0 text-slate-400" />
+                          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
                         </button>
-                      ))}
+
+                        {contactDropdownOpen ? (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setContactDropdownOpen(false)} />
+                            <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-950">
+                              <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-800">
+                                <Search className="h-4 w-4 text-slate-400" />
+                                <input
+                                  value={contactSearch}
+                                  onChange={(event) => setContactSearch(event.target.value)}
+                                  placeholder={`Search ${recipientLabel}`}
+                                  className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100"
+                                />
+                              </div>
+                              <div className="max-h-56 overflow-y-auto py-1">
+                                {filteredContacts.length ? filteredContacts.map((contact) => {
+                                  const isSelected = selectedRecipientIds.includes(contact._id)
+
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={contact._id}
+                                      onClick={() => toggleRecipient(contact)}
+                                      className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                                    >
+                                      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                                        isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300'
+                                      }`}
+                                      >
+                                        {isSelected ? <Check className="h-3 w-3" /> : null}
+                                      </span>
+                                      <span className="min-w-0 flex-1">
+                                        <span className="block truncate font-bold text-slate-800 dark:text-slate-100">{contact.name || 'Unnamed'}</span>
+                                        <span className="block truncate text-xs font-medium text-slate-500 dark:text-slate-400">{contact.phone}</span>
+                                      </span>
+                                    </button>
+                                  )
+                                }) : (
+                                  <p className="px-3 py-3 text-sm font-semibold text-slate-500 dark:text-slate-400">No contacts found</p>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => createShare('direct')}
+                        disabled={Boolean(shareLoadingMode) || !selectedItems.length || !selectedRecipientIds.length}
+                        className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:bg-slate-400"
+                      >
+                        {shareLoadingMode === 'direct' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+                        Share directly
+                      </button>
                     </div>
+
+                    {generatedLink ? (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                        <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">{copyStatus || 'Link ready'}</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            value={generatedLink}
+                            readOnly
+                            className="min-w-0 flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none dark:border-emerald-900 dark:bg-slate-950 dark:text-slate-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => copyLink(generatedLink)}
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-white transition hover:bg-emerald-600"
+                            title="Copy link"
+                            aria-label="Copy link"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 p-4 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setExportStep(1)}
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    Back
+                  </button>
+                  <span className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {selectedItems.length} item{selectedItems.length === 1 ? '' : 's'} selected
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+            <div className="shrink-0 border-b border-slate-200 px-4 py-4 dark:border-slate-800">
+              <h2 className="truncate text-base font-bold text-slate-900 dark:text-slate-100">Imports</h2>
+              <p className="mt-1 truncate text-sm font-medium text-slate-500 dark:text-slate-400">
+                Open a shared IDE link or a direct share.
+              </p>
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+              <form onSubmit={openPastedShare} className="shrink-0 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Option 1: Paste shared link</p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    value={pastedLink}
+                    onChange={(event) => setPastedLink(event.target.value)}
+                    placeholder="Paste /shared-ide/... link"
+                    className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Open
+                  </button>
+                </div>
+                {importError ? <p className="mt-2 text-sm font-semibold text-red-600 dark:text-red-300">{importError}</p> : null}
+              </form>
+
+              <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setSharedWithYouOpen((currentValue) => !currentValue)}
+                  className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-3 text-left transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                  aria-expanded={sharedWithYouOpen}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-bold text-slate-800 dark:text-slate-100">Option 2: Shared with you</span>
+                    <span className="block truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      {receivedShares.length} direct share{receivedShares.length === 1 ? '' : 's'}
+                    </span>
+                  </span>
+                  {sharedWithYouOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />}
+                </button>
+
+                {sharedWithYouOpen ? (
+                  <div className="h-56 overflow-y-auto p-3 sm:h-64 lg:h-auto lg:min-h-0 lg:flex-1">
+                    {receivedShares.length ? (
+                      <div className="space-y-2">
+                        {receivedShares.map((share) => (
+                          <button
+                            type="button"
+                            key={share._id}
+                            onClick={() => openShareToken(share.token)}
+                            className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-left transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-bold text-slate-800 dark:text-slate-100">
+                                {share.createdByName || share.createdByPhone || 'Shared IDE'}
+                              </span>
+                              <span className="block truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                {formatShareCounts(share)}
+                              </span>
+                            </span>
+                            <ExternalLink className="h-4 w-4 shrink-0 text-slate-400" />
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No direct IDE shares yet.</p>
+                    )}
                   </div>
                 ) : null}
               </div>
