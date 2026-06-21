@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
@@ -8,10 +9,15 @@ import {
   Braces,
   Check,
   FileCode,
+  Folder,
+  HardDrive,
+  Loader2,
   Play,
   Save,
   Settings,
   Square,
+  Trash2,
+  X,
 } from 'lucide-react'
 import IDExplorer from '../../Components/IDE/IDExplorer'
 import IDEImportExport from '../../Components/IDE/IDEImportExport'
@@ -143,6 +149,187 @@ const getAncestorFolderIds = (node, nodes) => {
   }
 
   return folderIds
+}
+
+const getDescendantNodeIds = (nodeId, nodes) => {
+  const descendantIds = []
+  const queue = [nodeId]
+
+  while (queue.length) {
+    const currentId = queue.shift()
+    const children = nodes.filter((node) => node.parentId === currentId)
+
+    children.forEach((childNode) => {
+      descendantIds.push(childNode._id)
+      if (childNode.type === 'folder') {
+        queue.push(childNode._id)
+      }
+    })
+  }
+
+  return descendantIds
+}
+
+const getDeleteSummary = (targetNodes) => {
+  const files = targetNodes.filter((node) => node.type === 'file').length
+  const folders = targetNodes.filter((node) => node.type === 'folder').length
+
+  return {
+    files,
+    folders,
+    total: targetNodes.length,
+  }
+}
+
+const DeleteConfirmationModal = ({
+  confirmation,
+  error,
+  loading,
+  onCancel,
+  onConfirm,
+}) => {
+  useEffect(() => {
+    if (!confirmation) {
+      return undefined
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && !loading) {
+        onCancel()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [confirmation, loading, onCancel])
+
+  if (!confirmation) {
+    return null
+  }
+
+  const isWorkspace = confirmation.kind === 'workspace'
+  const isFolder = confirmation.kind === 'folder'
+  const Icon = isWorkspace ? HardDrive : isFolder ? Folder : FileCode
+  const entityLabel = isWorkspace ? 'workspace' : isFolder ? 'folder' : 'file'
+  const summaryItems = [
+    isWorkspace || isFolder ? `${confirmation.summary.folders} folder${confirmation.summary.folders === 1 ? '' : 's'}` : '',
+    isWorkspace || isFolder ? `${confirmation.summary.files} file${confirmation.summary.files === 1 ? '' : 's'}` : '',
+    confirmation.summary.hasUnsavedChanges ? 'Unsaved edits affected' : '',
+  ].filter(Boolean)
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-confirmation-title"
+          className="w-full max-w-md overflow-hidden rounded-lg border border-rose-100 bg-white shadow-2xl shadow-slate-950/20 dark:border-rose-500/20 dark:bg-slate-950 dark:shadow-black/40"
+          initial={{ opacity: 0, y: 24, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 16, scale: 0.98 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+        >
+          <div className="relative border-b border-slate-200 bg-slate-50 px-5 py-5 dark:border-slate-800 dark:bg-slate-900">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={loading}
+              aria-label="Close delete confirmation"
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-white hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-slate-800 dark:hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="flex items-start gap-4 pr-10">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase text-rose-600 dark:text-rose-300">
+                  Delete {entityLabel}
+                </p>
+                <h2 id="delete-confirmation-title" className="mt-1 text-xl font-black text-slate-950 dark:text-white">
+                  This cannot be undone
+                </h2>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-5 py-5">
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-slate-700 shadow-sm dark:bg-slate-950 dark:text-slate-200">
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-slate-950 dark:text-white" title={confirmation.name}>
+                  {confirmation.name}
+                </p>
+                <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {isWorkspace ? 'Workspace and all saved content' : isFolder ? 'Folder and everything inside it' : 'Single saved file'}
+                </p>
+              </div>
+            </div>
+
+            {summaryItems.length ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {summaryItems.map((item) => (
+                  <span
+                    key={item}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
+                      item.includes('Unsaved')
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                    }`}
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold leading-6 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
+              Deleting this {entityLabel} permanently removes it from your IDE. Make sure this is the item you meant to delete.
+            </div>
+
+            {error ? (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+                {error}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={loading}
+              className="inline-flex h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              Keep it
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={loading}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 text-sm font-bold text-white shadow-lg shadow-rose-600/20 transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-400 disabled:shadow-none"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {loading ? 'Deleting...' : `Delete ${entityLabel}`}
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  )
 }
 
 const trimCodeWhitespace = (source) => String(source || '')
@@ -322,6 +509,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [openNodeActionMenuId, setOpenNodeActionMenuId] = useState('')
   const [activeActivity, setActiveActivity] = useState('explorer')
   const [queryNotificationCount, setQueryNotificationCount] = useState(0)
+  const [deleteConfirmation, setDeleteConfirmation] = useState(null)
+  const [deleteConfirmationError, setDeleteConfirmationError] = useState('')
+  const [deleteConfirmationLoading, setDeleteConfirmationLoading] = useState(false)
 
   const [terminalOutput, setTerminalOutput] = useState('')
   const [inputVal, setInputVal] = useState('')
@@ -1099,23 +1289,32 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     submitWorkspaceDraft()
   }
 
-  const deleteActiveWorkspace = async () => {
+  const deleteActiveWorkspace = () => {
     if (!activeWorkspace) {
       return
     }
 
     setShowWorkspaceActions(false)
-    const confirmed = window.confirm(`Delete workspace ${activeWorkspace.name} and all files inside it?`)
+    setWorkspaceError('')
+    setDeleteConfirmationError('')
+    setDeleteConfirmation({
+      id: activeWorkspace._id,
+      kind: 'workspace',
+      name: activeWorkspace.name,
+      summary: {
+        ...getDeleteSummary(nodes),
+        hasUnsavedChanges: isDirty,
+      },
+      target: activeWorkspace,
+    })
+  }
 
-    if (!confirmed) {
-      return
-    }
-
+  const confirmWorkspaceDeletion = async (workspaceToDelete) => {
     setWorkspacesLoading(true)
     setWorkspaceError('')
 
     try {
-      const response = await axios.delete(`${workspaceBaseUrl}/workspaces/${activeWorkspace._id}`, {
+      const response = await axios.delete(`${workspaceBaseUrl}/workspaces/${workspaceToDelete._id}`, {
         withCredentials: true,
       })
 
@@ -1123,12 +1322,15 @@ const UserIdePage = ({ accessRole = 'user' }) => {
         throw new Error(response.data?.message || 'Unable to delete workspace')
       }
 
-      const remainingWorkspaces = workspaces.filter((workspace) => workspace._id !== activeWorkspace._id)
+      const remainingWorkspaces = workspaces.filter((workspace) => workspace._id !== workspaceToDelete._id)
 
       setWorkspaces(remainingWorkspaces)
       setActiveWorkspaceId(remainingWorkspaces[0]?._id || '')
+      setDeleteConfirmation(null)
     } catch (deleteError) {
-      setWorkspaceError(getErrorMessage(deleteError, 'Unable to delete workspace.'))
+      const message = getErrorMessage(deleteError, 'Unable to delete workspace.')
+      setWorkspaceError(message)
+      setDeleteConfirmationError(message)
     } finally {
       setWorkspacesLoading(false)
     }
@@ -1361,14 +1563,38 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     submitNodeDraft()
   }
 
-  const deleteWorkspaceNode = async (node) => {
+  const deleteWorkspaceNode = (node) => {
     setOpenNodeActionMenuId('')
-    const confirmed = window.confirm(`Delete ${node.name}${node.type === 'folder' ? ' and everything inside it' : ''}?`)
 
-    if (!confirmed) {
+    if (!workspaceNodesUrl) {
+      setWorkspaceError('Select a workspace before deleting files.')
       return
     }
 
+    if (!node?._id) {
+      return
+    }
+
+    const deletedIds = node.type === 'folder'
+      ? [node._id, ...getDescendantNodeIds(node._id, nodes)]
+      : [node._id]
+    const targetNodes = nodes.filter((currentNode) => deletedIds.includes(currentNode._id))
+
+    setWorkspaceError('')
+    setDeleteConfirmationError('')
+    setDeleteConfirmation({
+      id: node._id,
+      kind: node.type,
+      name: node.name,
+      summary: {
+        ...getDeleteSummary(targetNodes),
+        hasUnsavedChanges: isDirty && deletedIds.includes(activeNodeId),
+      },
+      target: node,
+    })
+  }
+
+  const confirmWorkspaceNodeDeletion = async (node) => {
     if (!workspaceNodesUrl) {
       setWorkspaceError('Select a workspace before deleting files.')
       return
@@ -1395,10 +1621,41 @@ const UserIdePage = ({ accessRole = 'user' }) => {
         const nextActiveFile = sortWorkspaceNodes(remainingNodes).find((currentNode) => currentNode.type === 'file') || null
         activateFile(nextActiveFile, remainingNodes)
       }
+      setDeleteConfirmation(null)
     } catch (deleteError) {
-      setWorkspaceError(getErrorMessage(deleteError, 'Unable to delete workspace item.'))
+      const message = getErrorMessage(deleteError, 'Unable to delete workspace item.')
+      setWorkspaceError(message)
+      setDeleteConfirmationError(message)
     } finally {
       setNodeActionId('')
+    }
+  }
+
+  const closeDeleteConfirmation = useCallback(() => {
+    if (deleteConfirmationLoading) {
+      return
+    }
+
+    setDeleteConfirmation(null)
+    setDeleteConfirmationError('')
+  }, [deleteConfirmationLoading])
+
+  const confirmDeleteSelection = async () => {
+    if (!deleteConfirmation || deleteConfirmationLoading) {
+      return
+    }
+
+    setDeleteConfirmationLoading(true)
+    setDeleteConfirmationError('')
+
+    try {
+      if (deleteConfirmation.kind === 'workspace') {
+        await confirmWorkspaceDeletion(deleteConfirmation.target)
+      } else {
+        await confirmWorkspaceNodeDeletion(deleteConfirmation.target)
+      }
+    } finally {
+      setDeleteConfirmationLoading(false)
     }
   }
 
@@ -1482,6 +1739,13 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-slate-50 font-sans dark:bg-slate-900">
       <Navbar />
+      <DeleteConfirmationModal
+        confirmation={deleteConfirmation}
+        error={deleteConfirmationError}
+        loading={deleteConfirmationLoading}
+        onCancel={closeDeleteConfirmation}
+        onConfirm={confirmDeleteSelection}
+      />
 
       <div
         id="ide-workspace-container"
