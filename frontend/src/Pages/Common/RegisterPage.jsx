@@ -1,10 +1,10 @@
 import axios from 'axios'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import ThemeToggle from '../../Components/Common/ThemeToggle'
-import { useAuth } from '../../Context/AuthContext'
+import { getPostAuthRedirectPath, useAuth } from '../../Context/AuthContext'
 
-const API_BASE_URL = import.meta.env.VITE_BASE_URL
+const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
 
 const getErrorMessage = (error) => (
   error?.response?.data?.message || 'Unable to register. Please try again.'
@@ -12,6 +12,7 @@ const getErrorMessage = (error) => (
 
 const RegisterPage = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { clearAuth, setAuth } = useAuth()
   const [form, setForm] = useState({
     name: '',
@@ -91,7 +92,7 @@ const RegisterPage = () => {
         phone: user?.phone || phone,
         token: null,
       })
-      navigate('/user/home', { replace: true })
+      navigate(getPostAuthRedirectPath('user', location.state?.from), { replace: true })
     } catch (registerError) {
       setError(getErrorMessage(registerError))
     } finally {
@@ -108,7 +109,7 @@ const RegisterPage = () => {
         <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
           <div className="mb-8 text-center">
             <Link to="/" className="inline-flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-tr from-blue-600 to-indigo-600">
                 <span className="text-xl font-bold text-white">J</span>
               </div>
               <span className="text-2xl font-bold tracking-tight text-gray-900 dark:text-slate-100">
@@ -203,7 +204,7 @@ const RegisterPage = () => {
 
           <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">
             Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-blue-600 transition hover:text-blue-700 dark:hover:text-blue-300">
+            <Link to="/login" state={location.state} className="font-semibold text-blue-600 transition hover:text-blue-700 dark:hover:text-blue-300">
               Log in
             </Link>
           </p>

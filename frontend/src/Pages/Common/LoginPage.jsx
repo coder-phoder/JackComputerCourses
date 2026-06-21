@@ -1,10 +1,10 @@
 import axios from 'axios'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import ThemeToggle from '../../Components/Common/ThemeToggle'
-import { useAuth } from '../../Context/AuthContext'
+import { getPostAuthRedirectPath, useAuth } from '../../Context/AuthContext'
 
-const API_BASE_URL = import.meta.env.VITE_BASE_URL
+const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
 
 const getErrorMessage = (error) => (
   error?.response?.data?.message || 'Unable to login. Please try again.'
@@ -12,6 +12,7 @@ const getErrorMessage = (error) => (
 
 const LoginPage = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { clearAuth, setAuth } = useAuth()
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
@@ -87,6 +88,7 @@ const LoginPage = () => {
       phone: trimmedPhone,
       password,
     }
+    const fromLocation = location.state?.from
 
     try {
       await clearExistingSessions()
@@ -104,7 +106,7 @@ const LoginPage = () => {
         phone: admin?.phone || trimmedPhone,
         token: null,
       })
-      navigate('/admin/home')
+      navigate(getPostAuthRedirectPath('admin', fromLocation), { replace: true })
     } catch {
       try {
         const user = await loginUser(credentials)
@@ -114,7 +116,7 @@ const LoginPage = () => {
           phone: user?.phone || trimmedPhone,
           token: null,
         })
-        navigate('/user/home')
+        navigate(getPostAuthRedirectPath('user', fromLocation), { replace: true })
       } catch (userLoginError) {
         try {
           const faculty = await loginFaculty(credentials)
@@ -124,7 +126,7 @@ const LoginPage = () => {
             phone: faculty?.phone || trimmedPhone,
             token: null,
           })
-          navigate('/faculty/home')
+          navigate(getPostAuthRedirectPath('faculty', fromLocation), { replace: true })
         } catch (facultyLoginError) {
           setError(getErrorMessage(facultyLoginError || userLoginError))
         }
@@ -204,7 +206,7 @@ const LoginPage = () => {
 
           <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="font-semibold text-blue-600 transition hover:text-blue-700 dark:hover:text-blue-300">
+            <Link to="/register" state={location.state} className="font-semibold text-blue-600 transition hover:text-blue-700 dark:hover:text-blue-300">
               Sign up
             </Link>
           </p>

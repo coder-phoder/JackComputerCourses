@@ -5,6 +5,18 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 const AuthContext = createContext(null)
 const AUTH_STORAGE_KEY = 'jackCoursesAuth'
 
+export const ROLE_HOME_PATHS = {
+  admin: '/admin/home',
+  faculty: '/faculty/home',
+  user: '/user/home',
+}
+
+const ROLE_PATH_PREFIXES = {
+  admin: '/admin',
+  faculty: '/faculty',
+  user: '/user',
+}
+
 const emptyAuth = {
   role: null,
   phone: '',
@@ -33,6 +45,27 @@ const getStoredAuth = () => {
   } catch {
     return emptyAuth
   }
+}
+
+export const isPathAllowedForRole = (pathname, role) => {
+  const pathPrefix = ROLE_PATH_PREFIXES[role]
+
+  if (!pathPrefix || !pathname) {
+    return false
+  }
+
+  return pathname === pathPrefix || pathname.startsWith(`${pathPrefix}/`)
+}
+
+export const getPostAuthRedirectPath = (role, fromLocation) => {
+  const homePath = ROLE_HOME_PATHS[role] || '/'
+  const pathname = fromLocation?.pathname
+
+  if (!isPathAllowedForRole(pathname, role)) {
+    return homePath
+  }
+
+  return `${pathname}${fromLocation?.search || ''}${fromLocation?.hash || ''}`
 }
 
 export const AuthProvider = ({ children }) => {
