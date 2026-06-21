@@ -1,6 +1,8 @@
 import axios from 'axios'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import JSZip from 'jszip'
 import {
+  Archive,
   Check,
   ChevronDown,
   ChevronRight,
@@ -12,8 +14,13 @@ import {
   Loader2,
   Search,
   Share2,
+  Upload,
   Users,
 } from 'lucide-react'
+
+const MAX_IMPORT_FILE_SIZE_BYTES = 200 * 1024
+const SUPPORTED_IMPORT_EXTENSIONS = new Set(['.c', '.cpp', '.java', '.py', '.js'])
+const IGNORED_IMPORT_NAMES = new Set(['.ds_store', 'thumbs.db'])
 
 const getErrorMessage = (error, fallback) => (
   error?.response?.data?.message || error?.message || fallback
@@ -71,8 +78,72 @@ const formatShareCounts = (share) => {
   return parts.length ? parts.join(', ') : 'Shared IDE content'
 }
 
+const getFileExtension = (name) => {
+  const normalizedName = String(name || '').trim().toLowerCase()
+  const dotIndex = normalizedName.lastIndexOf('.')
+
+  if (dotIndex <= 0) {
+    return ''
+  }
+
+  return normalizedName.slice(dotIndex)
+}
+
+const isSupportedImportFile = (name) => SUPPORTED_IMPORT_EXTENSIONS.has(getFileExtension(name))
+
+const getCleanPathParts = (path) => String(path || '')
+  .replace(/\\/g, '/')
+  .split('/')
+  .map((part) => part.trim())
+  .filter(Boolean)
+
+const getWorkspaceNameFromFileName = (fileName) => String(fileName || 'workspace')
+  .replace(/\.zip$/iu, '')
+  .replace(/[\\/]+/g, '-')
+  .trim() || 'workspace'
+
+const shouldIgnoreImportPath = (parts) => (
+  !parts.length
+  || parts.includes('__MACOSX')
+  || IGNORED_IMPORT_NAMES.has(String(parts[parts.length - 1] || '').toLowerCase())
+)
+
+const getCommonRoot = (pathPartsList) => {
+  const firstSegments = pathPartsList
+    .map((parts) => parts[0])
+    .filter(Boolean)
+  const uniqueFirstSegments = new Set(firstSegments)
+
+  if (uniqueFirstSegments.size !== 1) {
+    return ''
+  }
+
+  return firstSegments[0] || ''
+}
+
+const stripCommonRoot = (parts, commonRoot) => (
+  commonRoot && parts[0] === commonRoot ? parts.slice(1) : parts
+)
+
+const formatSkippedMessage = (skippedFiles) => {
+  if (!skippedFiles.length) {
+    return ''
+  }
+
+  const preview = skippedFiles.slice(0, 3).join(', ')
+  const remainingCount = skippedFiles.length - 3
+
+  return remainingCount > 0
+    ? `${skippedFiles.length} unsupported file${skippedFiles.length === 1 ? '' : 's'} skipped: ${preview}, +${remainingCount} more`
+    : `${skippedFiles.length} unsupported file${skippedFiles.length === 1 ? '' : 's'} skipped: ${preview}`
+}
+
 const IDEImportExport = ({
   accessRole = 'user',
+  isActiveWorkspaceDirty = false,
+  onWorkspaceImported,
+  onSaveActiveWorkspaceFile,
+  saving = false,
   shareBaseUrl,
   workspaceBaseUrl,
 }) => {
@@ -92,9 +163,14 @@ const IDEImportExport = ({
   const [pastedLink, setPastedLink] = useState('')
   const [loading, setLoading] = useState(true)
   const [shareLoadingMode, setShareLoadingMode] = useState('')
+  const [workspaceImportLoading, setWorkspaceImportLoading] = useState(false)
+  const [workspaceImportMessage, setWorkspaceImportMessage] = useState('')
+  const [workspaceImportSummary, setWorkspaceImportSummary] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
   const [error, setError] = useState('')
   const [importError, setImportError] = useState('')
+  const zipInputRef = useRef(null)
+  const folderInputRef = useRef(null)
 
   const recipientRole = accessRole === 'faculty' ? 'user' : 'faculty'
   const recipientLabel = accessRole === 'faculty' ? 'users' : 'faculty'
@@ -191,6 +267,15 @@ const IDEImportExport = ({
       window.clearTimeout(loadTimer)
     }
   }, [loadImportExportData])
+
+  useEffect(() => {
+    if (!folderInputRef.current) {
+      return
+    }
+
+    folderInputRef.current.setAttribute('webkitdirectory', '')
+    folderInputRef.current.setAttribute('directory', '')
+  }, [])
 
   const toggleSelection = (selection) => {
     const key = getSelectionKey(selection)
@@ -322,6 +407,201 @@ const IDEImportExport = ({
     }
 
     openShareToken(token)
+  }
+
+  const importWorkspacePayload = async (payload, skippedFiles = []) => {
+    setImportError('')
+    setWorkspaceImportMessage('')
+    setWorkspaceImportSummary('')
+    setWorkspaceImportLoading(true)
+
+    try {
+      if (!payload.entries.length) {
+        throw new Error('Select a folder or ZIP file with supported .c, .cpp, .java, .py or .js files.')
+      }
+
+      if (isActiveWorkspaceDirty) {
+        const didSave = await onSaveActiveWorkspaceFile?.()
+
+        if (!didSave) {
+          throw new Error('Save the current file before importing a workspace.')
+        }
+      }
+
+      const response = await axios.post(`${workspaceBaseUrl}/workspaces/import`, payload, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to import workspace')
+      }
+
+      const importedWorkspace = response.data?.data?.workspace
+      const counts = response.data?.data?.counts || {}
+
+      if (!importedWorkspace?._id) {
+        throw new Error('Workspace was imported without a valid response')
+      }
+
+      setWorkspaceImportMessage(`${importedWorkspace.name} imported as a new workspace.`)
+      setWorkspaceImportSummary([
+        `${counts.files || 0} file${counts.files === 1 ? '' : 's'}`,
+        `${counts.folders || 0} folder${counts.folders === 1 ? '' : 's'}`,
+        formatSkippedMessage(skippedFiles),
+      ].filter(Boolean).join(' | '))
+      onWorkspaceImported?.(importedWorkspace)
+      await loadImportExportData()
+    } catch (workspaceImportError) {
+      setImportError(getErrorMessage(workspaceImportError, 'Unable to import workspace.'))
+    } finally {
+      setWorkspaceImportLoading(false)
+      if (zipInputRef.current) {
+        zipInputRef.current.value = ''
+      }
+      if (folderInputRef.current) {
+        folderInputRef.current.value = ''
+      }
+    }
+  }
+
+  const buildPayloadFromFolderFiles = async (fileList) => {
+    const files = Array.from(fileList || [])
+
+    if (!files.length) {
+      throw new Error('Select a folder before importing.')
+    }
+
+    const rawPathPartsList = files.map((file) => getCleanPathParts(file.webkitRelativePath || file.name))
+    const commonRoot = getCommonRoot(rawPathPartsList.filter((parts) => parts.length > 1))
+    const entries = []
+    const skippedFiles = []
+
+    for (const file of files) {
+      const rawParts = getCleanPathParts(file.webkitRelativePath || file.name)
+      const pathParts = stripCommonRoot(rawParts, commonRoot)
+
+      if (shouldIgnoreImportPath(pathParts)) {
+        continue
+      }
+
+      const fileName = pathParts[pathParts.length - 1]
+
+      if (!isSupportedImportFile(fileName)) {
+        skippedFiles.push(pathParts.join('/'))
+        continue
+      }
+
+      if (file.size > MAX_IMPORT_FILE_SIZE_BYTES) {
+        skippedFiles.push(`${pathParts.join('/')} (too large)`)
+        continue
+      }
+
+      entries.push({
+        type: 'file',
+        path: pathParts.join('/'),
+        content: await file.text(),
+      })
+    }
+
+    return {
+      payload: {
+        name: commonRoot || getWorkspaceNameFromFileName(files[0]?.name),
+        entries,
+      },
+      skippedFiles,
+    }
+  }
+
+  const buildPayloadFromZipFile = async (file) => {
+    if (!file) {
+      throw new Error('Select a ZIP file before importing.')
+    }
+
+    const zip = await JSZip.loadAsync(file)
+    const zipEntries = Object.values(zip.files)
+    const pathPartsList = zipEntries
+      .map((entry) => getCleanPathParts(entry.name))
+      .filter((parts) => !shouldIgnoreImportPath(parts))
+    const commonRoot = getCommonRoot(pathPartsList.filter((parts) => parts.length > 1))
+    const entries = []
+    const skippedFiles = []
+
+    for (const zipEntry of zipEntries) {
+      const rawParts = getCleanPathParts(zipEntry.name)
+      const pathParts = stripCommonRoot(rawParts, commonRoot)
+
+      if (shouldIgnoreImportPath(pathParts)) {
+        continue
+      }
+
+      if (zipEntry.dir) {
+        if (pathParts.length) {
+          entries.push({
+            type: 'folder',
+            path: pathParts.join('/'),
+          })
+        }
+        continue
+      }
+
+      const fileName = pathParts[pathParts.length - 1]
+
+      if (!isSupportedImportFile(fileName)) {
+        skippedFiles.push(pathParts.join('/'))
+        continue
+      }
+
+      const content = await zipEntry.async('string')
+      const contentSize = new Blob([content]).size
+
+      if (contentSize > MAX_IMPORT_FILE_SIZE_BYTES) {
+        skippedFiles.push(`${pathParts.join('/')} (too large)`)
+        continue
+      }
+
+      entries.push({
+        type: 'file',
+        path: pathParts.join('/'),
+        content,
+      })
+    }
+
+    return {
+      payload: {
+        name: commonRoot || getWorkspaceNameFromFileName(file.name),
+        entries,
+      },
+      skippedFiles,
+    }
+  }
+
+  const handleFolderImport = async (event) => {
+    try {
+      const { payload, skippedFiles } = await buildPayloadFromFolderFiles(event.target.files)
+      await importWorkspacePayload(payload, skippedFiles)
+    } catch (folderImportError) {
+      setImportError(getErrorMessage(folderImportError, 'Unable to read selected folder.'))
+      setWorkspaceImportMessage('')
+      setWorkspaceImportSummary('')
+      if (folderInputRef.current) {
+        folderInputRef.current.value = ''
+      }
+    }
+  }
+
+  const handleZipImport = async (event) => {
+    try {
+      const selectedFile = event.target.files?.[0]
+      const { payload, skippedFiles } = await buildPayloadFromZipFile(selectedFile)
+      await importWorkspacePayload(payload, skippedFiles)
+    } catch (zipImportError) {
+      setImportError(getErrorMessage(zipImportError, 'Unable to read selected ZIP file.'))
+      setWorkspaceImportMessage('')
+      setWorkspaceImportSummary('')
+      if (zipInputRef.current) {
+        zipInputRef.current.value = ''
+      }
+    }
   }
 
   const renderWorkspaceNode = (workspace, node, depth = 0) => {
@@ -710,7 +990,6 @@ const IDEImportExport = ({
                     Open
                   </button>
                 </div>
-                {importError ? <p className="mt-2 text-sm font-semibold text-red-600 dark:text-red-300">{importError}</p> : null}
               </form>
 
               <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-200 dark:border-slate-800">
@@ -758,6 +1037,76 @@ const IDEImportExport = ({
                   </div>
                 ) : null}
               </div>
+
+              <div className="shrink-0 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Option 3: Import workspace</p>
+                    <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                      Upload a ZIP workspace or a folder with IDE files.
+                    </p>
+                  </div>
+                  {workspaceImportLoading ? (
+                    <span className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Importing
+                    </span>
+                  ) : null}
+                </div>
+
+                <input
+                  ref={zipInputRef}
+                  type="file"
+                  accept=".zip,application/zip,application/x-zip-compressed"
+                  onChange={handleZipImport}
+                  disabled={workspaceImportLoading || saving}
+                  className="hidden"
+                />
+                <input
+                  ref={folderInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleFolderImport}
+                  disabled={workspaceImportLoading || saving}
+                  className="hidden"
+                />
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => zipInputRef.current?.click()}
+                    disabled={workspaceImportLoading || saving}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-blue-500 disabled:bg-slate-400"
+                  >
+                    <Archive className="h-4 w-4" />
+                    Upload ZIP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => folderInputRef.current?.click()}
+                    disabled={workspaceImportLoading || saving}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Upload Folder
+                  </button>
+                </div>
+
+                {workspaceImportMessage ? (
+                  <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                    <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">{workspaceImportMessage}</p>
+                    {workspaceImportSummary ? (
+                      <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{workspaceImportSummary}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              {importError ? (
+                <p className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-300">
+                  {importError}
+                </p>
+              ) : null}
             </div>
           </div>
         </section>

@@ -1562,6 +1562,19 @@ const UserIdePage = ({ accessRole = 'user' }) => {
           ) : isImportExportActivity ? (
             <IDEImportExport
               accessRole={accessConfig.role}
+              isActiveWorkspaceDirty={isDirty}
+              onSaveActiveWorkspaceFile={saveActiveFile}
+              onWorkspaceImported={(workspace) => {
+                setWorkspaces((currentWorkspaces) => {
+                  if (currentWorkspaces.some((currentWorkspace) => currentWorkspace._id === workspace._id)) {
+                    return currentWorkspaces
+                  }
+
+                  return [...currentWorkspaces, workspace]
+                })
+                setActiveWorkspaceId(workspace._id)
+              }}
+              saving={saving}
               shareBaseUrl={shareBaseUrl}
               workspaceBaseUrl={workspaceBaseUrl}
             />

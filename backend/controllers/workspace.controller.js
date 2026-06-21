@@ -8,6 +8,7 @@ const {
 
 const MAX_WORKSPACE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_WORKSPACE_NAME = 'demo';
+const MAX_IMPORT_ENTRIES = 1500;
 const ZIP_UNIX_DIRECTORY_MODE = 0o40755 * 0x10000;
 const ZIP_UNIX_FILE_MODE = 0o100644 * 0x10000;
 
@@ -96,6 +97,162 @@ const sanitizeDownloadFileName = (value) => {
         .replace(/^-+|-+$/g, '');
 
     return normalizedValue || DEFAULT_WORKSPACE_NAME;
+};
+
+const sanitizeWorkspaceImportName = (value) => {
+    const normalizedValue = sanitizeZipPathPart(value, DEFAULT_WORKSPACE_NAME)
+        .replace(/\s+/g, ' ')
+        .slice(0, 80)
+        .trim();
+
+    return normalizedValue || DEFAULT_WORKSPACE_NAME;
+};
+
+const getUniqueWorkspaceName = async (owner, requestedName) => {
+    const baseName = sanitizeWorkspaceImportName(requestedName);
+    const existingWorkspaces = await Workspace.find(getOwnerQuery(owner)).select('name').lean();
+    const existingNames = new Set(existingWorkspaces.map((workspace) => String(workspace.name).toLowerCase()));
+
+    if (!existingNames.has(baseName.toLowerCase())) {
+        return baseName;
+    }
+
+    for (let index = 2; index <= 999; index += 1) {
+        const suffix = ` (${index})`;
+        const candidate = `${baseName.slice(0, 80 - suffix.length).trim()}${suffix}`;
+
+        if (!existingNames.has(candidate.toLowerCase())) {
+            return candidate;
+        }
+    }
+
+    return `${baseName.slice(0, 64).trim()} ${Date.now()}`;
+};
+
+const normalizeImportPath = (value) => {
+    const rawPath = String(value || '').replace(/\\/g, '/').replace(/\0/g, '').trim();
+    const parts = rawPath
+        .split('/')
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+    if (!parts.length) {
+        return { error: 'Imported paths cannot be empty' };
+    }
+
+    if (parts.some((part) => part === '.' || part === '..' || /[\\/]/.test(part))) {
+        return { error: 'Imported paths cannot contain unsafe path segments' };
+    }
+
+    if (parts.some((part) => part.length > 120)) {
+        return { error: 'Imported file or folder names must be 120 characters or fewer' };
+    }
+
+    return {
+        path: parts.join('/'),
+        parts
+    };
+};
+
+const buildImportPlan = (entries) => {
+    if (!Array.isArray(entries) || !entries.length) {
+        return { error: 'Select a folder or ZIP file with supported IDE files' };
+    }
+
+    if (entries.length > MAX_IMPORT_ENTRIES) {
+        return { error: `A workspace import can contain up to ${MAX_IMPORT_ENTRIES} items` };
+    }
+
+    const folderPaths = new Set();
+    const filesByPath = new Map();
+    let totalFileSize = 0;
+
+    for (const entry of entries) {
+        const type = String(entry?.type || '').trim();
+
+        if (!['file', 'folder'].includes(type)) {
+            return { error: 'Imported entries must be files or folders' };
+        }
+
+        const normalizedPath = normalizeImportPath(entry?.path);
+
+        if (normalizedPath.error) {
+            return { error: normalizedPath.error };
+        }
+
+        if (type === 'folder') {
+            if (filesByPath.has(normalizedPath.path)) {
+                return { error: 'A file and folder cannot share the same path' };
+            }
+
+            folderPaths.add(normalizedPath.path);
+            continue;
+        }
+
+        if (folderPaths.has(normalizedPath.path) || filesByPath.has(normalizedPath.path)) {
+            return { error: 'Imported workspace contains duplicate paths' };
+        }
+
+        const fileName = normalizedPath.parts[normalizedPath.parts.length - 1];
+        const language = getLanguageFromFileName(fileName);
+
+        if (!language) {
+            return { error: 'Only .c, .cpp, .java, .py and .js files are supported' };
+        }
+
+        const content = String(entry?.content || '');
+        const contentSize = getContentSize(content);
+
+        if (contentSize > MAX_FILE_SIZE_BYTES) {
+            return { error: `${fileName} is larger than the per-file limit` };
+        }
+
+        totalFileSize += contentSize;
+
+        if (totalFileSize > MAX_WORKSPACE_SIZE_BYTES) {
+            return { error: 'Workspace storage limit reached' };
+        }
+
+        for (let index = 1; index < normalizedPath.parts.length; index += 1) {
+            folderPaths.add(normalizedPath.parts.slice(0, index).join('/'));
+        }
+
+        filesByPath.set(normalizedPath.path, {
+            path: normalizedPath.path,
+            parts: normalizedPath.parts,
+            name: fileName,
+            content,
+            language
+        });
+    }
+
+    const folderItems = [...folderPaths]
+        .sort((first, second) => {
+            const depthDifference = first.split('/').length - second.split('/').length;
+
+            return depthDifference || first.localeCompare(second);
+        })
+        .map((folderPath) => {
+            const parts = folderPath.split('/');
+
+            return {
+                path: folderPath,
+                parts,
+                name: parts[parts.length - 1]
+            };
+        });
+    const fileItems = [...filesByPath.values()]
+        .sort((first, second) => first.path.localeCompare(second.path));
+
+    if (!fileItems.length) {
+        return { error: 'Select a folder or ZIP file with at least one supported IDE file' };
+    }
+
+    return {
+        folderItems,
+        fileItems,
+        totalFileSize
+    };
 };
 
 const buildZipArchive = (entries) => {
@@ -624,6 +781,93 @@ const downloadWorkspace = async (req, res) => {
     }
 };
 
+const importWorkspace = async (req, res) => {
+    let createdWorkspace = null;
+
+    try {
+        const owner = getWorkspaceOwner(req);
+
+        if (!owner) {
+            return sendError(res, 401, 'Workspace authentication is required');
+        }
+
+        const importPlan = buildImportPlan(req.body?.entries);
+
+        if (importPlan.error) {
+            return sendError(res, 400, importPlan.error);
+        }
+
+        const workspaceName = await getUniqueWorkspaceName(owner, req.body?.name);
+
+        createdWorkspace = await Workspace.create({
+            ...owner,
+            name: workspaceName
+        });
+
+        const folderIdByPath = new Map();
+
+        for (const folder of importPlan.folderItems) {
+            const parentPath = folder.parts.slice(0, -1).join('/');
+            const parentId = parentPath ? folderIdByPath.get(parentPath) : null;
+            const node = await WorkspaceNode.create({
+                ...owner,
+                workspaceId: createdWorkspace._id,
+                type: 'folder',
+                name: folder.name,
+                parentId: parentId || null
+            });
+
+            folderIdByPath.set(folder.path, node._id);
+        }
+
+        const createdFiles = [];
+
+        for (const file of importPlan.fileItems) {
+            const parentPath = file.parts.slice(0, -1).join('/');
+            const parentId = parentPath ? folderIdByPath.get(parentPath) : null;
+            const node = await WorkspaceNode.create({
+                ...owner,
+                workspaceId: createdWorkspace._id,
+                type: 'file',
+                name: file.name,
+                parentId: parentId || null,
+                language: file.language,
+                content: file.content
+            });
+
+            createdFiles.push(node);
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: 'Workspace imported successfully',
+            data: {
+                workspace: formatWorkspace(createdWorkspace),
+                counts: {
+                    folders: importPlan.folderItems.length,
+                    files: createdFiles.length,
+                    bytes: importPlan.totalFileSize
+                }
+            }
+        });
+    } catch (error) {
+        if (createdWorkspace?._id) {
+            await WorkspaceNode.deleteMany({ workspaceId: createdWorkspace._id });
+            await Workspace.deleteOne({ _id: createdWorkspace._id });
+        }
+
+        if (error.code === 11000) {
+            return sendError(res, 409, 'Workspace with this name already exists');
+        }
+
+        if (error.name === 'ValidationError') {
+            return sendError(res, 400, error.message);
+        }
+
+        return sendError(res, 500, 'Something went wrong while importing workspace');
+    }
+};
+
 const createWorkspaceNode = async (req, res) => {
     try {
         const owner = getWorkspaceOwner(req);
@@ -853,6 +1097,7 @@ module.exports = {
     deleteWorkspace,
     getWorkspaceNodes,
     downloadWorkspace,
+    importWorkspace,
     createWorkspaceNode,
     updateWorkspaceNode,
     deleteWorkspaceNode,
@@ -861,6 +1106,7 @@ module.exports = {
     getWorkspaceOwner,
     buildZipArchive,
     buildWorkspaceZipEntries,
+    buildImportPlan,
     MAX_WORKSPACE_SIZE_BYTES,
     DEFAULT_WORKSPACE_NAME
 };

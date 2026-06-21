@@ -11,7 +11,8 @@ const {
 const {
     buildWorkspaceZipEntries,
     buildZipArchive,
-    formatWorkspaceNode
+    formatWorkspaceNode,
+    buildImportPlan
 } = require('../controllers/workspace.controller');
 
 const ownerId = new mongoose.Types.ObjectId();
@@ -171,4 +172,39 @@ test('buildZipArchive creates a zip buffer for workspace files and folders', () 
     assert.equal(Buffer.isBuffer(zipBuffer), true);
     assert.equal(zipBuffer.readUInt32LE(0), 0x04034b50);
     assert.equal(zipBuffer.includes(Buffer.from('python/src/abc.py')), true);
+});
+
+test('buildImportPlan creates parent folders and counts supported files', () => {
+    const plan = buildImportPlan([
+        {
+            type: 'file',
+            path: 'src/main.py',
+            content: 'print("hello")\n'
+        },
+        {
+            type: 'folder',
+            path: 'src/lib'
+        },
+        {
+            type: 'file',
+            path: 'src/lib/app.js',
+            content: 'console.log("hello")\n'
+        }
+    ]);
+
+    assert.equal(plan.error, undefined);
+    assert.deepEqual(plan.folderItems.map((folder) => folder.path), ['src', 'src/lib']);
+    assert.deepEqual(plan.fileItems.map((file) => file.path), ['src/lib/app.js', 'src/main.py']);
+    assert.equal(plan.totalFileSize, Buffer.byteLength('print("hello")\nconsole.log("hello")\n', 'utf8'));
+});
+
+test('buildImportPlan rejects unsafe paths and unsupported files', () => {
+    assert.match(
+        buildImportPlan([{ type: 'file', path: '../main.py', content: '' }]).error,
+        /unsafe path/u
+    );
+    assert.match(
+        buildImportPlan([{ type: 'file', path: 'notes.txt', content: 'plain text' }]).error,
+        /Only \.c/u
+    );
 });

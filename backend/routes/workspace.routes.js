@@ -6,6 +6,7 @@ const {
     deleteWorkspace,
     getWorkspaceNodes,
     downloadWorkspace,
+    importWorkspace,
     createWorkspaceNode,
     updateWorkspaceNode,
     deleteWorkspaceNode
@@ -17,6 +18,7 @@ router.get('/workspaces', getWorkspaces);
 router.post('/workspaces', createWorkspace);
 router.patch('/workspaces/:workspaceId', updateWorkspace);
 router.delete('/workspaces/:workspaceId', deleteWorkspace);
+router.post('/workspaces/import', importWorkspace);
 router.get('/workspaces/:workspaceId/download', downloadWorkspace);
 
 router.get('/workspaces/:workspaceId/nodes', getWorkspaceNodes);
