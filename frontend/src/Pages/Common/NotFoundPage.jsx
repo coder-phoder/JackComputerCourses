@@ -51,7 +51,7 @@ const NotFoundPage = () => {
       </div>
 
       <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(14,165,233,0.12),transparent_28%,rgba(245,158,11,0.14)_50%,transparent_72%,rgba(16,185,129,0.12))] dark:bg-[linear-gradient(115deg,rgba(34,211,238,0.12),transparent_30%,rgba(251,191,36,0.10)_50%,transparent_70%,rgba(244,63,94,0.11))]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,transparent_38%,rgba(15,23,42,0.08)_39%,transparent_40%),linear-gradient(rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.06)_1px,transparent_1px)] bg-[size:100%_100%,44px_44px,44px_44px] dark:bg-[radial-gradient(circle_at_center,transparent_0,transparent_38%,rgba(148,163,184,0.12)_39%,transparent_40%),linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,transparent_38%,rgba(15,23,42,0.08)_39%,transparent_40%),linear-gradient(rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.06)_1px,transparent_1px)] bg-size-[100%_100%,44px_44px,44px_44px] dark:bg-[radial-gradient(circle_at_center,transparent_0,transparent_38%,rgba(148,163,184,0.12)_39%,transparent_40%),linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)]" />
 
       {orbitItems.map((item) => (
         <motion.div
@@ -133,7 +133,7 @@ const NotFoundPage = () => {
           </div>
 
           <motion.div
-            className="relative mx-auto h-[360px] w-full max-w-[420px] sm:h-[430px]"
+            className="relative mx-auto h-90 w-full max-w-105 sm:h-107.5"
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3, duration: 0.75, ease: 'easeOut' }}
