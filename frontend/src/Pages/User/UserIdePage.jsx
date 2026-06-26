@@ -58,30 +58,28 @@ const IDE_ACCESS_CONFIG = {
 }
 
 const BOILERPLATE_SNIPPETS = {
-  c: `#include <stdio.h>
+  c: `#include<stdio.h>
 
-int main() {
-    printf("\${1:hello world}\\n");
+int main(){
     return 0;
 }
 `,
-  cpp: `#include <iostream>
+  cpp: `#include<iostream>
+using namespace std;
 
-int main() {
-    std::cout << "\${1:hello world}" << std::endl;
+int main(){
     return 0;
 }
 `,
-  java: `public class Main {
+  java: `import java.util.*;
+
+public class Main {
     public static void main(String[] args) {
-        System.out.println("\${1:hello world}");
     }
 }
 `,
-  python: `print("\${1:hello world}")
-`,
-  javascript: `console.log("\${1:hello world}");
-`,
+  python: '',
+  javascript: '',
 }
 
 const LANGUAGES = [

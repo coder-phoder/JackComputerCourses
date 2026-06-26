@@ -6,26 +6,25 @@ import Editor from '@monaco-editor/react'
 const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
 
 const BOILERPLATES = {
-  c: `#include <stdio.h>
+  c: `#include<stdio.h>
 
-int main() {
-    printf("hello world\\n");
+int main(){
     return 0;
 }`,
-  cpp: `#include <iostream>
+  cpp: `#include<iostream>
+using namespace std;
 
-int main() {
-    std::cout << "hello world" << std::endl;
+int main(){
     return 0;
 }`,
-  java: `public class Main {
+  java: `import java.util.*;
+
+public class Main {
     public static void main(String[] args) {
-        System.out.println("hello world");
     }
 }`,
-  python: `print("hello world")
-`,
-  javascript: `console.log("hello world");`
+  python: '',
+  javascript: '',
 }
 
 const LANGUAGES = [
