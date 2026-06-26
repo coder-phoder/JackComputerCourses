@@ -5,6 +5,34 @@ const path = require('path');
 const { languageConfigs } = require('../controllers/code.controller');
 
 const RUN_TIMEOUT_MS = 30000; // 30s timeout
+const C_STDOUT_SETUP_HEADER = 'jack_stdout_setup.h';
+const C_STDOUT_SETUP_SOURCE = [
+    '#include <stdio.h>',
+    'static void jack_configure_stdout(void) __attribute__((constructor));',
+    'static void jack_configure_stdout(void) {',
+    '    setvbuf(stdout, NULL, _IONBF, 0);',
+    '}',
+    ''
+].join('\n');
+
+async function writeRuntimeSupportFiles(language, dir) {
+    if (language === 'c') {
+        await fs.writeFile(path.join(dir, C_STDOUT_SETUP_HEADER), C_STDOUT_SETUP_SOURCE, 'utf8');
+    }
+}
+
+function getCompileConfig(config, dir, language) {
+    const compileConfig = config.compile(dir);
+
+    if (language === 'c') {
+        return {
+            ...compileConfig,
+            args: ['-include', C_STDOUT_SETUP_HEADER, ...compileConfig.args]
+        };
+    }
+
+    return compileConfig;
+}
 
 function initSocket(io) {
     io.on('connection', (socket) => {
@@ -51,10 +79,11 @@ function initSocket(io) {
                 tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'jack-interactive-'));
                 const fileToCreate = path.join(tempDir, config.fileName);
                 await fs.writeFile(fileToCreate, code, 'utf8');
+                await writeRuntimeSupportFiles(language.toLowerCase(), tempDir);
 
                 if (config.compile) {
                     socket.emit('terminal-output', 'Compiling...\n');
-                    const comp = config.compile(tempDir);
+                    const comp = getCompileConfig(config, tempDir, language.toLowerCase());
                     
                     const compileProc = spawn(comp.command, comp.args, {
                         cwd: tempDir,
