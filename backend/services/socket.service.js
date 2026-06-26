@@ -6,6 +6,7 @@ const { languageConfigs } = require('../controllers/code.controller');
 
 const RUN_TIMEOUT_MS = 30000; // 30s timeout
 const C_STDOUT_SETUP_HEADER = 'jack_stdout_setup.h';
+const JS_PROMPT_RUNTIME_FILE = 'jack_prompt_runtime.cjs';
 const C_STDOUT_SETUP_SOURCE = [
     '#include <stdio.h>',
     'static void jack_configure_stdout(void) __attribute__((constructor));',
@@ -14,10 +15,41 @@ const C_STDOUT_SETUP_SOURCE = [
     '}',
     ''
 ].join('\n');
+const JS_PROMPT_RUNTIME_SOURCE = [
+    "'use strict';",
+    "const fs = require('fs');",
+    "let pendingInput = '';",
+    "function readLine() {",
+    "    for (;;) {",
+    "        const newlineIndex = pendingInput.indexOf('\\n');",
+    "        if (newlineIndex !== -1) {",
+    "            const line = pendingInput.slice(0, newlineIndex);",
+    "            pendingInput = pendingInput.slice(newlineIndex + 1);",
+    "            return line.endsWith('\\r') ? line.slice(0, -1) : line;",
+    "        }",
+    "        const buffer = Buffer.alloc(1024);",
+    "        const bytesRead = fs.readSync(0, buffer, 0, buffer.length, null);",
+    "        if (bytesRead === 0) {",
+    "            const line = pendingInput;",
+    "            pendingInput = '';",
+    "            return line;",
+    "        }",
+    "        pendingInput += buffer.toString('utf8', 0, bytesRead);",
+    "    }",
+    "}",
+    "globalThis.prompt = function prompt(message = '') {",
+    "    process.stdout.write(String(message));",
+    "    return readLine();",
+    "};",
+    ''
+].join('\n');
 
 async function writeRuntimeSupportFiles(language, dir) {
     if (language === 'c') {
         await fs.writeFile(path.join(dir, C_STDOUT_SETUP_HEADER), C_STDOUT_SETUP_SOURCE, 'utf8');
+    }
+    if (language === 'javascript') {
+        await fs.writeFile(path.join(dir, JS_PROMPT_RUNTIME_FILE), JS_PROMPT_RUNTIME_SOURCE, 'utf8');
     }
 }
 
@@ -32,6 +64,19 @@ function getCompileConfig(config, dir, language) {
     }
 
     return compileConfig;
+}
+
+function getRunConfig(config, dir, language) {
+    const runConfig = config.run(dir);
+
+    if (language === 'javascript') {
+        return {
+            ...runConfig,
+            args: ['--require', path.join(dir, JS_PROMPT_RUNTIME_FILE), ...runConfig.args]
+        };
+    }
+
+    return runConfig;
 }
 
 function initSocket(io) {
@@ -112,7 +157,7 @@ function initSocket(io) {
                     socket.emit('terminal-output', 'Compilation successful. Running...\n');
                 }
 
-                const runner = config.run(tempDir);
+                const runner = getRunConfig(config, tempDir, language.toLowerCase());
                 childProcess = spawn(runner.command, runner.args, {
                     cwd: tempDir,
                     shell: false,
