@@ -481,15 +481,36 @@ const formatBraceLanguageCode = (source) => {
     .map((line) => line.trim())
     .filter(Boolean)
   let indentLevel = 0
+  let temporaryIndentLevel = 0
+
+  const isUnbracedControlStatement = (line) => (
+    /^(?:else\s+if|if|else|for|while|do)\b/u.test(line)
+    && !line.endsWith(';')
+    && !line.endsWith('{')
+  )
+
+  const completesTemporaryIndent = (line) => (
+    temporaryIndentLevel > 0
+    && !isUnbracedControlStatement(line)
+    && (line.endsWith(';') || line === '}' || line.endsWith('}'))
+  )
 
   return normalizedLines.map((line) => {
     const shouldDedent = line.startsWith('}')
     indentLevel = shouldDedent ? Math.max(0, indentLevel - 1) : indentLevel
+    const effectiveTemporaryIndentLevel = line === '{'
+      ? Math.max(0, temporaryIndentLevel - 1)
+      : temporaryIndentLevel
 
-    const formattedLine = `${'    '.repeat(indentLevel)}${line}`
+    const formattedLine = `${'    '.repeat(indentLevel + effectiveTemporaryIndentLevel)}${line}`
 
     if (line.endsWith('{')) {
       indentLevel += 1
+      temporaryIndentLevel = effectiveTemporaryIndentLevel
+    } else if (isUnbracedControlStatement(line)) {
+      temporaryIndentLevel += 1
+    } else if (completesTemporaryIndent(line)) {
+      temporaryIndentLevel = 0
     }
 
     return formattedLine
