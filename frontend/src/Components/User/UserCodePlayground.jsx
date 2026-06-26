@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import { Code2, PanelRightClose, PanelRightOpen, Play, Square, RotateCcw, Terminal, Settings } from 'lucide-react'
 import { io } from 'socket.io-client'
 import Editor from '@monaco-editor/react'
+import { codeEditorIntelliSenseOptions, registerCodeEditorCompletions } from '../../utils/monacoCodeIntelligence'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
 
@@ -348,8 +349,13 @@ const CodePlaygroundEditor = ({ storageKey, language }) => {
             language={languageConfig.monacoLang}
             theme="vs-dark"
             value={code}
+            onMount={(editor, monaco) => {
+              registerCodeEditorCompletions(monaco)
+              editor.focus()
+            }}
             onChange={(value) => setCode(value || '')}
             options={{
+              ...codeEditorIntelliSenseOptions,
               fontSize: fontSize,
               fontFamily: "'Fira Code', 'Courier New', Courier, monospace",
               minimap: { enabled: false },

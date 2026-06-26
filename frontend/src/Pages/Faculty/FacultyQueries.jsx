@@ -16,6 +16,7 @@ import {
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import { useAuth } from '../../Context/AuthContext'
 import { useTheme } from '../../Context/ThemeContext'
+import { codeEditorIntelliSenseOptions, registerCodeEditorCompletions } from '../../utils/monacoCodeIntelligence'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
 
@@ -510,6 +511,12 @@ const FacultyQueries = () => {
                       language={MONACO_LANGUAGE[mainQuery.fileLanguage] || 'plaintext'}
                       theme={isDark ? 'vs-dark' : 'light'}
                       value={reviewedCode}
+                      onMount={(editor, monaco) => {
+                        registerCodeEditorCompletions(monaco)
+                        if (mainQuery.status === 'accepted') {
+                          editor.focus()
+                        }
+                      }}
                       onChange={(value) => {
                         setReviewDrafts((currentDrafts) => ({
                           ...currentDrafts,
@@ -517,6 +524,7 @@ const FacultyQueries = () => {
                         }))
                       }}
                       options={{
+                        ...codeEditorIntelliSenseOptions,
                         readOnly: mainQuery.status !== 'accepted',
                         fontSize: 14,
                         minimap: { enabled: false },

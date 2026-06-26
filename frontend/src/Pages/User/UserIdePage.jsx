@@ -29,6 +29,7 @@ import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import UserNavbar from '../../Components/User/UserNavbar'
 import { useAuth } from '../../Context/AuthContext'
 import { useTheme } from '../../Context/ThemeContext'
+import { codeEditorIntelliSenseOptions, registerCodeEditorCompletions } from '../../utils/monacoCodeIntelligence'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
 const EXPLORER_ACTIVITY_BAR_WIDTH = 56
@@ -55,31 +56,6 @@ const IDE_ACCESS_CONFIG = {
     workspacePath: '/faculty/workspace',
     Navbar: FacultyNavbar,
   },
-}
-
-const BOILERPLATE_SNIPPETS = {
-  c: `#include<stdio.h>
-
-int main(){
-    return 0;
-}
-`,
-  cpp: `#include<iostream>
-using namespace std;
-
-int main(){
-    return 0;
-}
-`,
-  java: `import java.util.*;
-
-public class Main {
-    public static void main(String[] args) {
-    }
-}
-`,
-  python: '',
-  javascript: '',
 }
 
 const LANGUAGES = [
@@ -593,7 +569,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const editorRef = useRef(null)
   const formatCodeRef = useRef(null)
   const formatActionDisposableRef = useRef(null)
-  const snippetProviderDisposablesRef = useRef([])
   const workspaceDraftSubmittingRef = useRef(false)
   const nodeDraftSubmittingRef = useRef(false)
   const workspaceDraftCancelingRef = useRef(false)
@@ -655,36 +630,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const isQueryActivity = accessConfig.role === 'user' && activeActivity === 'query'
   const isWorkspaceActivity = activeActivity === 'download'
   const isImportExportActivity = activeActivity === 'importExport'
-
-  const registerBoilerplateSnippets = useCallback((monaco) => {
-    snippetProviderDisposablesRef.current.forEach((disposable) => disposable.dispose())
-    snippetProviderDisposablesRef.current = Object.entries(BOILERPLATE_SNIPPETS).map(([language, insertText]) => (
-      monaco.languages.registerCompletionItemProvider(language, {
-        triggerCharacters: ['b'],
-        provideCompletionItems: (model, position) => {
-          const word = model.getWordUntilPosition(position)
-          const range = {
-            startLineNumber: position.lineNumber,
-            endLineNumber: position.lineNumber,
-            startColumn: word.startColumn,
-            endColumn: word.endColumn,
-          }
-
-          return {
-            suggestions: [{
-              label: 'boilerplate',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText,
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              detail: `${getLanguageMeta(language).label} boilerplate`,
-              range,
-              sortText: '0000',
-            }],
-          }
-        },
-      })
-    ))
-  }, [])
 
   const childrenByParentId = useMemo(() => {
     const groupedChildren = new Map()
@@ -970,8 +915,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     formatActionDisposableRef.current?.dispose()
     formatActionDisposableRef.current = null
     editorRef.current = null
-    snippetProviderDisposablesRef.current.forEach((disposable) => disposable.dispose())
-    snippetProviderDisposablesRef.current = []
   }, [])
 
   useEffect(() => {
@@ -2458,7 +2401,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                   value={code}
                   onMount={(editor, monaco) => {
                     editorRef.current = editor
-                    registerBoilerplateSnippets(monaco)
+                    registerCodeEditorCompletions(monaco)
                     formatActionDisposableRef.current?.dispose()
                     formatActionDisposableRef.current = editor.addAction({
                       id: 'jack-format-code',
@@ -2476,6 +2419,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                     setSaveStatus('idle')
                   }}
                   options={{
+                    ...codeEditorIntelliSenseOptions,
                     fontSize,
                     fontFamily: "'Fira Code', 'Courier New', Courier, monospace",
                     tabSize: 4,
