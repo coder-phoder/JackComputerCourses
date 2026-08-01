@@ -1,6 +1,8 @@
 import axios from 'axios'
+import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import PasswordInput from '../../Components/Common/PasswordInput'
 import ThemeToggle from '../../Components/Common/ThemeToggle'
 import { getPostAuthRedirectPath, useAuth } from '../../Context/AuthContext'
 
@@ -159,13 +161,12 @@ const RegisterPage = () => {
               <label htmlFor="register-password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Password
               </label>
-              <input
+              <PasswordInput
                 id="register-password"
                 name="password"
-                type="password"
                 value={form.password}
                 onChange={handleChange}
-                className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
                 placeholder="Enter password"
                 disabled={loading}
               />
@@ -175,13 +176,12 @@ const RegisterPage = () => {
               <label htmlFor="register-confirm-password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Confirm Password
               </label>
-              <input
+              <PasswordInput
                 id="register-confirm-password"
                 name="confirmPassword"
-                type="password"
                 value={form.confirmPassword}
                 onChange={handleChange}
-                className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
                 placeholder="Confirm password"
                 disabled={loading}
               />
@@ -196,9 +196,16 @@ const RegisterPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700 hover:shadow-lg disabled:cursor-not-allowed disabled:bg-blue-300 disabled:shadow-none"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700 hover:shadow-lg disabled:cursor-not-allowed disabled:bg-blue-300 disabled:shadow-none"
             >
-              {loading ? 'Creating account...' : 'Create Account'}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                'Create Account'
+              )}
             </button>
           </form>
 

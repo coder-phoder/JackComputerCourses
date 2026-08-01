@@ -15,6 +15,7 @@ const workspaceRoutes = require('./workspace.routes');
 const ideShareRoutes = require('./ideShare.routes');
 const { facultyQueryRoutes } = require('./query.routes');
 const { facultyTopicNoteRoutes } = require('./topicNote.routes');
+const { reporterBugRoutes } = require('./bug.routes');
 
 const router = express.Router();
 
@@ -25,6 +26,7 @@ router.use('/workspace', authFaculty, workspaceRoutes);
 router.use('/ide-share', authFaculty, ideShareRoutes);
 router.use('/', authFaculty, facultyQueryRoutes);
 router.use('/topic-notes', authFaculty, facultyTopicNoteRoutes);
+router.use('/bugs', authFaculty, reporterBugRoutes);
 router.get('/notes', authFaculty, getAllNotesByFaculty);
 router.get('/courses', authFaculty, getCoursesByFaculty);
 router.get(

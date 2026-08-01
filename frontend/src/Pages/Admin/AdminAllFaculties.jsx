@@ -2,6 +2,7 @@ import axios from 'axios'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import AdminNavbar from '../../Components/Admin/AdminNavbar'
+import PasswordInput from '../../Components/Common/PasswordInput'
 import { useAuth } from '../../Context/AuthContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
@@ -386,14 +387,13 @@ const AdminAllFaculties = () => {
                     <label htmlFor="edit-faculty-password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                       New Password
                     </label>
-                    <input
+                    <PasswordInput
                       id="edit-faculty-password"
                       name="password"
-                      type="password"
                       value={editingForm.password}
                       onChange={handleEditingFormChange}
                       disabled={saving}
-                      className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                       placeholder="Leave blank to keep current password"
                     />
                   </div>
@@ -448,14 +448,13 @@ const AdminAllFaculties = () => {
                     <label htmlFor="create-faculty-password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                       Password
                     </label>
-                    <input
+                    <PasswordInput
                       id="create-faculty-password"
                       name="password"
-                      type="password"
                       value={form.password}
                       onChange={handleFormChange}
                       disabled={saving}
-                      className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                       placeholder="Enter password"
                     />
                   </div>

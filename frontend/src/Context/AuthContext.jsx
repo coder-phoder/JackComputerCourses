@@ -4,6 +4,22 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 const AuthContext = createContext(null)
 const AUTH_STORAGE_KEY = 'jackCoursesAuth'
+const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
+
+const ROLE_PROFILE_ENDPOINTS = {
+  admin: {
+    path: '/admin/profile',
+    key: 'admin',
+  },
+  faculty: {
+    path: '/faculty/profile',
+    key: 'faculty',
+  },
+  user: {
+    path: '/user/profile',
+    key: 'user',
+  },
+}
 
 export const ROLE_HOME_PATHS = {
   admin: '/admin/home',
@@ -44,6 +60,31 @@ const getStoredAuth = () => {
     }
   } catch {
     return emptyAuth
+  }
+}
+
+// Resolves the httpOnly session cookie into a profile for a single role.
+// Returns null instead of throwing so callers only branch on "signed in or not".
+export const fetchRoleProfile = async (role) => {
+  const endpoint = ROLE_PROFILE_ENDPOINTS[role]
+
+  if (!endpoint) {
+    return null
+  }
+
+  try {
+    const response = await axios.get(`${API_BASE_URL}${endpoint.path}`, {
+      withCredentials: true,
+    })
+    const profile = response.data?.data?.[endpoint.key]
+
+    if (!response.data?.success || profile?.role !== role) {
+      return null
+    }
+
+    return profile
+  } catch {
+    return null
   }
 }
 
