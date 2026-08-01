@@ -73,6 +73,9 @@ const FacultyNavbar = () => {
             <NavLink to="/faculty/notes" onClick={closeMobileMenu} className={getNavLinkClass}>
               Notes
             </NavLink>
+            <NavLink to="/faculty/bugs" onClick={closeMobileMenu} className={getNavLinkClass}>
+              Report a Bug
+            </NavLink>
           </div>
           {error ? (
             <span className="hidden text-sm font-medium text-red-600 dark:text-red-300 sm:inline">
@@ -116,6 +119,9 @@ const FacultyNavbar = () => {
             </NavLink>
             <NavLink to="/faculty/notes" onClick={closeMobileMenu} className={getNavLinkClass}>
               Notes
+            </NavLink>
+            <NavLink to="/faculty/bugs" onClick={closeMobileMenu} className={getNavLinkClass}>
+              Report a Bug
             </NavLink>
             <button
               type="button"
