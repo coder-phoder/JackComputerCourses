@@ -1,11 +1,12 @@
 import axios from 'axios'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import ThemeToggle from '../../Components/Common/ThemeToggle'
 import UserCodePlayground from '../../Components/User/UserCodePlayground'
 import UserCourseSidebar from '../../Components/User/UserCourseSidebar'
 import UserVideoPlayer from '../../Components/User/UserVideoPlayer'
 import { useAuth } from '../../Context/AuthContext'
+import { resolveInitialVideoKey, saveLastWatchedVideo } from '../../utils/courseProgress'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -70,6 +71,7 @@ const UserCoursePlayerPage = () => {
   const [isCodeSidebarCollapsed, setIsCodeSidebarCollapsed] = useState(true)
   const [ideWidth, setIdeWidth] = useState(480)
   const [isDragging, setIsDragging] = useState(false)
+  const savedVideoKeyRef = useRef('')
 
   const handleMouseDown = (e) => {
     e.preventDefault()
@@ -165,14 +167,16 @@ const UserCoursePlayerPage = () => {
       if (shouldUpdate()) {
         const nextCourse = response.data?.data?.course || null
         const nextChapters = response.data?.data?.chapters || []
+        const lastWatchedVideoKey = response.data?.data?.lastWatchedVideoKey || ''
         const nextPlayableVideos = getPlayableVideos(nextChapters)
+
+        // The stored resume point is already persisted, so opening it must not save again.
+        savedVideoKeyRef.current = lastWatchedVideoKey
 
         setCourse(nextCourse)
         setChapters(nextChapters)
         setSelectedVideoKey((currentVideoKey) => (
-          nextPlayableVideos.some((videoItem) => videoItem.key === currentVideoKey)
-            ? currentVideoKey
-            : nextPlayableVideos[0]?.key || ''
+          resolveInitialVideoKey(nextPlayableVideos, currentVideoKey, lastWatchedVideoKey)
         ))
       }
     } catch (fetchError) {
@@ -243,6 +247,15 @@ const UserCoursePlayerPage = () => {
       isActive = false
     }
   }, [clearAuth, fetchCourse, setAuth])
+
+  useEffect(() => {
+    if (!isAuthorized || !selectedVideoKey || selectedVideoKey === savedVideoKeyRef.current) {
+      return
+    }
+
+    savedVideoKeyRef.current = selectedVideoKey
+    saveLastWatchedVideo('user', courseId, selectedVideoKey)
+  }, [courseId, isAuthorized, selectedVideoKey])
 
   if (checkingAuth) {
     return (

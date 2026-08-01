@@ -7,6 +7,7 @@ const {
 const {
     getCoursesByFaculty,
     getCourseByFaculty,
+    saveCourseProgressByFaculty,
     getCourseVideoEmbedByFaculty
 } = require('../controllers/course.controller');
 const { getAllNotesByFaculty, getNoteByFaculty } = require('../controllers/note.controller');
@@ -35,6 +36,7 @@ router.get(
     getCourseVideoEmbedByFaculty
 );
 router.get('/courses/:courseId/notes', authFaculty, getNoteByFaculty);
+router.put('/courses/:courseId/progress', authFaculty, saveCourseProgressByFaculty);
 router.get('/courses/:courseId', authFaculty, getCourseByFaculty);
 
 module.exports = router;

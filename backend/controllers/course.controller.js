@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const Course = require('../models/course.model');
 const Chapter = require('../models/chapter.model');
+const CourseProgress = require('../models/courseProgress.model');
 const Note = require('../models/note.model');
 const User = require('../models/user.model');
 
@@ -614,6 +615,75 @@ const formatChapterData = (chapter) => ({
 });
 
 const getUserVideoKey = (chapter, video) => `${chapter._id.toString()}:${video.position}`;
+
+const parseVideoKey = (videoKey) => {
+    const [chapterId, positionText] = String(videoKey || '').split(':');
+
+    if (!isValidObjectId(chapterId) || !/^\d+$/.test(positionText || '')) {
+        return null;
+    }
+
+    return {
+        chapterId,
+        videoPosition: Number(positionText)
+    };
+};
+
+const findChapterVideo = (chapters, chapterId, videoPosition) => {
+    const chapter = chapters.find((item) => item._id.toString() === String(chapterId));
+    const video = (chapter?.videos || []).find((item) => Number(item.position) === videoPosition);
+
+    return video ? { chapter, video } : null;
+};
+
+// Resolves a stored resume point against the course as it exists now, so a
+// re-synced or deleted lesson quietly falls back to the start of the course.
+const getLastWatchedVideoKey = async ({ viewerRole, viewerId, courseId, chapters }) => {
+    const progress = await CourseProgress.findOne({ viewerRole, viewerId, courseId });
+
+    if (!progress) {
+        return '';
+    }
+
+    const match = findChapterVideo(chapters, progress.chapterId, progress.videoPosition);
+
+    return match ? getUserVideoKey(match.chapter, match.video) : '';
+};
+
+const saveLastWatchedVideo = async (res, { viewerRole, viewerId, course, videoKey }) => {
+    const parsedVideoKey = parseVideoKey(videoKey);
+
+    if (!parsedVideoKey) {
+        return sendError(res, 400, 'Invalid video key');
+    }
+
+    const chapters = await Chapter.find({ courseId: course._id });
+    const match = findChapterVideo(chapters, parsedVideoKey.chapterId, parsedVideoKey.videoPosition);
+
+    if (!match) {
+        return sendError(res, 404, 'Video not found');
+    }
+
+    await CourseProgress.findOneAndUpdate(
+        { viewerRole, viewerId, courseId: course._id },
+        {
+            $set: {
+                chapterId: match.chapter._id,
+                videoPosition: match.video.position,
+                lastWatchedAt: new Date()
+            }
+        },
+        { upsert: true, setDefaultsOnInsert: true }
+    );
+
+    return res.status(200).json({
+        success: true,
+        message: 'Last watched video saved successfully',
+        data: {
+            lastWatchedVideoKey: getUserVideoKey(match.chapter, match.video)
+        }
+    });
+};
 
 const formatUserVideoData = (chapter, video) => ({
     id: getUserVideoKey(chapter, video),
@@ -1709,6 +1779,12 @@ const getCourseByUser = async (req, res) => {
             chapterCount: chapters.length,
             videoCount: chapters.reduce((total, chapter) => total + chapter.videoCount, 0)
         };
+        const lastWatchedVideoKey = await getLastWatchedVideoKey({
+            viewerRole: 'user',
+            viewerId: req.user._id,
+            courseId: course._id,
+            chapters
+        });
 
         return res.status(200).json({
             success: true,
@@ -1718,11 +1794,51 @@ const getCourseByUser = async (req, res) => {
                     includeUserAccess: true,
                     userPhone
                 }),
-                chapters: chapters.map(formatUserChapterData)
+                chapters: chapters.map(formatUserChapterData),
+                lastWatchedVideoKey
             }
         });
     } catch (error) {
         return sendError(res, 500, 'Something went wrong while fetching course');
+    }
+};
+
+const saveCourseProgressByUser = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+        const userPhone = normalizePhone(req.user?.phone);
+
+        if (!req.user?._id || !userPhone) {
+            return sendError(res, 401, 'Invalid user token');
+        }
+
+        const courseQuery = getUserCourseLookupQuery(courseId);
+
+        if (!courseQuery) {
+            return sendError(res, 400, 'Invalid course id or slug');
+        }
+
+        const course = await Course.findOne({
+            ...courseQuery,
+            isPublished: true
+        });
+
+        if (!course) {
+            return sendError(res, 404, 'Course not found');
+        }
+
+        if (!courseUserHasAccess(course, userPhone)) {
+            return sendError(res, 403, 'You do not have access to this course');
+        }
+
+        return await saveLastWatchedVideo(res, {
+            viewerRole: 'user',
+            viewerId: req.user._id,
+            course,
+            videoKey: req.body?.videoKey
+        });
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while saving last watched video');
     }
 };
 
@@ -1841,17 +1957,55 @@ const getCourseByFaculty = async (req, res) => {
             chapterCount: chapters.length,
             videoCount: chapters.reduce((total, chapter) => total + chapter.videoCount, 0)
         };
+        const lastWatchedVideoKey = await getLastWatchedVideoKey({
+            viewerRole: 'faculty',
+            viewerId: req.faculty._id,
+            courseId: course._id,
+            chapters
+        });
 
         return res.status(200).json({
             success: true,
             message: 'Course fetched successfully',
             data: {
                 course: formatCourseData(course, counts),
-                chapters: chapters.map(formatFacultyChapterData)
+                chapters: chapters.map(formatFacultyChapterData),
+                lastWatchedVideoKey
             }
         });
     } catch (error) {
         return sendError(res, 500, 'Something went wrong while fetching course');
+    }
+};
+
+const saveCourseProgressByFaculty = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+
+        if (!req.faculty?._id) {
+            return sendError(res, 401, 'Invalid faculty token');
+        }
+
+        const courseQuery = getUserCourseLookupQuery(courseId);
+
+        if (!courseQuery) {
+            return sendError(res, 400, 'Invalid course id or slug');
+        }
+
+        const course = await Course.findOne(courseQuery);
+
+        if (!course) {
+            return sendError(res, 404, 'Course not found');
+        }
+
+        return await saveLastWatchedVideo(res, {
+            viewerRole: 'faculty',
+            viewerId: req.faculty._id,
+            course,
+            videoKey: req.body?.videoKey
+        });
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while saving last watched video');
     }
 };
 
@@ -1930,11 +2084,14 @@ module.exports = {
     syncChapterVideosByAdmin,
     getCoursesByUser,
     getCourseByUser,
+    saveCourseProgressByUser,
     getCourseVideoEmbedByUser,
     getCoursesByFaculty,
     getCourseByFaculty,
+    saveCourseProgressByFaculty,
     getCourseVideoEmbedByFaculty,
     normalizePhoneArray,
+    parseVideoKey,
     courseUserHasAccess,
     parseCourseDurationMonths,
     getCourseDurationDays,
