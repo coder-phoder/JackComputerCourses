@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AuthLoadingScreen from '../../Components/Common/AuthLoadingScreen'
 import PasswordInput from '../../Components/Common/PasswordInput'
+import PasswordResetRequestModal from '../../Components/Common/PasswordResetRequestModal'
 import ThemeToggle from '../../Components/Common/ThemeToggle'
 import { fetchRoleProfile, getPostAuthRedirectPath, useAuth } from '../../Context/AuthContext'
 import { SELF_REGISTRATION_ENABLED } from '../../utils/featureFlags'
@@ -38,6 +39,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [requestingPassword, setRequestingPassword] = useState(false)
   // The stored role tells us which profile endpoint to hit, so an already
   // signed in visitor costs one request and a signed out one costs none.
   const [restoringSession, setRestoringSession] = useState(Boolean(auth.role))
@@ -256,9 +258,19 @@ const LoginPage = () => {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                  Password
-                </label>
+                <div className="flex items-baseline justify-between gap-3">
+                  <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setRequestingPassword(true)}
+                    disabled={loading}
+                    className="text-sm font-semibold text-blue-600 transition hover:text-blue-700 dark:hover:text-blue-300 disabled:cursor-not-allowed disabled:text-blue-300"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
                 <PasswordInput
                   id="password"
                   value={password}
@@ -302,6 +314,10 @@ const LoginPage = () => {
           </div>
         </div>
       </div>
+
+      {requestingPassword ? (
+        <PasswordResetRequestModal onClose={() => setRequestingPassword(false)} />
+      ) : null}
     </>
   )
 }

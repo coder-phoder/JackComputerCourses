@@ -494,5 +494,6 @@ module.exports = {
     updateUserByAdmin,
     deleteUserByAdmin,
     getUserLoginHistoryByAdmin,
+    formatUserData,
     getActiveAdminSessionId: () => activeAdminSessionId
 };

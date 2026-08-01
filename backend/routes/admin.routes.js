@@ -21,6 +21,7 @@ const authAdmin = require('../middlewares/admin.middleware');
 const courseRoutes = require('./course.routes');
 const { adminTopicNoteRoutes } = require('./topicNote.routes');
 const { adminBugRoutes } = require('./bug.routes');
+const { adminPasswordRequestRoutes } = require('./passwordRequest.routes');
 
 const router = express.Router();
 
@@ -39,6 +40,7 @@ router.patch('/faculties/:id', authAdmin, updateFacultyByAdmin);
 router.delete('/faculties/:id', authAdmin, deleteFacultyByAdmin);
 router.use('/courses', authAdmin, courseRoutes);
 router.get('/notes', authAdmin, getAllNotesByAdmin);
+router.use('/password-requests', authAdmin, adminPasswordRequestRoutes);
 router.use('/topic-notes', authAdmin, adminTopicNoteRoutes);
 router.use('/bugs', authAdmin, adminBugRoutes);
 
