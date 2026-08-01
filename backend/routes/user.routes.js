@@ -8,6 +8,7 @@ const {
 const {
     getCoursesByUser,
     getCourseByUser,
+    saveCourseProgressByUser,
     getCourseVideoEmbedByUser
 } = require('../controllers/course.controller');
 const authUser = require('../middlewares/user.middleware');
@@ -32,6 +33,7 @@ router.get(
     authUser,
     getCourseVideoEmbedByUser
 );
+router.put('/courses/:courseId/progress', authUser, saveCourseProgressByUser);
 router.get('/courses/:courseId', authUser, getCourseByUser);
 
 module.exports = router;

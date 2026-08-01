@@ -46,7 +46,7 @@ const fetchFolderFiles = async (folderId) => {
     try {
         const response = await axios.get('https://www.googleapis.com/drive/v3/files', {
             params: {
-                q: `'${folderId}' in parents and trashed = false`,
+                q: `'${folderId}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed = false`,
                 key: apiKey,
                 fields: 'files(id, name, mimeType, webViewLink, iconLink)',
                 orderBy: 'name',
@@ -77,7 +77,49 @@ const fetchFolderFiles = async (folderId) => {
     }
 };
 
+/**
+ * Streams the binary content of a public Google Drive file.
+ * Google native documents (Docs/Slides/Sheets) hold no downloadable bytes, so they are exported as PDF.
+ * @param {string} fileId - The ID of the Google Drive file.
+ * @param {string} mimeType - The synced mime type of the file.
+ * @returns {Promise<{ contentType: string, stream: import('stream').Readable }>}
+ */
+const fetchFileContent = async (fileId, mimeType) => {
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (!apiKey) {
+        throw new Error('Google API key is not configured (YOUTUBE_API_KEY is missing)');
+    }
+
+    const isGoogleDoc = String(mimeType || '').startsWith('application/vnd.google-apps.');
+
+    try {
+        const response = await axios.get(
+            `https://www.googleapis.com/drive/v3/files/${fileId}${isGoogleDoc ? '/export' : ''}`,
+            {
+                params: isGoogleDoc
+                    ? { key: apiKey, mimeType: 'application/pdf' }
+                    : { key: apiKey, alt: 'media', supportsAllDrives: true },
+                responseType: 'stream'
+            }
+        );
+
+        return {
+            contentType: isGoogleDoc
+                ? 'application/pdf'
+                : response.headers['content-type'] || mimeType || 'application/octet-stream',
+            stream: response.data
+        };
+    } catch (error) {
+        throw new Error(
+            error.response?.status === 404
+                ? 'File not found on Google Drive'
+                : 'Failed to download the file from Google Drive. Make sure the folder is shared publicly.'
+        );
+    }
+};
+
 module.exports = {
     parseFolderId,
-    fetchFolderFiles
+    fetchFolderFiles,
+    fetchFileContent
 };

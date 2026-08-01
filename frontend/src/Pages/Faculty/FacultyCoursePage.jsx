@@ -1,11 +1,12 @@
 import axios from 'axios'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import UserCodePlayground from '../../Components/User/UserCodePlayground'
 import UserCourseSidebar from '../../Components/User/UserCourseSidebar'
 import UserVideoPlayer from '../../Components/User/UserVideoPlayer'
 import { useAuth } from '../../Context/AuthContext'
+import { resolveInitialVideoKey, saveLastWatchedVideo } from '../../utils/courseProgress'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -35,10 +36,12 @@ const FacultyCoursePage = () => {
   const [loadingCourse, setLoadingCourse] = useState(true)
   const [error, setError] = useState('')
   const [selectedVideoKey, setSelectedVideoKey] = useState('')
+  const [shouldAutoplay, setShouldAutoplay] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
   const [isCodeSidebarCollapsed, setIsCodeSidebarCollapsed] = useState(true)
   const [ideWidth, setIdeWidth] = useState(480)
   const [isDragging, setIsDragging] = useState(false)
+  const savedVideoKeyRef = useRef('')
 
   const handleMouseDown = (e) => {
     e.preventDefault()
@@ -91,6 +94,28 @@ const FacultyCoursePage = () => {
     playableVideos.find((videoItem) => videoItem.key === selectedVideoKey) || null
   ), [playableVideos, selectedVideoKey])
 
+  const handleSelectVideo = useCallback((videoKey) => {
+    setShouldAutoplay(false)
+    setSelectedVideoKey(videoKey)
+  }, [])
+
+  // Videos are flattened in chapter order, so the next entry is the next lesson,
+  // the first lesson of the next chapter, or the very first lesson once the course ends.
+  const handleVideoEnded = useCallback((endedVideoKey) => {
+    if (playableVideos.length < 2) {
+      return
+    }
+
+    const endedIndex = playableVideos.findIndex((videoItem) => videoItem.key === endedVideoKey)
+
+    if (endedIndex < 0) {
+      return
+    }
+
+    setShouldAutoplay(true)
+    setSelectedVideoKey(playableVideos[(endedIndex + 1) % playableVideos.length].key)
+  }, [playableVideos])
+
   const fetchCourse = useCallback(async (options = {}) => {
     const shouldUpdate = options.shouldUpdate || (() => true)
 
@@ -111,14 +136,16 @@ const FacultyCoursePage = () => {
       if (shouldUpdate()) {
         const nextCourse = response.data?.data?.course || null
         const nextChapters = response.data?.data?.chapters || []
+        const lastWatchedVideoKey = response.data?.data?.lastWatchedVideoKey || ''
         const nextPlayableVideos = getPlayableVideos(nextChapters)
+
+        // The stored resume point is already persisted, so opening it must not save again.
+        savedVideoKeyRef.current = lastWatchedVideoKey
 
         setCourse(nextCourse)
         setChapters(nextChapters)
         setSelectedVideoKey((currentVideoKey) => (
-          nextPlayableVideos.some((videoItem) => videoItem.key === currentVideoKey)
-            ? currentVideoKey
-            : nextPlayableVideos[0]?.key || ''
+          resolveInitialVideoKey(nextPlayableVideos, currentVideoKey, lastWatchedVideoKey)
         ))
       }
     } catch (fetchError) {
@@ -190,6 +217,15 @@ const FacultyCoursePage = () => {
     }
   }, [clearAuth, fetchCourse, setAuth])
 
+  useEffect(() => {
+    if (!isAuthorized || !selectedVideoKey || selectedVideoKey === savedVideoKeyRef.current) {
+      return
+    }
+
+    savedVideoKeyRef.current = selectedVideoKey
+    saveLastWatchedVideo('faculty', courseId, selectedVideoKey)
+  }, [courseId, isAuthorized, selectedVideoKey])
+
   if (checkingAuth) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 font-sans">
@@ -256,7 +292,7 @@ const FacultyCoursePage = () => {
               <UserCourseSidebar
                 chapters={chapters}
                 selectedVideoKey={selectedVideoKey}
-                onSelectVideo={setSelectedVideoKey}
+                onSelectVideo={handleSelectVideo}
                 isCollapsed={isSidebarCollapsed}
                 onToggleCollapse={() => setIsSidebarCollapsed((currentValue) => !currentValue)}
               />
@@ -265,11 +301,13 @@ const FacultyCoursePage = () => {
             {/* Resizable main workspace (Video Player + Monaco IDE Sidebar) */}
             <div 
               id="workspace-container"
-              className="order-1 min-h-[320px] lg:order-2 flex flex-col xl:flex-row min-w-0 min-h-0 gap-4 relative overflow-hidden"
+              className="order-1 min-h-80 lg:order-2 flex flex-col xl:flex-row min-w-0 gap-4 relative overflow-hidden"
             >
               <UserVideoPlayer
                 course={course}
                 selectedVideo={selectedVideo}
+                shouldAutoplay={shouldAutoplay}
+                onVideoEnded={handleVideoEnded}
                 className="flex-1 min-w-0 xl:min-h-0"
               />
 

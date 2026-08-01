@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ExternalLink, Eye, File, FileText, Image as ImageIcon, X } from 'lucide-react'
+import { Eye, File, FileText, Image as ImageIcon, Printer, X } from 'lucide-react'
+import printDriveFile from '../../utils/printDriveFile'
 
 const getFileTypeLabel = (mimeType) => {
   const fileType = String(mimeType || '').split('/').pop()
@@ -88,15 +89,14 @@ const DriveFileList = ({ files = [], emptyMessage = 'No files were found in this
                 <Eye className="h-3.5 w-3.5" />
                 Preview
               </button>
-              <a
-                href={file.webViewLink}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => printDriveFile(file)}
                 className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 sm:flex-none"
               >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Open
-              </a>
+                <Printer className="h-3.5 w-3.5" />
+                Print
+              </button>
             </div>
           </div>
         ))}
