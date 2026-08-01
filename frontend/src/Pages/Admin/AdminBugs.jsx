@@ -7,6 +7,7 @@ import BugImageGallery from '../../Components/Common/BugImageGallery'
 import BugStatusBadge from '../../Components/Common/BugStatusBadge'
 import { formatBugDateTime, getBugDecisionAt, getBugDecisionLabel, isHistoryBug } from '../../Components/Common/bugStatus'
 import { useAuth } from '../../Context/AuthContext'
+import { refreshAdminAlerts } from '../../utils/adminAlerts'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 const BUGS_URL = `${API_BASE_URL}/admin/bugs`
@@ -110,6 +111,8 @@ const AdminBugs = () => {
 
       setBugs((currentBugs) => currentBugs.map((bug) => (bug._id === bugId ? updatedBug : bug)))
       setSuccess(`Bug ${updatedBug.status}. It has moved to history.`)
+      // The report left the open queue, so the navbar badge drops with it.
+      refreshAdminAlerts()
     } catch (decisionError) {
       handleRequestError(decisionError, `Unable to ${decision} the bug. Please try again.`)
     } finally {

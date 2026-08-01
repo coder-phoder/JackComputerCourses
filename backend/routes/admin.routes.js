@@ -3,6 +3,7 @@ const {
     loginAdmin,
     logoutAdmin,
     getAdminProfile,
+    getAdminAlertCounts,
     getAllUsersByAdmin,
     createUserByAdmin,
     updateUserByAdmin,
@@ -21,12 +22,14 @@ const authAdmin = require('../middlewares/admin.middleware');
 const courseRoutes = require('./course.routes');
 const { adminTopicNoteRoutes } = require('./topicNote.routes');
 const { adminBugRoutes } = require('./bug.routes');
+const { adminPasswordRequestRoutes } = require('./passwordRequest.routes');
 
 const router = express.Router();
 
 router.post('/login', loginAdmin);
 router.post('/logout', logoutAdmin);
 router.get('/profile', authAdmin, getAdminProfile);
+router.get('/alerts', authAdmin, getAdminAlertCounts);
 router.get('/users', authAdmin, getAllUsersByAdmin);
 router.post('/users', authAdmin, createUserByAdmin);
 router.get('/users/:id/login-history', authAdmin, getUserLoginHistoryByAdmin);
@@ -39,6 +42,7 @@ router.patch('/faculties/:id', authAdmin, updateFacultyByAdmin);
 router.delete('/faculties/:id', authAdmin, deleteFacultyByAdmin);
 router.use('/courses', authAdmin, courseRoutes);
 router.get('/notes', authAdmin, getAllNotesByAdmin);
+router.use('/password-requests', authAdmin, adminPasswordRequestRoutes);
 router.use('/topic-notes', authAdmin, adminTopicNoteRoutes);
 router.use('/bugs', authAdmin, adminBugRoutes);
 

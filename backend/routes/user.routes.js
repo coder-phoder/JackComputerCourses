@@ -16,12 +16,16 @@ const workspaceRoutes = require('./workspace.routes');
 const ideShareRoutes = require('./ideShare.routes');
 const { userQueryRoutes } = require('./query.routes');
 const { reporterBugRoutes } = require('./bug.routes');
+const { publicPasswordRequestRoutes } = require('./passwordRequest.routes');
 
 const router = express.Router();
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/logout', logoutUser);
+// Locked out visitors raise this from the login page, so it stays ahead of every
+// route that requires a signed in user.
+router.use('/password-requests', publicPasswordRequestRoutes);
 router.get('/profile', authUser, getUserProfile);
 router.use('/workspace', authUser, workspaceRoutes);
 router.use('/ide-share', authUser, ideShareRoutes);
