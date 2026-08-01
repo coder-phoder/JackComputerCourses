@@ -26,6 +26,7 @@ This project is built as a modern MERN-style application:
 
 - View assigned courses and course details
 - Manage course notes for learners
+- Browse admin-published topic notes (faculty-only, available with or without a course)
 - Respond to learner queries
 - Use the same integrated IDE workflow for demonstrations and support
 
@@ -36,6 +37,7 @@ This project is built as a modern MERN-style application:
 - Add chapters and sync course videos
 - Control course access for learners and faculty
 - Manage course notes from the admin dashboard
+- Create, update, sync, and delete topic notes for any topic, visible to faculty only
 
 ## Project Structure
 

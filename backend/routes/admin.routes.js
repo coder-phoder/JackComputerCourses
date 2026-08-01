@@ -14,8 +14,10 @@ const {
     updateFacultyByAdmin,
     deleteFacultyByAdmin
 } = require('../controllers/faculty.controller');
+const { getAllNotesByAdmin } = require('../controllers/note.controller');
 const authAdmin = require('../middlewares/admin.middleware');
 const courseRoutes = require('./course.routes');
+const { adminTopicNoteRoutes } = require('./topicNote.routes');
 
 const router = express.Router();
 
@@ -31,5 +33,7 @@ router.post('/faculties', authAdmin, createFacultyByAdmin);
 router.patch('/faculties/:id', authAdmin, updateFacultyByAdmin);
 router.delete('/faculties/:id', authAdmin, deleteFacultyByAdmin);
 router.use('/courses', authAdmin, courseRoutes);
+router.get('/notes', authAdmin, getAllNotesByAdmin);
+router.use('/topic-notes', authAdmin, adminTopicNoteRoutes);
 
 module.exports = router;

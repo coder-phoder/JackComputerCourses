@@ -18,11 +18,12 @@ import AdminCourses from './Pages/Admin/AdminCourses'
 import Course from './Pages/Admin/Course'
 import CourseAccessPage from './Pages/Admin/CourseAccessPage'
 import AdminNotes from './Pages/Admin/AdminNotes'
+import AdminTopicNotes from './Pages/Admin/AdminTopicNotes'
 import FacultyHomePage from './Pages/Faculty/FacultyHomePage'
 import FacultyCoursesPage from './Pages/Faculty/FacultyCoursesPage'
 import FacultyCoursePage from './Pages/Faculty/FacultyCoursePage'
-import FacultyNotes from './Pages/Faculty/FacultyNotes'
 import FacultyCourseNotes from './Pages/Faculty/FacultyCourseNotes'
+import FacultyTopicNotes from './Pages/Faculty/FacultyTopicNotes'
 import FacultyIdePage from './Pages/Faculty/FacultyIdePage'
 import FacultyQueries from './Pages/Faculty/FacultyQueries'
 import SharedIDE from './Components/IDE/SharedIDE'
@@ -152,12 +153,14 @@ const App = () => {
             <Route path="/faculty/courses/:courseId" element={protect('faculty', <FacultyCoursePage />)} />
             <Route path="/faculty/ide" element={protect('faculty', <FacultyIdePage />)} />
             <Route path="/faculty/queries" element={protect('faculty', <FacultyQueries />)} />
-            <Route path="/faculty/notes" element={protect('faculty', <FacultyNotes />)} />
+            <Route path="/faculty/notes" element={protect('faculty', <FacultyTopicNotes />)} />
             <Route path="/faculty/notes/:courseId" element={protect('faculty', <FacultyCourseNotes />)} />
+            <Route path="/faculty/topic-notes" element={protect('faculty', <FacultyTopicNotes />)} />
             <Route path="/admin/home" element={protect('admin', <AdminHomePage />)} />
             <Route path="/admin/users" element={protect('admin', <AdminAllUsers />)} />
             <Route path="/admin/faculties" element={protect('admin', <AdminAllFaculties />)} />
             <Route path="/admin/courses" element={protect('admin', <AdminCourses />)} />
+            <Route path="/admin/topic-notes" element={protect('admin', <AdminTopicNotes />)} />
             <Route path="/admin/courses/:courseId/access" element={protect('admin', <CourseAccessPage />)} />
             <Route path="/admin/courses/:courseId/notes" element={protect('admin', <AdminNotes />)} />
             <Route path="/admin/courses/:courseId" element={protect('admin', <Course />)} />

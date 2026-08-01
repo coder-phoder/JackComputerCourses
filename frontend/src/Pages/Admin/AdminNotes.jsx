@@ -354,7 +354,7 @@ const AdminNotes = () => {
               Back to Course
             </Link>
             {course && (
-              <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 truncate max-w-[150px] sm:max-w-[300px]">
+              <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 truncate max-w-37.5 sm:max-w-75">
                 {course.title} Notes
               </h1>
             )}
