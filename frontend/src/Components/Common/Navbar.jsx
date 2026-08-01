@@ -2,6 +2,7 @@ import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
+import { SELF_REGISTRATION_ENABLED } from '../../utils/featureFlags';
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -39,12 +40,14 @@ const Navbar = () => {
             >
               Log in
             </Link>
-            <Link 
-              to="/register" 
-              className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 sm:px-4"
-            >
-              Sign up
-            </Link>
+            {SELF_REGISTRATION_ENABLED ? (
+              <Link
+                to="/register"
+                className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 sm:px-4"
+              >
+                Sign up
+              </Link>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
@@ -73,13 +76,15 @@ const Navbar = () => {
             <Link to="/about" onClick={closeMobileMenu} className="rounded-lg px-3 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-blue-300">
               About
             </Link>
-            <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className={`mt-2 grid ${SELF_REGISTRATION_ENABLED ? 'grid-cols-2' : 'grid-cols-1'} gap-2 border-t border-slate-100 pt-4 dark:border-slate-800`}>
               <Link to="/login" onClick={closeMobileMenu} className="rounded-lg border border-blue-200 px-3 py-3 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-50 dark:border-blue-900/70 dark:text-blue-200 dark:hover:bg-blue-950/40">
                 Log in
               </Link>
-              <Link to="/register" onClick={closeMobileMenu} className="rounded-lg bg-blue-600 px-3 py-3 text-center text-sm font-semibold text-white shadow-md transition hover:bg-blue-700">
-                Sign up
-              </Link>
+              {SELF_REGISTRATION_ENABLED ? (
+                <Link to="/register" onClick={closeMobileMenu} className="rounded-lg bg-blue-600 px-3 py-3 text-center text-sm font-semibold text-white shadow-md transition hover:bg-blue-700">
+                  Sign up
+                </Link>
+              ) : null}
             </div>
           </div>
         </div>

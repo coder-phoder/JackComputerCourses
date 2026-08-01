@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import PasswordInput from '../../Components/Common/PasswordInput'
 import ThemeToggle from '../../Components/Common/ThemeToggle'
 import { getPostAuthRedirectPath, useAuth } from '../../Context/AuthContext'
 
@@ -159,13 +160,12 @@ const RegisterPage = () => {
               <label htmlFor="register-password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Password
               </label>
-              <input
+              <PasswordInput
                 id="register-password"
                 name="password"
-                type="password"
                 value={form.password}
                 onChange={handleChange}
-                className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
                 placeholder="Enter password"
                 disabled={loading}
               />
@@ -175,13 +175,12 @@ const RegisterPage = () => {
               <label htmlFor="register-confirm-password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Confirm Password
               </label>
-              <input
+              <PasswordInput
                 id="register-confirm-password"
                 name="confirmPassword"
-                type="password"
                 value={form.confirmPassword}
                 onChange={handleChange}
-                className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
                 placeholder="Confirm password"
                 disabled={loading}
               />

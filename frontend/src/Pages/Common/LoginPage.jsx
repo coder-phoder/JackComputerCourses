@@ -1,8 +1,10 @@
 import axios from 'axios'
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import PasswordInput from '../../Components/Common/PasswordInput'
 import ThemeToggle from '../../Components/Common/ThemeToggle'
 import { getPostAuthRedirectPath, useAuth } from '../../Context/AuthContext'
+import { SELF_REGISTRATION_ENABLED } from '../../utils/featureFlags'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
 
@@ -178,12 +180,11 @@ const LoginPage = () => {
               <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Password
               </label>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
                 placeholder="Enter password"
                 disabled={loading}
               />
@@ -204,12 +205,14 @@ const LoginPage = () => {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">
-            Don&apos;t have an account?{' '}
-            <Link to="/register" state={location.state} className="font-semibold text-blue-600 transition hover:text-blue-700 dark:hover:text-blue-300">
-              Sign up
-            </Link>
-          </p>
+          {SELF_REGISTRATION_ENABLED ? (
+            <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">
+              Don&apos;t have an account?{' '}
+              <Link to="/register" state={location.state} className="font-semibold text-blue-600 transition hover:text-blue-700 dark:hover:text-blue-300">
+                Sign up
+              </Link>
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

@@ -27,6 +27,7 @@ import FacultyTopicNotes from './Pages/Faculty/FacultyTopicNotes'
 import FacultyIdePage from './Pages/Faculty/FacultyIdePage'
 import FacultyQueries from './Pages/Faculty/FacultyQueries'
 import SharedIDE from './Components/IDE/SharedIDE'
+import { SELF_REGISTRATION_ENABLED } from './utils/featureFlags'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
 
@@ -142,7 +143,10 @@ const App = () => {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            <Route
+              path="/register"
+              element={SELF_REGISTRATION_ENABLED ? <RegisterPage /> : <Navigate to="/login" replace />}
+            />
             <Route path="/shared-ide/:token" element={<SharedIDE />} />
             <Route path="/user/home" element={protect('user', <UserHomePage />)} />
             <Route path="/user/courses" element={protect('user', <UserCoursesPage />)} />
