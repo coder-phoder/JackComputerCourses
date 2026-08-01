@@ -1,2 +1,14 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Progress bar for the sign-in transition (LoginTransitionScreen).
+   The 3D scene itself is rendered with three.js. */
+.auth-progress {
+  transform-origin: left center;
+  animation: auth-progress 3s ease-out forwards;
+}
+
+@keyframes auth-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}

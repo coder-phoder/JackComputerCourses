@@ -1,7 +1,7 @@
-import axios from 'axios'
 import { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Navigate, Routes, Route, useLocation } from 'react-router-dom'
-import { AuthProvider, useAuth } from './Context/AuthContext'
+import AuthLoadingScreen from './Components/Common/AuthLoadingScreen'
+import { AuthProvider, fetchRoleProfile, useAuth } from './Context/AuthContext'
 import { ThemeProvider } from './Context/ThemeContext'
 import LandingPage from './Pages/Common/LandingPage'
 import LoginPage from './Pages/Common/LoginPage'
@@ -29,23 +29,6 @@ import FacultyQueries from './Pages/Faculty/FacultyQueries'
 import SharedIDE from './Components/IDE/SharedIDE'
 import { SELF_REGISTRATION_ENABLED } from './utils/featureFlags'
 
-const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
-
-const ROLE_PROFILE_CONFIG = {
-  admin: {
-    path: '/admin/profile',
-    key: 'admin',
-  },
-  faculty: {
-    path: '/faculty/profile',
-    key: 'faculty',
-  },
-  user: {
-    path: '/user/profile',
-    key: 'user',
-  },
-}
-
 const getLoginState = (location) => ({
   from: {
     pathname: location.pathname,
@@ -64,47 +47,25 @@ const ProtectedRoute = ({ role, children }) => {
     let isActive = true
 
     const verifyAccess = async () => {
-      const config = ROLE_PROFILE_CONFIG[role]
+      const profile = await fetchRoleProfile(role)
 
-      if (!config) {
-        clearAuth()
-        setIsAuthorized(false)
-        setCheckingAuth(false)
+      if (!isActive) {
         return
       }
 
-      try {
-        const response = await axios.get(`${API_BASE_URL}${config.path}`, {
-          withCredentials: true,
-        })
-        const profile = response.data?.data?.[config.key]
-
-        if (!response.data?.success || profile?.role !== role) {
-          throw new Error('Unauthorized')
-        }
-
-        if (!isActive) {
-          return
-        }
-
+      if (profile) {
         setAuth({
           role,
           phone: profile.phone,
           token: null,
         })
         setIsAuthorized(true)
-      } catch {
-        if (!isActive) {
-          return
-        }
-
+      } else {
         clearAuth()
         setIsAuthorized(false)
-      } finally {
-        if (isActive) {
-          setCheckingAuth(false)
-        }
       }
+
+      setCheckingAuth(false)
     }
 
     verifyAccess()
@@ -115,11 +76,7 @@ const ProtectedRoute = ({ role, children }) => {
   }, [clearAuth, role, setAuth])
 
   if (checkingAuth) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 font-sans dark:bg-slate-950">
-        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Checking authentication...</p>
-      </div>
-    )
+    return <AuthLoadingScreen />
   }
 
   if (!isAuthorized) {
