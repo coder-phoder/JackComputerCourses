@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
+const LoginHistory = require('../models/loginHistory.model');
 
 const userCookieOptions = {
     httpOnly: true,
@@ -56,6 +57,7 @@ const clearCurrentUserSession = async (token) => {
             },
             { $set: { activeSessionId: null } }
         );
+        await LoginHistory.endSession('user', decoded.id, decoded.sessionId);
     } catch {
         // Invalid or stale logout tokens should only clear the browser cookie.
     }
@@ -118,6 +120,9 @@ const registerUser = async (req, res) => {
             password: hashedPassword,
             activeSessionId: createSessionId()
         });
+
+        await LoginHistory.startSession('user', user._id, user.activeSessionId);
+
         const token = createUserToken(user);
 
         return res
@@ -187,6 +192,8 @@ const loginUser = async (req, res) => {
 
         user.activeSessionId = createSessionId();
         await user.save();
+
+        await LoginHistory.startSession('user', user._id, user.activeSessionId);
 
         const token = createUserToken(user);
 

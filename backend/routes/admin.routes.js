@@ -6,13 +6,15 @@ const {
     getAllUsersByAdmin,
     createUserByAdmin,
     updateUserByAdmin,
-    deleteUserByAdmin
+    deleteUserByAdmin,
+    getUserLoginHistoryByAdmin
 } = require('../controllers/admin.controller');
 const {
     getAllFacultiesByAdmin,
     createFacultyByAdmin,
     updateFacultyByAdmin,
-    deleteFacultyByAdmin
+    deleteFacultyByAdmin,
+    getFacultyLoginHistoryByAdmin
 } = require('../controllers/faculty.controller');
 const { getAllNotesByAdmin } = require('../controllers/note.controller');
 const authAdmin = require('../middlewares/admin.middleware');
@@ -27,10 +29,12 @@ router.post('/logout', logoutAdmin);
 router.get('/profile', authAdmin, getAdminProfile);
 router.get('/users', authAdmin, getAllUsersByAdmin);
 router.post('/users', authAdmin, createUserByAdmin);
+router.get('/users/:id/login-history', authAdmin, getUserLoginHistoryByAdmin);
 router.patch('/users/:id', authAdmin, updateUserByAdmin);
 router.delete('/users/:id', authAdmin, deleteUserByAdmin);
 router.get('/faculties', authAdmin, getAllFacultiesByAdmin);
 router.post('/faculties', authAdmin, createFacultyByAdmin);
+router.get('/faculties/:id/login-history', authAdmin, getFacultyLoginHistoryByAdmin);
 router.patch('/faculties/:id', authAdmin, updateFacultyByAdmin);
 router.delete('/faculties/:id', authAdmin, deleteFacultyByAdmin);
 router.use('/courses', authAdmin, courseRoutes);
