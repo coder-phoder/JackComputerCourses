@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { ChevronDown } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import AdminNavbar from '../../Components/Admin/AdminNavbar'
@@ -14,6 +15,12 @@ const emptyForm = {
   phone: '',
   password: '',
 }
+
+// The two panels share the column, so only one of them is ever expanded.
+const USER_FORM_PANEL = 'userForm'
+const REQUESTS_PANEL = 'requests'
+
+const inputClassName = 'w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800'
 
 const getErrorMessage = (error, fallback) => (
   error?.response?.data?.message || fallback
@@ -41,6 +48,9 @@ const AdminAllUsers = () => {
   const [saving, setSaving] = useState(false)
   const [deletingUserId, setDeletingUserId] = useState('')
   const [historyUser, setHistoryUser] = useState(null)
+  const [openPanel, setOpenPanel] = useState(USER_FORM_PANEL)
+
+  const isUserFormOpen = openPanel === USER_FORM_PANEL
 
   const sortedUsers = useMemo(
     () => [...users].sort(sortUsers),
@@ -152,6 +162,11 @@ const AdminAllUsers = () => {
     setSuccess('')
   }
 
+  // Opening either panel closes the other, and clicking the open one folds it away.
+  const togglePanel = (panel) => {
+    setOpenPanel((currentPanel) => (currentPanel === panel ? '' : panel))
+  }
+
   const handleCreateUser = async (event) => {
     event.preventDefault()
     resetMessages()
@@ -198,6 +213,8 @@ const AdminAllUsers = () => {
 
   const startEditingUser = (user) => {
     resetMessages()
+    // Editing from the table has to reveal the form, whichever panel was open.
+    setOpenPanel(USER_FORM_PANEL)
     setEditingUserId(user._id)
     setEditingForm({
       name: getUserName(user),
@@ -312,11 +329,13 @@ const AdminAllUsers = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
+    // The page itself never scrolls: it is pinned to the viewport and the two
+    // columns below take their own scrollbars.
+    <div className="flex h-dvh flex-col overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans">
       <AdminNavbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <main className="mx-auto flex w-full min-h-0 max-w-7xl flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-6 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
               Admin Dashboard
@@ -333,166 +352,181 @@ const AdminAllUsers = () => {
           </button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_1fr]">
-          <div className="space-y-6">
-            <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
-              {editingUser ? (
-                <>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Edit User</h2>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        {getUserName(editingUser) || editingUser.phone}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={cancelEditingUser}
-                      disabled={saving}
-                      className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-slate-400 dark:hover:border-slate-500 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+        <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto lg:grid-cols-[minmax(0,380px)_1fr] lg:overflow-hidden">
+          <div className="flex min-h-0 flex-col gap-4 lg:overflow-y-auto">
+            <section className={`flex flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm ${isUserFormOpen ? 'min-h-0 flex-1' : ''}`}>
+              <button
+                type="button"
+                onClick={() => togglePanel(USER_FORM_PANEL)}
+                aria-expanded={isUserFormOpen}
+                className="flex shrink-0 items-start justify-between gap-3 px-6 py-5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+              >
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    {editingUser ? 'Edit User' : 'Create User'}
+                  </h2>
+                  {editingUser ? (
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      {getUserName(editingUser) || editingUser.phone}
+                    </p>
+                  ) : null}
+                </div>
+                <ChevronDown className={`h-5 w-5 shrink-0 text-slate-400 transition ${isUserFormOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-                  <form onSubmit={handleUpdateUser} className="mt-6 space-y-4">
-                    <div>
-                      <label htmlFor="edit-name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                        Name
-                      </label>
-                      <input
-                        id="edit-name"
-                        name="name"
-                        type="text"
-                        value={editingForm.name}
-                        onChange={handleEditingFormChange}
+              {isUserFormOpen ? (
+                <div className="min-h-0 flex-1 overflow-y-auto border-t border-slate-200 dark:border-slate-800 px-6 py-5">
+                  {editingUser ? (
+                    <form onSubmit={handleUpdateUser} className="space-y-4">
+                      <div>
+                        <label htmlFor="edit-name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                          Name
+                        </label>
+                        <input
+                          id="edit-name"
+                          name="name"
+                          type="text"
+                          value={editingForm.name}
+                          onChange={handleEditingFormChange}
+                          disabled={saving}
+                          className={`mt-2 ${inputClassName}`}
+                          placeholder="Enter full name"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="edit-phone" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                          Phone
+                        </label>
+                        <input
+                          id="edit-phone"
+                          name="phone"
+                          type="tel"
+                          value={editingForm.phone}
+                          onChange={handleEditingFormChange}
+                          disabled={saving}
+                          className={`mt-2 ${inputClassName}`}
+                          placeholder="Enter phone number"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="edit-password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                          New Password
+                        </label>
+                        <PasswordInput
+                          id="edit-password"
+                          name="password"
+                          value={editingForm.password}
+                          onChange={handleEditingFormChange}
+                          disabled={saving}
+                          className={inputClassName}
+                          placeholder="Leave blank to keep current password"
+                        />
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button
+                          type="submit"
+                          disabled={saving}
+                          className="flex-1 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400 dark:disabled:bg-slate-700"
+                        >
+                          {saving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditingUser}
+                          disabled={saving}
+                          className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-slate-400 dark:hover:border-slate-500 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleCreateUser} className="space-y-4">
+                      <div>
+                        <label htmlFor="create-name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                          Name
+                        </label>
+                        <input
+                          id="create-name"
+                          name="name"
+                          type="text"
+                          value={form.name}
+                          onChange={handleFormChange}
+                          disabled={saving}
+                          className={`mt-2 ${inputClassName}`}
+                          placeholder="Enter full name"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="create-phone" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                          Phone
+                        </label>
+                        <input
+                          id="create-phone"
+                          name="phone"
+                          type="tel"
+                          value={form.phone}
+                          onChange={handleFormChange}
+                          disabled={saving}
+                          className={`mt-2 ${inputClassName}`}
+                          placeholder="Enter phone number"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="create-password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                          Password
+                        </label>
+                        <PasswordInput
+                          id="create-password"
+                          name="password"
+                          value={form.password}
+                          onChange={handleFormChange}
+                          disabled={saving}
+                          className={inputClassName}
+                          placeholder="Enter password"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
                         disabled={saving}
-                        className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
-                        placeholder="Enter full name"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="edit-phone" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                        Phone
-                      </label>
-                      <input
-                        id="edit-phone"
-                        name="phone"
-                        type="tel"
-                        value={editingForm.phone}
-                        onChange={handleEditingFormChange}
-                        disabled={saving}
-                        className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="edit-password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                        New Password
-                      </label>
-                      <PasswordInput
-                        id="edit-password"
-                        name="password"
-                        value={editingForm.password}
-                        onChange={handleEditingFormChange}
-                        disabled={saving}
-                        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
-                        placeholder="Leave blank to keep current password"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400 dark:disabled:bg-slate-700"
-                    >
-                      {saving ? 'Saving...' : 'Save Changes'}
-                    </button>
-                  </form>
-                </>
-              ) : (
-                <>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Create User</h2>
-
-                  <form onSubmit={handleCreateUser} className="mt-6 space-y-4">
-                    <div>
-                      <label htmlFor="create-name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                        Name
-                      </label>
-                      <input
-                        id="create-name"
-                        name="name"
-                        type="text"
-                        value={form.name}
-                        onChange={handleFormChange}
-                        disabled={saving}
-                        className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
-                        placeholder="Enter full name"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="create-phone" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                        Phone
-                      </label>
-                      <input
-                        id="create-phone"
-                        name="phone"
-                        type="tel"
-                        value={form.phone}
-                        onChange={handleFormChange}
-                        disabled={saving}
-                        className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="create-password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                        Password
-                      </label>
-                      <PasswordInput
-                        id="create-password"
-                        name="password"
-                        value={form.password}
-                        onChange={handleFormChange}
-                        disabled={saving}
-                        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800"
-                        placeholder="Enter password"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="w-full rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
-                    >
-                      {saving ? 'Creating...' : 'Create User'}
-                    </button>
-                  </form>
-                </>
-              )}
-
-              {error ? (
-                <p className="mt-5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300">
-                  {error}
-                </p>
-              ) : null}
-
-              {success ? (
-                <p className="mt-5 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                  {success}
-                </p>
+                        className="w-full rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+                      >
+                        {saving ? 'Creating...' : 'Create User'}
+                      </button>
+                    </form>
+                  )}
+                </div>
               ) : null}
             </section>
 
-            <AdminPasswordRequests onUserChanged={fetchUsers} />
+            <AdminPasswordRequests
+              isOpen={openPanel === REQUESTS_PANEL}
+              onToggle={() => togglePanel(REQUESTS_PANEL)}
+              onUserChanged={fetchUsers}
+            />
+
+            {/* Kept outside both panels so a message never hides with the panel that raised it. */}
+            {error ? (
+              <p className="shrink-0 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300">
+                {error}
+              </p>
+            ) : null}
+
+            {success ? (
+              <p className="shrink-0 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                {success}
+              </p>
+            ) : null}
           </div>
 
-          <section className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
+          <section className="flex flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm lg:min-h-0">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Users</h2>
               <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                 {sortedUsers.length} total
@@ -504,9 +538,9 @@ const AdminAllUsers = () => {
                 Loading users...
               </div>
             ) : sortedUsers.length ? (
-              <div className="overflow-x-auto">
+              <div className="min-h-0 flex-1 overflow-auto">
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
-                  <thead className="bg-slate-50 dark:bg-slate-950">
+                  <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-950">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Name

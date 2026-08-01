@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/user.model');
 const Course = require('../models/course.model');
+const Bug = require('../models/bug.model');
+const PasswordRequest = require('../models/passwordRequest.model');
 const LoginHistory = require('../models/loginHistory.model');
 
 let cachedAdminPassword = null;
@@ -181,6 +183,29 @@ const getAdminProfile = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Something went wrong while fetching admin profile',
+            data: {}
+        });
+    }
+};
+
+// Feeds the navbar badges, so it answers with two counted index lookups instead
+// of the full request and bug lists.
+const getAdminAlertCounts = async (req, res) => {
+    try {
+        const [passwordRequests, bugs] = await Promise.all([
+            PasswordRequest.countDocuments({ status: 'pending' }),
+            Bug.countDocuments({ status: 'open' })
+        ]);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Admin alerts fetched successfully',
+            data: { passwordRequests, bugs }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while fetching admin alerts',
             data: {}
         });
     }
@@ -489,6 +514,7 @@ module.exports = {
     loginAdmin,
     logoutAdmin,
     getAdminProfile,
+    getAdminAlertCounts,
     getAllUsersByAdmin,
     createUserByAdmin,
     updateUserByAdmin,

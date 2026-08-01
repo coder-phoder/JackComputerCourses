@@ -4,18 +4,46 @@ import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import ThemeToggle from '../Common/ThemeToggle'
 import { useAuth } from '../../Context/AuthContext'
+import { useAdminAlerts } from '../../utils/adminAlerts'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
-const getNavLinkClass = ({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold transition ${
+// Links that carry a badge name the alert count they answer for.
+const NAV_LINKS = [
+  { to: '/admin/home', label: 'Home' },
+  { to: '/admin/users', label: 'Users', alertKey: 'passwordRequests' },
+  { to: '/admin/faculties', label: 'Faculties' },
+  { to: '/admin/courses', label: 'Courses' },
+  { to: '/admin/topic-notes', label: 'Notes' },
+  { to: '/admin/bugs', label: 'Bugs', alertKey: 'bugs' },
+]
+
+const getNavLinkClass = ({ isActive }) => `relative rounded-lg px-3 py-2 text-sm font-semibold transition ${
   isActive
     ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300'
     : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
 }`
 
+// The count rides the top right corner of its own link, so whatever is waiting
+// for the admin is visible from every admin page.
+const AdminNavLink = ({ to, label, count, onClick }) => (
+  <NavLink to={to} onClick={onClick} className={getNavLinkClass}>
+    {label}
+    {count ? (
+      <span
+        title={`${count} waiting for you`}
+        className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-bold text-white shadow-sm"
+      >
+        {count > 99 ? '99+' : count}
+      </span>
+    ) : null}
+  </NavLink>
+)
+
 const AdminNavbar = () => {
   const navigate = useNavigate()
   const { clearAuth } = useAuth()
+  const alerts = useAdminAlerts()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -51,7 +79,7 @@ const AdminNavbar = () => {
   }
 
   return (
-    <nav className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+    <nav className="shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link to="/admin/home" onClick={closeMobileMenu} className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
@@ -64,48 +92,15 @@ const AdminNavbar = () => {
 
         <div className="flex items-center gap-4">
           <div className="hidden items-center gap-2 sm:flex">
-            <NavLink
-              to="/admin/home"
-              onClick={closeMobileMenu}
-              className={getNavLinkClass}
-            >
-              Home
-            </NavLink>
-            <NavLink
-              to="/admin/users"
-              onClick={closeMobileMenu}
-              className={getNavLinkClass}
-            >
-              Users
-            </NavLink>
-            <NavLink
-              to="/admin/faculties"
-              onClick={closeMobileMenu}
-              className={getNavLinkClass}
-            >
-              Faculties
-            </NavLink>
-            <NavLink
-              to="/admin/courses"
-              onClick={closeMobileMenu}
-              className={getNavLinkClass}
-            >
-              Courses
-            </NavLink>
-            <NavLink
-              to="/admin/topic-notes"
-              onClick={closeMobileMenu}
-              className={getNavLinkClass}
-            >
-              Notes
-            </NavLink>
-            <NavLink
-              to="/admin/bugs"
-              onClick={closeMobileMenu}
-              className={getNavLinkClass}
-            >
-              Bugs
-            </NavLink>
+            {NAV_LINKS.map((link) => (
+              <AdminNavLink
+                key={link.to}
+                to={link.to}
+                label={link.label}
+                count={link.alertKey ? alerts[link.alertKey] : 0}
+                onClick={closeMobileMenu}
+              />
+            ))}
           </div>
           {error ? (
             <span className="hidden text-sm font-medium text-red-600 dark:text-red-300 sm:inline">
@@ -135,24 +130,15 @@ const AdminNavbar = () => {
       {mobileMenuOpen ? (
         <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-4 sm:hidden">
           <div className="grid gap-2">
-            <NavLink to="/admin/home" onClick={closeMobileMenu} className={getNavLinkClass}>
-              Home
-            </NavLink>
-            <NavLink to="/admin/users" onClick={closeMobileMenu} className={getNavLinkClass}>
-              Users
-            </NavLink>
-            <NavLink to="/admin/faculties" onClick={closeMobileMenu} className={getNavLinkClass}>
-              Faculties
-            </NavLink>
-            <NavLink to="/admin/courses" onClick={closeMobileMenu} className={getNavLinkClass}>
-              Courses
-            </NavLink>
-            <NavLink to="/admin/topic-notes" onClick={closeMobileMenu} className={getNavLinkClass}>
-              Notes
-            </NavLink>
-            <NavLink to="/admin/bugs" onClick={closeMobileMenu} className={getNavLinkClass}>
-              Bugs
-            </NavLink>
+            {NAV_LINKS.map((link) => (
+              <AdminNavLink
+                key={link.to}
+                to={link.to}
+                label={link.label}
+                count={link.alertKey ? alerts[link.alertKey] : 0}
+                onClick={closeMobileMenu}
+              />
+            ))}
             <button
               type="button"
               onClick={handleLogout}

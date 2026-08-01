@@ -3,6 +3,7 @@ const {
     loginAdmin,
     logoutAdmin,
     getAdminProfile,
+    getAdminAlertCounts,
     getAllUsersByAdmin,
     createUserByAdmin,
     updateUserByAdmin,
@@ -28,6 +29,7 @@ const router = express.Router();
 router.post('/login', loginAdmin);
 router.post('/logout', logoutAdmin);
 router.get('/profile', authAdmin, getAdminProfile);
+router.get('/alerts', authAdmin, getAdminAlertCounts);
 router.get('/users', authAdmin, getAllUsersByAdmin);
 router.post('/users', authAdmin, createUserByAdmin);
 router.get('/users/:id/login-history', authAdmin, getUserLoginHistoryByAdmin);
