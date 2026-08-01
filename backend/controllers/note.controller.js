@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Note = require('../models/note.model');
 const Course = require('../models/course.model');
-const { parseFolderId, fetchFolderFiles } = require('../services/drive.service');
+const { parseFolderId, fetchFolderFiles, sortFilesByName } = require('../services/drive.service');
 
 const isValidObjectId = (id) => (
     mongoose.Types.ObjectId.isValid(id)
@@ -20,7 +20,8 @@ const formatNoteData = (note) => ({
     title: note.title,
     driveFolderUrl: note.driveFolderUrl,
     driveFolderId: note.driveFolderId,
-    files: note.files || [],
+    // Ordered on read so notes synced before numeric ordering existed still list correctly
+    files: sortFilesByName(note.files),
     lastSyncedAt: note.lastSyncedAt,
     syncStatus: note.syncStatus,
     syncError: note.syncError,

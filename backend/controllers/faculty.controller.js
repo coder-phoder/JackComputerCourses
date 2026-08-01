@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const Faculty = require('../models/faculty.model');
+const LoginHistory = require('../models/loginHistory.model');
 
 const facultyCookieOptions = {
     httpOnly: true,
@@ -65,6 +66,7 @@ const clearCurrentFacultySession = async (token) => {
             },
             { $set: { activeSessionId: null } }
         );
+        await LoginHistory.endSession('faculty', decoded.id, decoded.sessionId);
     } catch {
         // Invalid or stale logout tokens should only clear the browser cookie.
     }
@@ -281,6 +283,8 @@ const deleteFacultyByAdmin = async (req, res) => {
             });
         }
 
+        await LoginHistory.clearAccountHistory('faculty', faculty._id);
+
         return res.status(200).json({
             success: true,
             message: 'Faculty deleted successfully',
@@ -290,6 +294,47 @@ const deleteFacultyByAdmin = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Something went wrong while deleting faculty',
+            data: {}
+        });
+    }
+};
+
+const getFacultyLoginHistoryByAdmin = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!isValidFacultyId(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid faculty id',
+                data: {}
+            });
+        }
+
+        const faculty = await Faculty.findById(id).select('name phone');
+
+        if (!faculty) {
+            return res.status(404).json({
+                success: false,
+                message: 'Faculty not found',
+                data: {}
+            });
+        }
+
+        const history = await LoginHistory.getAccountHistory('faculty', faculty._id);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Faculty login history fetched successfully',
+            data: {
+                faculty: formatFacultyData(faculty),
+                history
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while fetching faculty login history',
             data: {}
         });
     }
@@ -341,6 +386,8 @@ const loginFaculty = async (req, res) => {
 
         faculty.activeSessionId = createSessionId();
         await faculty.save();
+
+        await LoginHistory.startSession('faculty', faculty._id, faculty.activeSessionId);
 
         const token = createFacultyToken(faculty);
 
@@ -403,6 +450,7 @@ module.exports = {
     createFacultyByAdmin,
     updateFacultyByAdmin,
     deleteFacultyByAdmin,
+    getFacultyLoginHistoryByAdmin,
     loginFaculty,
     logoutFaculty,
     getFacultyProfile,

@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/user.model');
 const Course = require('../models/course.model');
+const LoginHistory = require('../models/loginHistory.model');
 
 let cachedAdminPassword = null;
 let cachedAdminPasswordHash = null;
@@ -427,6 +428,7 @@ const deleteUserByAdmin = async (req, res) => {
             { 'accessGrants.phone': user.phone },
             { $pull: { accessGrants: { phone: user.phone } } }
         );
+        await LoginHistory.clearAccountHistory('user', user._id);
 
         return res.status(200).json({
             success: true,
@@ -442,6 +444,47 @@ const deleteUserByAdmin = async (req, res) => {
     }
 };
 
+const getUserLoginHistoryByAdmin = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!isValidUserId(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user id',
+                data: {}
+            });
+        }
+
+        const user = await User.findById(id).select('name phone');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+                data: {}
+            });
+        }
+
+        const history = await LoginHistory.getAccountHistory('user', user._id);
+
+        return res.status(200).json({
+            success: true,
+            message: 'User login history fetched successfully',
+            data: {
+                user: formatUserData(user),
+                history
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while fetching user login history',
+            data: {}
+        });
+    }
+};
+
 module.exports = {
     loginAdmin,
     logoutAdmin,
@@ -450,5 +493,6 @@ module.exports = {
     createUserByAdmin,
     updateUserByAdmin,
     deleteUserByAdmin,
+    getUserLoginHistoryByAdmin,
     getActiveAdminSessionId: () => activeAdminSessionId
 };
