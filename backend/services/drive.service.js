@@ -33,6 +33,19 @@ const parseFolderId = (urlOrId) => {
 };
 
 /**
+ * Orders note files the way chapters are numbered. Plain text ordering (Drive's own `orderBy`
+ * included) would place "10.Pointers" before "2.Loops", so names are compared with numeric collation.
+ * @param {Array} files - The files to order.
+ * @returns {Array} A new, ordered array.
+ */
+const sortFilesByName = (files = []) => [...files].sort((first, second) => (
+    String(first?.name || '').localeCompare(String(second?.name || ''), 'en', {
+        numeric: true,
+        sensitivity: 'base'
+    })
+));
+
+/**
  * Fetches the list of files in a public Google Drive folder.
  * @param {string} folderId - The ID of the Google Drive folder.
  * @returns {Promise<Array>} List of files with id, name, mimeType, webViewLink, iconLink.
@@ -49,7 +62,6 @@ const fetchFolderFiles = async (folderId) => {
                 q: `'${folderId}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed = false`,
                 key: apiKey,
                 fields: 'files(id, name, mimeType, webViewLink, iconLink)',
-                orderBy: 'name',
                 pageSize: 1000,
                 supportsAllDrives: true,
                 includeItemsFromAllDrives: true
@@ -58,13 +70,13 @@ const fetchFolderFiles = async (folderId) => {
 
         const files = response.data?.files || [];
 
-        return files.map((file) => ({
+        return sortFilesByName(files.map((file) => ({
             fileId: file.id || '',
             name: file.name || 'Untitled File',
             mimeType: file.mimeType || 'application/octet-stream',
             webViewLink: file.webViewLink || '',
             iconLink: file.iconLink || ''
-        }));
+        })));
     } catch (error) {
         const apiMessage = error.response?.data?.error?.message || '';
         let errorMessage = apiMessage || error.message || 'Failed to fetch files from Google Drive';
@@ -120,6 +132,7 @@ const fetchFileContent = async (fileId, mimeType) => {
 
 module.exports = {
     parseFolderId,
+    sortFilesByName,
     fetchFolderFiles,
     fetchFileContent
 };

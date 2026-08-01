@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const TopicNote = require('../models/topicNote.model');
-const { parseFolderId, fetchFolderFiles } = require('../services/drive.service');
+const { parseFolderId, fetchFolderFiles, sortFilesByName } = require('../services/drive.service');
 
 // Matches the case-insensitive unique index on TopicNote.topic
 const TOPIC_COLLATION = { locale: 'en', strength: 2 };
@@ -22,7 +22,8 @@ const formatTopicNoteData = (topicNote) => ({
     description: topicNote.description,
     driveFolderUrl: topicNote.driveFolderUrl,
     driveFolderId: topicNote.driveFolderId,
-    files: topicNote.files || [],
+    // Ordered on read so notes synced before numeric ordering existed still list correctly
+    files: sortFilesByName(topicNote.files),
     lastSyncedAt: topicNote.lastSyncedAt,
     syncStatus: topicNote.syncStatus,
     syncError: topicNote.syncError,
