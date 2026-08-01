@@ -28,7 +28,36 @@ const formatNoteData = (note) => ({
     updatedAt: note.updatedAt
 });
 
+// Course notes are listed alongside their course so the admin can manage every
+// notes folder from one page. Notes left behind by a deleted course are skipped.
+const formatCourseNoteData = (note) => ({
+    ...formatNoteData({ ...note, courseId: note.courseId._id }),
+    courseTitle: note.courseId.title,
+    courseSlug: note.courseId.slug
+});
+
 // Admin Controllers
+
+const getAllNotesByAdmin = async (req, res) => {
+    try {
+        const notes = await Note.find().populate('courseId', 'title slug').lean();
+
+        const courseNotes = notes
+            .filter((note) => note.courseId)
+            .map(formatCourseNoteData)
+            .sort((first, second) => first.courseTitle.localeCompare(second.courseTitle, undefined, {
+                sensitivity: 'base'
+            }));
+
+        return res.status(200).json({
+            success: true,
+            message: 'Course notes retrieved successfully',
+            data: { notes: courseNotes }
+        });
+    } catch (error) {
+        return sendError(res, 500, error.message || 'Something went wrong while retrieving notes');
+    }
+};
 
 const createNoteByAdmin = async (req, res) => {
     try {
@@ -291,6 +320,9 @@ const getNoteByFaculty = async (req, res) => {
 };
 
 module.exports = {
+    getAllNotesByAdmin,
+    // Faculty already have read access to every course, so the same listing serves both roles
+    getAllNotesByFaculty: getAllNotesByAdmin,
     createNoteByAdmin,
     getNoteByAdmin,
     updateNoteByAdmin,

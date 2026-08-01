@@ -2,6 +2,7 @@ const axios = require('axios');
 const mongoose = require('mongoose');
 const Course = require('../models/course.model');
 const Chapter = require('../models/chapter.model');
+const Note = require('../models/note.model');
 const User = require('../models/user.model');
 
 const YOUTUBE_PLAYLIST_ITEMS_URL = 'https://www.googleapis.com/youtube/v3/playlistItems';
@@ -1227,7 +1228,10 @@ const deleteCourseByAdmin = async (req, res) => {
             return sendError(res, 404, 'Course not found');
         }
 
-        await Chapter.deleteMany({ courseId });
+        await Promise.all([
+            Chapter.deleteMany({ courseId }),
+            Note.deleteMany({ courseId })
+        ]);
 
         return res.status(200).json({
             success: true,

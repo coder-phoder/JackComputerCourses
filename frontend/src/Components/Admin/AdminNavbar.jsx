@@ -92,6 +92,13 @@ const AdminNavbar = () => {
             >
               Courses
             </NavLink>
+            <NavLink
+              to="/admin/topic-notes"
+              onClick={closeMobileMenu}
+              className={getNavLinkClass}
+            >
+              Notes
+            </NavLink>
           </div>
           {error ? (
             <span className="hidden text-sm font-medium text-red-600 dark:text-red-300 sm:inline">
@@ -132,6 +139,9 @@ const AdminNavbar = () => {
             </NavLink>
             <NavLink to="/admin/courses" onClick={closeMobileMenu} className={getNavLinkClass}>
               Courses
+            </NavLink>
+            <NavLink to="/admin/topic-notes" onClick={closeMobileMenu} className={getNavLinkClass}>
+              Notes
             </NavLink>
             <button
               type="button"
