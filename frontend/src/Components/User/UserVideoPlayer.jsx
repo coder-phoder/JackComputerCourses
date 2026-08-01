@@ -1,10 +1,78 @@
+import { useEffect, useMemo, useRef } from 'react'
+
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
+const VIDEO_EVENT_SOURCE = 'jack-course-player'
 
-const getPlayerSrc = (playerPath) => (
-  playerPath?.startsWith('http') ? playerPath : `${API_BASE_URL}${playerPath || ''}`
-)
+const getPlayerSrc = (playerPath, shouldAutoplay) => {
+  if (!playerPath) {
+    return ''
+  }
 
-const UserVideoPlayer = ({ course, selectedVideo, className = '' }) => {
+  const baseSrc = playerPath.startsWith('http') ? playerPath : `${API_BASE_URL}${playerPath}`
+
+  if (!shouldAutoplay) {
+    return baseSrc
+  }
+
+  return `${baseSrc}${baseSrc.includes('?') ? '&' : '?'}autoplay=1`
+}
+
+const getOrigin = (url) => {
+  try {
+    return new URL(url, window.location.origin).origin
+  } catch {
+    return ''
+  }
+}
+
+const UserVideoPlayer = ({
+  course,
+  selectedVideo,
+  shouldAutoplay = false,
+  onVideoEnded,
+  className = '',
+}) => {
+  const frameRef = useRef(null)
+  const videoKey = selectedVideo?.key || ''
+  const playerSrc = useMemo(
+    () => getPlayerSrc(selectedVideo?.video?.playerPath, shouldAutoplay),
+    [selectedVideo, shouldAutoplay],
+  )
+
+  useEffect(() => {
+    if (!playerSrc || !videoKey || !onVideoEnded) {
+      return undefined
+    }
+
+    const playerOrigin = getOrigin(playerSrc)
+
+    const handleMessage = (event) => {
+      if (playerOrigin && event.origin !== playerOrigin) {
+        return
+      }
+
+      if (event.source !== frameRef.current?.contentWindow) {
+        return
+      }
+
+      const message = event.data
+
+      if (message?.source !== VIDEO_EVENT_SOURCE || message?.type !== 'video-ended') {
+        return
+      }
+
+      if (message.videoKey && message.videoKey !== videoKey) {
+        return
+      }
+
+      onVideoEnded(videoKey)
+    }
+
+    window.addEventListener('message', handleMessage)
+
+    return () => window.removeEventListener('message', handleMessage)
+  }, [onVideoEnded, playerSrc, videoKey])
+
   if (!selectedVideo) {
     return (
       <section className={`rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 text-center shadow-sm ${className}`}>
@@ -23,7 +91,8 @@ const UserVideoPlayer = ({ course, selectedVideo, className = '' }) => {
       <div className="min-h-0 flex-1 bg-slate-950">
         <iframe
           key={video.playerPath}
-          src={getPlayerSrc(video.playerPath)}
+          ref={frameRef}
+          src={playerSrc}
           title={video.title}
           className="h-full w-full"
           loading="eager"

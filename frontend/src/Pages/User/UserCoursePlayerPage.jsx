@@ -65,6 +65,7 @@ const UserCoursePlayerPage = () => {
   const [loadingCourse, setLoadingCourse] = useState(true)
   const [error, setError] = useState('')
   const [selectedVideoKey, setSelectedVideoKey] = useState('')
+  const [shouldAutoplay, setShouldAutoplay] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
   const [isCodeSidebarCollapsed, setIsCodeSidebarCollapsed] = useState(true)
   const [ideWidth, setIdeWidth] = useState(480)
@@ -121,6 +122,28 @@ const UserCoursePlayerPage = () => {
     playableVideos.find((videoItem) => videoItem.key === selectedVideoKey) || null
   ), [playableVideos, selectedVideoKey])
   const accessText = getAccessText(course)
+
+  const handleSelectVideo = useCallback((videoKey) => {
+    setShouldAutoplay(false)
+    setSelectedVideoKey(videoKey)
+  }, [])
+
+  // Videos are flattened in chapter order, so the next entry is the next lesson,
+  // the first lesson of the next chapter, or the very first lesson once the course ends.
+  const handleVideoEnded = useCallback((endedVideoKey) => {
+    if (playableVideos.length < 2) {
+      return
+    }
+
+    const endedIndex = playableVideos.findIndex((videoItem) => videoItem.key === endedVideoKey)
+
+    if (endedIndex < 0) {
+      return
+    }
+
+    setShouldAutoplay(true)
+    setSelectedVideoKey(playableVideos[(endedIndex + 1) % playableVideos.length].key)
+  }, [playableVideos])
 
   const fetchCourse = useCallback(async (options = {}) => {
     const shouldUpdate = options.shouldUpdate || (() => true)
@@ -289,7 +312,7 @@ const UserCoursePlayerPage = () => {
               <UserCourseSidebar
                 chapters={chapters}
                 selectedVideoKey={selectedVideoKey}
-                onSelectVideo={setSelectedVideoKey}
+                onSelectVideo={handleSelectVideo}
                 isCollapsed={isSidebarCollapsed}
                 onToggleCollapse={() => setIsSidebarCollapsed((currentValue) => !currentValue)}
               />
@@ -303,6 +326,8 @@ const UserCoursePlayerPage = () => {
               <UserVideoPlayer
                 course={course}
                 selectedVideo={selectedVideo}
+                shouldAutoplay={shouldAutoplay}
+                onVideoEnded={handleVideoEnded}
                 className="min-h-90 min-w-0 sm:min-h-110 lg:min-h-0 lg:flex-1 xl:min-h-0"
               />
 

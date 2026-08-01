@@ -1,4 +1,5 @@
 const axios = require('axios');
+const crypto = require('crypto');
 const mongoose = require('mongoose');
 const Course = require('../models/course.model');
 const Chapter = require('../models/chapter.model');
@@ -46,14 +47,21 @@ const getClientOrigin = (value) => {
     }
 };
 
-const getFrameAncestors = () => {
+const getAllowedClientOrigins = () => {
     const configuredClientOrigin = getClientOrigin(process.env.CLIENT_URL || '');
 
     return [...new Set([
         configuredClientOrigin,
         ...LOCAL_CLIENT_ORIGINS
-    ].filter(Boolean))].join(' ');
+    ].filter(Boolean))];
 };
+
+const getFrameAncestors = () => getAllowedClientOrigins().join(' ');
+
+const toScriptJson = (value) => JSON.stringify(value === undefined ? null : value)
+    .replace(/</g, '\\u003C')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 
 const slugify = (value) => String(value || '')
     .trim()
@@ -641,7 +649,10 @@ const formatFacultyChapterData = (chapter) => ({
     videos: (chapter.videos || []).map((video) => formatFacultyVideoData(chapter, video))
 });
 
-const buildUserVideoEmbedUrl = (youtubeVideoId) => {
+const YOUTUBE_PLAYER_ORIGIN = 'https://www.youtube-nocookie.com';
+const VIDEO_EVENT_SOURCE = 'jack-course-player';
+
+const buildUserVideoEmbedUrl = (youtubeVideoId, shouldAutoplay = false) => {
     const params = new URLSearchParams({
         controls: '1',
         rel: '0',
@@ -649,13 +660,15 @@ const buildUserVideoEmbedUrl = (youtubeVideoId) => {
         iv_load_policy: '3',
         playsinline: '1',
         disablekb: '0',
-        fs: '1'
+        fs: '1',
+        enablejsapi: '1',
+        autoplay: shouldAutoplay ? '1' : '0'
     });
 
-    return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeVideoId)}?${params.toString()}`;
+    return `${YOUTUBE_PLAYER_ORIGIN}/embed/${encodeURIComponent(youtubeVideoId)}?${params.toString()}`;
 };
 
-const buildUserVideoEmbedHtml = (embedUrl, title) => `<!doctype html>
+const buildUserVideoEmbedHtml = ({ embedUrl, title, videoKey, parentOrigins, nonce }) => `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -681,6 +694,7 @@ const buildUserVideoEmbedHtml = (embedUrl, title) => `<!doctype html>
   </head>
   <body>
     <iframe
+      id="course-video-frame"
       src="${escapeHtmlAttribute(embedUrl)}"
       title="${escapeHtmlAttribute(title || 'Course video')}"
       loading="eager"
@@ -689,8 +703,150 @@ const buildUserVideoEmbedHtml = (embedUrl, title) => `<!doctype html>
       sandbox="allow-scripts allow-same-origin allow-presentation"
       allowfullscreen
     ></iframe>
+    <script nonce="${escapeHtmlAttribute(nonce)}">
+      (function () {
+        var PLAYER_ORIGIN = ${toScriptJson(YOUTUBE_PLAYER_ORIGIN)};
+        var EVENT_SOURCE = ${toScriptJson(VIDEO_EVENT_SOURCE)};
+        var ENDED_STATE = 0;
+        var HANDSHAKE_INTERVAL_MS = 400;
+        var HANDSHAKE_TIMEOUT_MS = 20000;
+
+        var parentOrigins = ${toScriptJson(parentOrigins || [])};
+        var videoKey = ${toScriptJson(videoKey || '')};
+        var frame = document.getElementById('course-video-frame');
+        var lastPlayerState = null;
+        var handshakeTimer = null;
+
+        if (!frame) {
+          return;
+        }
+
+        var stopHandshake = function () {
+          if (handshakeTimer === null) {
+            return;
+          }
+
+          window.clearInterval(handshakeTimer);
+          handshakeTimer = null;
+        };
+
+        var sendToPlayer = function (message) {
+          if (!frame.contentWindow) {
+            return;
+          }
+
+          try {
+            frame.contentWindow.postMessage(JSON.stringify(message), PLAYER_ORIGIN);
+          } catch (error) {
+            stopHandshake();
+          }
+        };
+
+        var subscribeToPlayer = function () {
+          sendToPlayer({ event: 'listening', id: 'course-video', channel: 'widget' });
+          sendToPlayer({
+            event: 'command',
+            func: 'addEventListener',
+            args: ['onStateChange'],
+            id: 'course-video',
+            channel: 'widget'
+          });
+        };
+
+        var readPlayerState = function (data) {
+          if (!data || typeof data !== 'object') {
+            return null;
+          }
+
+          if (data.event === 'onStateChange' && typeof data.info === 'number') {
+            return data.info;
+          }
+
+          if (data.event === 'infoDelivery' && data.info && typeof data.info.playerState === 'number') {
+            return data.info.playerState;
+          }
+
+          return null;
+        };
+
+        var notifyVideoEnded = function () {
+          if (window.parent === window) {
+            return;
+          }
+
+          for (var index = 0; index < parentOrigins.length; index += 1) {
+            window.parent.postMessage({
+              source: EVENT_SOURCE,
+              type: 'video-ended',
+              videoKey: videoKey
+            }, parentOrigins[index]);
+          }
+        };
+
+        window.addEventListener('message', function (event) {
+          if (event.origin !== PLAYER_ORIGIN || event.source !== frame.contentWindow) {
+            return;
+          }
+
+          var data = null;
+
+          try {
+            data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+          } catch (error) {
+            return;
+          }
+
+          stopHandshake();
+
+          var playerState = readPlayerState(data);
+
+          if (playerState === null || playerState === lastPlayerState) {
+            return;
+          }
+
+          lastPlayerState = playerState;
+
+          if (playerState === ENDED_STATE) {
+            notifyVideoEnded();
+          }
+        });
+
+        subscribeToPlayer();
+        handshakeTimer = window.setInterval(subscribeToPlayer, HANDSHAKE_INTERVAL_MS);
+        window.setTimeout(stopHandshake, HANDSHAKE_TIMEOUT_MS);
+      })();
+    </script>
   </body>
 </html>`;
+
+const sendVideoEmbedResponse = (res, { youtubeVideoId, title, videoKey, shouldAutoplay }) => {
+    const nonce = crypto.randomBytes(16).toString('base64');
+    const frameAncestors = getFrameAncestors();
+
+    return res
+        .status(200)
+        .set({
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-store',
+            'X-Content-Type-Options': 'nosniff',
+            'Content-Security-Policy': [
+                "default-src 'none'",
+                "base-uri 'none'",
+                "form-action 'none'",
+                "style-src 'unsafe-inline'",
+                `script-src 'nonce-${nonce}'`,
+                `frame-src ${YOUTUBE_PLAYER_ORIGIN} https://www.youtube.com`,
+                frameAncestors ? `frame-ancestors 'self' ${frameAncestors}` : "frame-ancestors 'self'"
+            ].join('; ')
+        })
+        .send(buildUserVideoEmbedHtml({
+            embedUrl: buildUserVideoEmbedUrl(youtubeVideoId, shouldAutoplay),
+            title,
+            videoKey,
+            parentOrigins: getAllowedClientOrigins(),
+            nonce
+        }));
+};
 
 const getCourseCounts = async (courseIds) => {
     if (!courseIds.length) {
@@ -1625,25 +1781,12 @@ const getCourseVideoEmbedByUser = async (req, res) => {
             return sendError(res, 404, 'Video not found');
         }
 
-        const embedUrl = buildUserVideoEmbedUrl(video.youtubeVideoId);
-        const frameAncestors = getFrameAncestors();
-
-        return res
-            .status(200)
-            .set({
-                'Content-Type': 'text/html; charset=utf-8',
-                'Cache-Control': 'no-store',
-                'X-Content-Type-Options': 'nosniff',
-                'Content-Security-Policy': [
-                    "default-src 'none'",
-                    "base-uri 'none'",
-                    "form-action 'none'",
-                    "style-src 'unsafe-inline'",
-                    'frame-src https://www.youtube-nocookie.com https://www.youtube.com',
-                    frameAncestors ? `frame-ancestors 'self' ${frameAncestors}` : "frame-ancestors 'self'"
-                ].join('; ')
-            })
-            .send(buildUserVideoEmbedHtml(embedUrl, video.title));
+        return sendVideoEmbedResponse(res, {
+            youtubeVideoId: video.youtubeVideoId,
+            title: video.title,
+            videoKey: getUserVideoKey(chapter, video),
+            shouldAutoplay: String(req.query?.autoplay || '') === '1'
+        });
     } catch (error) {
         return sendError(res, 500, 'Something went wrong while loading video');
     }
@@ -1759,25 +1902,12 @@ const getCourseVideoEmbedByFaculty = async (req, res) => {
             return sendError(res, 404, 'Video not found');
         }
 
-        const embedUrl = buildUserVideoEmbedUrl(video.youtubeVideoId);
-        const frameAncestors = getFrameAncestors();
-
-        return res
-            .status(200)
-            .set({
-                'Content-Type': 'text/html; charset=utf-8',
-                'Cache-Control': 'no-store',
-                'X-Content-Type-Options': 'nosniff',
-                'Content-Security-Policy': [
-                    "default-src 'none'",
-                    "base-uri 'none'",
-                    "form-action 'none'",
-                    "style-src 'unsafe-inline'",
-                    'frame-src https://www.youtube-nocookie.com https://www.youtube.com',
-                    frameAncestors ? `frame-ancestors 'self' ${frameAncestors}` : "frame-ancestors 'self'"
-                ].join('; ')
-            })
-            .send(buildUserVideoEmbedHtml(embedUrl, video.title));
+        return sendVideoEmbedResponse(res, {
+            youtubeVideoId: video.youtubeVideoId,
+            title: video.title,
+            videoKey: getUserVideoKey(chapter, video),
+            shouldAutoplay: String(req.query?.autoplay || '') === '1'
+        });
     } catch (error) {
         return sendError(res, 500, 'Something went wrong while loading video');
     }
