@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import AdminNavbar from '../../Components/Admin/AdminNavbar'
 import { useAuth } from '../../Context/AuthContext'
+import printDriveFile from '../../utils/printDriveFile'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -492,15 +493,16 @@ const AdminNotes = () => {
                           >
                             Preview
                           </button>
-                          <a
-                            href={file.webViewLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-[10px] font-semibold text-slate-700 dark:text-slate-200 transition hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700"
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              printDriveFile(file)
+                            }}
+                            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-[10px] font-semibold text-slate-700 dark:text-slate-200 transition hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 cursor-pointer"
                           >
-                            Open Tab
-                          </a>
+                            Print
+                          </button>
                         </div>
                       </div>
                     ))}

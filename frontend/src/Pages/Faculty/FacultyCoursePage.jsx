@@ -301,7 +301,7 @@ const FacultyCoursePage = () => {
             {/* Resizable main workspace (Video Player + Monaco IDE Sidebar) */}
             <div 
               id="workspace-container"
-              className="order-1 min-h-[320px] lg:order-2 flex flex-col xl:flex-row min-w-0 min-h-0 gap-4 relative overflow-hidden"
+              className="order-1 min-h-80 lg:order-2 flex flex-col xl:flex-row min-w-0 gap-4 relative overflow-hidden"
             >
               <UserVideoPlayer
                 course={course}

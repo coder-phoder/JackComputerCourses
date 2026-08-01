@@ -10,6 +10,7 @@ const adminRoutes = require('./routes/admin.routes');
 const userRoutes = require('./routes/user.routes');
 const facultyRoutes = require('./routes/faculty.routes');
 const ideShareRoutes = require('./routes/ideShare.routes');
+const { streamDriveFile } = require('./controllers/drive.controller');
 
 app.use(cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
@@ -35,6 +36,7 @@ app.use('/admin', adminRoutes);
 app.use('/user', userRoutes);
 app.use('/faculty', facultyRoutes);
 app.use('/ide-share', ideShareRoutes);
+app.get('/drive-files/:fileId', streamDriveFile);
 
 app.use((req, res) => {
     res.status(404).json({

@@ -1,8 +1,9 @@
 import axios from 'axios'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ExternalLink, Eye, File, FileText, Image as ImageIcon, RefreshCw, X } from 'lucide-react'
+import { ArrowLeft, Eye, File, FileText, Image as ImageIcon, Printer, RefreshCw, X } from 'lucide-react'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
+import printDriveFile from '../../utils/printDriveFile'
 import { useAuth } from '../../Context/AuthContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
@@ -317,15 +318,14 @@ const FacultyCourseNotes = () => {
                         <Eye className="h-4 w-4" />
                         Preview
                       </button>
-                      <a
-                        href={file.webViewLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => printDriveFile(file)}
                         className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 sm:flex-none"
                       >
-                        <ExternalLink className="h-4 w-4" />
-                        Open
-                      </a>
+                        <Printer className="h-4 w-4" />
+                        Print
+                      </button>
                     </div>
                   </div>
                 ))}
