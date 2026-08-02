@@ -14,6 +14,7 @@ import UserIdePage from './Pages/User/UserIdePage'
 import UserBug from './Pages/User/UserBug'
 import AdminHomePage from './Pages/Admin/AdminHomePage'
 import AdminAllUsers from './Pages/Admin/AdminAllUsers'
+import AdminAttendance from './Pages/Admin/AdminAttendance'
 import AdminAllFaculties from './Pages/Admin/AdminAllFaculties'
 import AdminCourses from './Pages/Admin/AdminCourses'
 import Course from './Pages/Admin/Course'
@@ -22,6 +23,7 @@ import AdminNotes from './Pages/Admin/AdminNotes'
 import AdminTopicNotes from './Pages/Admin/AdminTopicNotes'
 import AdminBugs from './Pages/Admin/AdminBugs'
 import FacultyHomePage from './Pages/Faculty/FacultyHomePage'
+import FacultyAttendance from './Pages/Faculty/FacultyAttendance'
 import FacultyCoursesPage from './Pages/Faculty/FacultyCoursesPage'
 import FacultyCoursePage from './Pages/Faculty/FacultyCoursePage'
 import FacultyCourseNotes from './Pages/Faculty/FacultyCourseNotes'
@@ -122,9 +124,11 @@ const App = () => {
             <Route path="/faculty/notes/:courseId" element={protect('faculty', <FacultyCourseNotes />)} />
             <Route path="/faculty/topic-notes" element={protect('faculty', <FacultyTopicNotes />)} />
             <Route path="/faculty/bugs" element={protect('faculty', <FacultyBug />)} />
+            <Route path="/faculty/attendance" element={protect('faculty', <FacultyAttendance />)} />
             <Route path="/admin/home" element={protect('admin', <AdminHomePage />)} />
             <Route path="/admin/users" element={protect('admin', <AdminAllUsers />)} />
             <Route path="/admin/faculties" element={protect('admin', <AdminAllFaculties />)} />
+            <Route path="/admin/attendance" element={protect('admin', <AdminAttendance />)} />
             <Route path="/admin/courses" element={protect('admin', <AdminCourses />)} />
             <Route path="/admin/topic-notes" element={protect('admin', <AdminTopicNotes />)} />
             <Route path="/admin/bugs" element={protect('admin', <AdminBugs />)} />

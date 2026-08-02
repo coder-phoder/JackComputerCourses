@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { to: '/admin/home', label: 'Home' },
   { to: '/admin/users', label: 'Users', alertKey: 'passwordRequests' },
   { to: '/admin/faculties', label: 'Faculties' },
+  { to: '/admin/attendance', label: 'Attendance' },
   { to: '/admin/courses', label: 'Courses' },
   { to: '/admin/topic-notes', label: 'Notes' },
   { to: '/admin/bugs', label: 'Bugs', alertKey: 'bugs' },

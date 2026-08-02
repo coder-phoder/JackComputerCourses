@@ -12,6 +12,7 @@ const {
 } = require('../controllers/course.controller');
 const { getAllNotesByFaculty, getNoteByFaculty } = require('../controllers/note.controller');
 const authFaculty = require('../middlewares/faculty.middleware');
+const attendanceRoutes = require('./attendance.routes');
 const workspaceRoutes = require('./workspace.routes');
 const ideShareRoutes = require('./ideShare.routes');
 const { facultyQueryRoutes } = require('./query.routes');
@@ -23,6 +24,7 @@ const router = express.Router();
 router.post('/login', loginFaculty);
 router.post('/logout', logoutFaculty);
 router.get('/profile', authFaculty, getFacultyProfile);
+router.use('/attendance', authFaculty, attendanceRoutes);
 router.use('/workspace', authFaculty, workspaceRoutes);
 router.use('/ide-share', authFaculty, ideShareRoutes);
 router.use('/', authFaculty, facultyQueryRoutes);

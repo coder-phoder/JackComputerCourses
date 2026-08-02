@@ -1,9 +1,10 @@
 import axios from 'axios'
-import { ChevronDown } from 'lucide-react'
+import { CalendarCheck, ChevronDown } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import AdminNavbar from '../../Components/Admin/AdminNavbar'
 import AdminPasswordRequests from '../../Components/Admin/AdminPasswordRequests'
+import AdminUserAttendance from '../../Components/Admin/AdminUserAttendance'
 import AdminUserLogHistory from '../../Components/Admin/AdminUserLogHistory'
 import PasswordInput from '../../Components/Common/PasswordInput'
 import { useAuth } from '../../Context/AuthContext'
@@ -48,6 +49,7 @@ const AdminAllUsers = () => {
   const [saving, setSaving] = useState(false)
   const [deletingUserId, setDeletingUserId] = useState('')
   const [historyUser, setHistoryUser] = useState(null)
+  const [attendanceUser, setAttendanceUser] = useState(null)
   const [openPanel, setOpenPanel] = useState(USER_FORM_PANEL)
 
   const isUserFormOpen = openPanel === USER_FORM_PANEL
@@ -588,6 +590,15 @@ const AdminAllUsers = () => {
                               </button>
                               <button
                                 type="button"
+                                onClick={() => setAttendanceUser(user)}
+                                title={`View attendance of ${userName || user.phone}`}
+                                aria-label={`View attendance of ${userName || user.phone}`}
+                                className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300"
+                              >
+                                <CalendarCheck className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => setHistoryUser(user)}
                                 className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300"
                               >
@@ -620,6 +631,10 @@ const AdminAllUsers = () => {
 
       {historyUser ? (
         <AdminUserLogHistory user={historyUser} onClose={() => setHistoryUser(null)} />
+      ) : null}
+
+      {attendanceUser ? (
+        <AdminUserAttendance user={attendanceUser} onClose={() => setAttendanceUser(null)} />
       ) : null}
     </div>
   )
