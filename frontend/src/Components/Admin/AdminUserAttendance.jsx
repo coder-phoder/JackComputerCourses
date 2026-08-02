@@ -3,8 +3,15 @@ import AttendanceBoard from '../Common/AttendanceBoard'
 // The users list opens the same board the attendance page uses, scoped to one
 // student, so a month reads and edits exactly the same way in both places.
 const AdminUserAttendance = ({ user, onClose }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-    <div className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-xl dark:border-slate-800 dark:bg-slate-950">
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <button
+      type="button"
+      aria-label="Close attendance"
+      className="absolute inset-0 bg-slate-900/50"
+      onClick={onClose}
+    />
+
+    <div className="relative z-10 flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-xl dark:border-slate-800 dark:bg-slate-950">
       <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 bg-white px-6 py-5 dark:border-slate-800 dark:bg-slate-900">
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Attendance</h2>

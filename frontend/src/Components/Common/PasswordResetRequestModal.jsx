@@ -78,8 +78,16 @@ const PasswordResetRequestModal = ({ onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Close password request"
+        disabled={submitting}
+        className="absolute inset-0 bg-slate-900/50 disabled:cursor-not-allowed"
+        onClick={onClose}
+      />
+
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-slate-800 px-6 py-5">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Password Request</h2>

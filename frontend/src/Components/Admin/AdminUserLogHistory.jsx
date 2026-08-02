@@ -47,8 +47,15 @@ const AdminUserLogHistory = ({ user, onClose }) => {
   }, [user._id])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Close login history"
+        className="absolute inset-0 bg-slate-900/50"
+        onClick={onClose}
+      />
+
+      <div className="relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-slate-800 px-6 py-5">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Login History</h2>
