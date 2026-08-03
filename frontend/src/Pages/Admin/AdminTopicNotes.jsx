@@ -8,11 +8,11 @@ import {
   Plus,
   RefreshCw,
   Search,
-  Settings,
   Trash2,
   X,
 } from 'lucide-react'
 import AdminNavbar from '../../Components/Admin/AdminNavbar'
+import ActionMenu from '../../Components/Common/ActionMenu'
 import DriveFileList from '../../Components/Common/DriveFileList'
 import SyncStatusBadge from '../../Components/Common/SyncStatusBadge'
 import { useAuth } from '../../Context/AuthContext'
@@ -114,7 +114,6 @@ const AdminTopicNotes = () => {
   const [search, setSearch] = useState('')
   const [kindFilter, setKindFilter] = useState('all')
   const [expandedId, setExpandedId] = useState('')
-  const [menuId, setMenuId] = useState('')
   const [busyId, setBusyId] = useState('')
   const [editingItem, setEditingItem] = useState(null)
   const [newNoteKind, setNewNoteKind] = useState('topic')
@@ -205,24 +204,6 @@ const AdminTopicNotes = () => {
     }
   }, [fetchNotes])
 
-  useEffect(() => {
-    if (!menuId) {
-      return undefined
-    }
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setMenuId('')
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [menuId])
-
   const refreshNotes = () => {
     setLoading(true)
     setError('')
@@ -242,7 +223,6 @@ const AdminTopicNotes = () => {
   const openEditForm = (item) => {
     setError('')
     setSuccess('')
-    setMenuId('')
     setEditingItem(item)
     setForm({
       topic: item.topic,
@@ -339,7 +319,6 @@ const AdminTopicNotes = () => {
   const handleSync = async (item) => {
     setError('')
     setSuccess('')
-    setMenuId('')
     setBusyId(item.id)
 
     try {
@@ -365,8 +344,6 @@ const AdminTopicNotes = () => {
   }
 
   const handleDelete = async (item) => {
-    setMenuId('')
-
     const confirmed = window.confirm(item.kind === 'course'
       ? `Remove the notes folder from the "${item.heading}" course? The course itself is not deleted.`
       : `Delete "${item.heading}" notes? Faculty will no longer see them.`)
@@ -493,7 +470,6 @@ const AdminTopicNotes = () => {
           <section className="grid gap-4">
             {filteredItems.map((item) => {
               const isExpanded = expandedId === item.id
-              const isMenuOpen = menuId === item.id
               const isBusy = busyId === item.id
               const isCourseNote = item.kind === 'course'
               const fileCount = item.files.length
@@ -539,62 +515,42 @@ const AdminTopicNotes = () => {
                       ) : null}
                     </div>
 
-                    <div className="relative shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setMenuId(isMenuOpen ? '' : item.id)}
+                    <div className="shrink-0">
+                      <ActionMenu
+                        label={`Settings for ${item.heading}`}
                         disabled={isBusy}
-                        aria-label={`Notes settings for ${item.heading}`}
-                        aria-expanded={isMenuOpen}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
-                      >
-                        <Settings className="h-4 w-4" />
-                      </button>
-
-                      {isMenuOpen ? (
-                        <>
-                          <button
-                            type="button"
-                            aria-label="Close settings"
-                            className="fixed inset-0 z-10 cursor-default"
-                            onClick={() => setMenuId('')}
-                          />
-                          <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-1 shadow-xl">
-                            <div className="border-b border-slate-100 dark:border-slate-800 px-3 pb-2 pt-1.5">
-                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                                Last synced
-                              </p>
-                              <p className="mt-0.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                                {formatDateTime(item.lastSyncedAt)}
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleSync(item)}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-100 dark:hover:bg-slate-800"
-                            >
-                              <RefreshCw className="h-3.5 w-3.5" />
-                              Sync now
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openEditForm(item)}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-100 dark:hover:bg-slate-800"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              Edit details
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(item)}
-                              className="flex w-full items-center gap-2 border-t border-slate-100 dark:border-slate-800 px-3 py-2 text-left text-xs font-semibold text-red-600 dark:text-red-400 transition hover:bg-red-50 dark:hover:bg-red-950/40"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              {isCourseNote ? 'Remove from course' : 'Delete notes'}
-                            </button>
-                          </div>
-                        </>
-                      ) : null}
+                        header={(
+                          <>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                              Last synced
+                            </p>
+                            <p className="mt-0.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                              {formatDateTime(item.lastSyncedAt)}
+                            </p>
+                          </>
+                        )}
+                        actions={[
+                          {
+                            key: 'sync',
+                            label: 'Sync now',
+                            icon: RefreshCw,
+                            onClick: () => handleSync(item),
+                          },
+                          {
+                            key: 'edit',
+                            label: 'Edit details',
+                            icon: Pencil,
+                            onClick: () => openEditForm(item),
+                          },
+                          {
+                            key: 'delete',
+                            label: isCourseNote ? 'Remove from course' : 'Delete notes',
+                            icon: Trash2,
+                            danger: true,
+                            onClick: () => handleDelete(item),
+                          },
+                        ]}
+                      />
                     </div>
                   </div>
 

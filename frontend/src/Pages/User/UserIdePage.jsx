@@ -557,7 +557,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [creatingParentId, setCreatingParentId] = useState('')
   const [workspaceDraft, setWorkspaceDraft] = useState(null)
   const [nodeDraft, setNodeDraft] = useState(null)
-  const [showWorkspaceActions, setShowWorkspaceActions] = useState(false)
   const [openNodeActionMenuId, setOpenNodeActionMenuId] = useState('')
   const [activeActivity, setActiveActivity] = useState('explorer')
   const [queryNotificationCount, setQueryNotificationCount] = useState(0)
@@ -1521,7 +1520,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       return
     }
 
-    setShowWorkspaceActions(false)
     setWorkspaceError('')
     setWorkspaceDraft({
       id: `workspace-rename-${activeWorkspace._id}`,
@@ -1628,7 +1626,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       return
     }
 
-    setShowWorkspaceActions(false)
     setWorkspaceError('')
     setDeleteConfirmationError('')
     setDeleteConfirmation({
@@ -1671,7 +1668,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   }
 
   const collapseWorkspaceFolders = () => {
-    setShowWorkspaceActions(false)
     setExpandedFolders(new Set())
   }
 
@@ -2210,9 +2206,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             setIsCollapsed={setIsExplorerCollapsed}
             setNodeDraft={setNodeDraft}
             setOpenNodeActionMenuId={setOpenNodeActionMenuId}
-            setShowWorkspaceActions={setShowWorkspaceActions}
             setWorkspaceDraft={setWorkspaceDraft}
-            showWorkspaceActions={showWorkspaceActions}
             startCreateWorkspace={startCreateWorkspace}
             startCreateWorkspaceNode={startCreateWorkspaceNode}
             startRenameWorkspace={startRenameWorkspace}

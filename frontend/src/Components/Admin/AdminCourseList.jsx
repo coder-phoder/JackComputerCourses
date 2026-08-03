@@ -1,3 +1,6 @@
+import { Pencil, Trash2 } from 'lucide-react'
+import ActionMenu from '../Common/ActionMenu'
+
 const getDurationLabel = (course) => (
   course.isOpenToAll || !course.duration ? 'N/A' : `${course.duration} mo`
 )
@@ -130,29 +133,32 @@ const AdminCourseList = ({
                 </div>
               </div>
 
-              <div className="mt-5 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onEditCourse(course)
-                  }}
+              <div className="mt-5 flex items-center justify-end gap-2">
+                {isEditing ? (
+                  <span className="rounded-full bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+                    Editing
+                  </span>
+                ) : null}
+                <ActionMenu
+                  label={`Settings for ${course.title}`}
+                  busy={isDeleting}
                   disabled={saving || Boolean(deletingCourseId)}
-                  className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
-                >
-                  {isEditing ? 'Selected' : 'Edit'}
-                </button>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onDeleteCourse(course)
-                  }}
-                  disabled={saving || isDeleting}
-                  className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300 transition hover:border-red-300 dark:hover:border-red-700 hover:bg-red-100 dark:hover:bg-red-950/60 disabled:cursor-not-allowed disabled:text-red-300 dark:disabled:text-red-500"
-                >
-                  {isDeleting ? 'Deleting...' : 'Delete'}
-                </button>
+                  actions={[
+                    {
+                      key: 'edit',
+                      label: 'Edit course',
+                      icon: Pencil,
+                      onClick: () => onEditCourse(course),
+                    },
+                    {
+                      key: 'delete',
+                      label: 'Delete course',
+                      icon: Trash2,
+                      danger: true,
+                      onClick: () => onDeleteCourse(course),
+                    },
+                  ]}
+                />
               </div>
             </article>
           )
