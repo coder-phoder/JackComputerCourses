@@ -36,6 +36,12 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: null,
         select: false
+    },
+    // The guided walkthrough runs once per account, so the moment it was finished
+    // is the only thing that has to outlive the session it ran in.
+    tourCompletedAt: {
+        type: Date,
+        default: null
     }
 });
 

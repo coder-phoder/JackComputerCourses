@@ -31,7 +31,7 @@ const authUser = async (req, res, next) => {
             });
         }
 
-        const user = await User.findById(decoded.id).select('name phone +activeSessionId');
+        const user = await User.findById(decoded.id).select('name phone tourCompletedAt +activeSessionId');
 
         if (
             !user
@@ -50,6 +50,9 @@ const authUser = async (req, res, next) => {
             name: user.name || '',
             phone: user.phone,
             requiresName: !User.hasFullName(user.name),
+            // Accounts that never finished the walkthrough get it on this visit,
+            // whether they registered today or years ago.
+            requiresTour: !user.tourCompletedAt,
             role: 'user'
         };
 

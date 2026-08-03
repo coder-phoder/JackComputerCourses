@@ -20,6 +20,8 @@ const formatUserData = (user) => ({
     phone: user.phone,
     // The app blocks on this until the account has both a first and a last name.
     requiresName: !User.hasFullName(user.name),
+    // The guided walkthrough is owed to every account that has not finished it.
+    requiresTour: !user.tourCompletedAt,
     role: 'user'
 });
 
@@ -291,6 +293,32 @@ const updateUserName = async (req, res) => {
     }
 };
 
+// Closing the walkthrough is final: the filter keeps a second call from moving a
+// date that is already set, so replays never rewrite when the account was taught.
+const completeUserTour = async (req, res) => {
+    try {
+        await User.updateOne(
+            {
+                _id: req.user._id,
+                tourCompletedAt: null
+            },
+            { $set: { tourCompletedAt: new Date() } }
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'Walkthrough marked as completed',
+            data: {}
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while saving the walkthrough',
+            data: {}
+        });
+    }
+};
+
 const getUserProfile = async (req, res) => {
     try {
         return res.status(200).json({
@@ -312,5 +340,7 @@ module.exports = {
     loginUser,
     logoutUser,
     updateUserName,
+    completeUserTour,
+    formatUserData,
     getUserProfile
 };

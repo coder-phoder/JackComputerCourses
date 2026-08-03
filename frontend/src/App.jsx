@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Navigate, Routes, Route, useLocation } from 'react-router-dom'
 import AuthLoadingScreen from './Components/Common/AuthLoadingScreen'
-import { AuthProvider, fetchRoleProfile, useAuth } from './Context/AuthContext'
+import { AuthProvider, ROLE_HOME_PATHS, fetchRoleProfile, useAuth } from './Context/AuthContext'
 import { ThemeProvider } from './Context/ThemeContext'
 import LandingPage from './Pages/Common/LandingPage'
 import LoginPage from './Pages/Common/LoginPage'
@@ -49,8 +49,9 @@ const ProtectedRoute = ({ role, children }) => {
   const { clearAuth, setAuth } = useAuth()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
-  // Only the user profile reports this, so the other roles never see the screen.
+  // Only the user profile reports these two, so the other roles never see them.
   const [requiresName, setRequiresName] = useState(false)
+  const [requiresTour, setRequiresTour] = useState(false)
 
   useEffect(() => {
     let isActive = true
@@ -69,6 +70,7 @@ const ProtectedRoute = ({ role, children }) => {
           token: null,
         })
         setRequiresName(Boolean(profile.requiresName))
+        setRequiresTour(Boolean(profile.requiresTour))
         setIsAuthorized(true)
       } else {
         clearAuth()
@@ -95,6 +97,12 @@ const ProtectedRoute = ({ role, children }) => {
 
   if (requiresName) {
     return <UserNameSetup onComplete={() => setRequiresName(false)} />
+  }
+
+  // The walkthrough is anchored to the user navigation and runs on the home page,
+  // so a first visit that came in on a saved link is sent there to see it once.
+  if (requiresTour && location.pathname !== ROLE_HOME_PATHS.user) {
+    return <Navigate to={ROLE_HOME_PATHS.user} replace />
   }
 
   return children

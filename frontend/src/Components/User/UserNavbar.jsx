@@ -63,20 +63,22 @@ const UserNavbar = () => {
         </Link>
 
         <div className="flex items-center gap-4">
+          {/* data-tour marks what the first run walkthrough points at. Only this row
+              carries it; where it is hidden the walkthrough centres its cards instead. */}
           <div className="hidden items-center gap-2 sm:flex">
-            <NavLink to="/user/home" onClick={closeMobileMenu} className={getNavLinkClass}>
+            <NavLink to="/user/home" onClick={closeMobileMenu} data-tour="home" className={getNavLinkClass}>
               Home
             </NavLink>
-            <NavLink to="/user/courses" onClick={closeMobileMenu} className={getNavLinkClass}>
+            <NavLink to="/user/courses" onClick={closeMobileMenu} data-tour="courses" className={getNavLinkClass}>
               Courses
             </NavLink>
-            <NavLink to="/user/attendance" onClick={closeMobileMenu} className={getNavLinkClass}>
+            <NavLink to="/user/attendance" onClick={closeMobileMenu} data-tour="attendance" className={getNavLinkClass}>
               Attendance
             </NavLink>
-            <NavLink to="/user/ide" onClick={closeMobileMenu} className={getNavLinkClass}>
+            <NavLink to="/user/ide" onClick={closeMobileMenu} data-tour="ide" className={getNavLinkClass}>
               IDE
             </NavLink>
-            <NavLink to="/user/bugs" onClick={closeMobileMenu} className={getNavLinkClass}>
+            <NavLink to="/user/bugs" onClick={closeMobileMenu} data-tour="bugs" className={getNavLinkClass}>
               Report a Bug
             </NavLink>
           </div>
