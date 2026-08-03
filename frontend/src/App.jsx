@@ -13,6 +13,7 @@ import UserCoursesPage from './Pages/User/UserCoursesPage'
 import UserCoursePlayerPage from './Pages/User/UserCoursePlayerPage'
 import UserIdePage from './Pages/User/UserIdePage'
 import UserBug from './Pages/User/UserBug'
+import UserNameSetup from './Components/User/UserNameSetup'
 import AdminHomePage from './Pages/Admin/AdminHomePage'
 import AdminAllUsers from './Pages/Admin/AdminAllUsers'
 import AdminAttendance from './Pages/Admin/AdminAttendance'
@@ -48,6 +49,8 @@ const ProtectedRoute = ({ role, children }) => {
   const { clearAuth, setAuth } = useAuth()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
+  // Only the user profile reports this, so the other roles never see the screen.
+  const [requiresName, setRequiresName] = useState(false)
 
   useEffect(() => {
     let isActive = true
@@ -65,6 +68,7 @@ const ProtectedRoute = ({ role, children }) => {
           phone: profile.phone,
           token: null,
         })
+        setRequiresName(Boolean(profile.requiresName))
         setIsAuthorized(true)
       } else {
         clearAuth()
@@ -87,6 +91,10 @@ const ProtectedRoute = ({ role, children }) => {
 
   if (!isAuthorized) {
     return <Navigate to="/login" replace state={getLoginState(location)} />
+  }
+
+  if (requiresName) {
+    return <UserNameSetup onComplete={() => setRequiresName(false)} />
   }
 
   return children

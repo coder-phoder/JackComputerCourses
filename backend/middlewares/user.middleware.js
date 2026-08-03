@@ -49,6 +49,7 @@ const authUser = async (req, res, next) => {
             _id: user._id.toString(),
             name: user.name || '',
             phone: user.phone,
+            requiresName: !User.hasFullName(user.name),
             role: 'user'
         };
 

@@ -231,24 +231,17 @@ const getAllUsersByAdmin = async (req, res) => {
 
 const createUserByAdmin = async (req, res) => {
     try {
-        const { name, phone, password } = req.body || {};
+        const { firstName, lastName, phone, password } = req.body || {};
+        // The halves are only an input shape: the account still stores one name.
+        const trimmedFirstName = String(firstName || '').trim();
+        const trimmedLastName = String(lastName || '').trim();
+        const trimmedPhone = String(phone || '').trim();
+        const userPassword = String(password || '');
 
-        if (!name || !phone || !password) {
+        if (!trimmedFirstName || !trimmedLastName || !trimmedPhone || !userPassword) {
             return res.status(400).json({
                 success: false,
-                message: 'Name, phone and password are required',
-                data: {}
-            });
-        }
-
-        const trimmedName = String(name).trim();
-        const trimmedPhone = String(phone).trim();
-        const userPassword = String(password);
-
-        if (!trimmedName || !trimmedPhone || !userPassword) {
-            return res.status(400).json({
-                success: false,
-                message: 'Name, phone and password are required',
+                message: 'First name, last name, phone and password are required',
                 data: {}
             });
         }
@@ -265,7 +258,7 @@ const createUserByAdmin = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(userPassword, 10);
         const user = await User.create({
-            name: trimmedName,
+            name: `${trimmedFirstName} ${trimmedLastName}`,
             phone: trimmedPhone,
             password: hashedPassword
         });
@@ -304,7 +297,7 @@ const updateUserByAdmin = async (req, res) => {
             });
         }
 
-        const hasName = hasBodyField(req.body, 'name');
+        const hasName = hasBodyField(req.body, 'firstName') || hasBodyField(req.body, 'lastName');
         const hasPhone = hasBodyField(req.body, 'phone');
         const hasPassword = hasBodyField(req.body, 'password');
 
@@ -329,17 +322,18 @@ const updateUserByAdmin = async (req, res) => {
         const oldPhone = user.phone;
 
         if (hasName) {
-            const trimmedName = String(req.body.name || '').trim();
+            const trimmedFirstName = String(req.body.firstName || '').trim();
+            const trimmedLastName = String(req.body.lastName || '').trim();
 
-            if (!trimmedName) {
+            if (!trimmedFirstName || !trimmedLastName) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Name is required',
+                    message: 'First name and last name are required',
                     data: {}
                 });
             }
 
-            user.name = trimmedName;
+            user.name = `${trimmedFirstName} ${trimmedLastName}`;
         }
 
         if (hasPhone) {

@@ -3,6 +3,7 @@ const {
     registerUser,
     loginUser,
     logoutUser,
+    updateUserName,
     getUserProfile
 } = require('../controllers/user.controller');
 const {
@@ -28,6 +29,7 @@ router.post('/logout', logoutUser);
 // route that requires a signed in user.
 router.use('/password-requests', publicPasswordRequestRoutes);
 router.get('/profile', authUser, getUserProfile);
+router.patch('/name', authUser, updateUserName);
 router.use('/attendance', authUser, userAttendanceRoutes);
 router.use('/workspace', authUser, workspaceRoutes);
 router.use('/ide-share', authUser, ideShareRoutes);

@@ -13,7 +13,8 @@ import { useAuth } from '../../Context/AuthContext'
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
 const emptyForm = {
-  name: '',
+  firstName: '',
+  lastName: '',
   phone: '',
   password: '',
 }
@@ -29,6 +30,16 @@ const getErrorMessage = (error, fallback) => (
 )
 
 const getUserName = (user) => String(user?.name || '').trim()
+
+// Names are stored combined, so editing splits them back into the two inputs.
+const splitUserName = (user) => {
+  const [firstName = '', ...restOfName] = getUserName(user).split(/\s+/).filter(Boolean)
+
+  return {
+    firstName,
+    lastName: restOfName.join(' '),
+  }
+}
 
 const sortUsers = (first, second) => {
   const nameComparison = getUserName(first).localeCompare(getUserName(second))
@@ -175,10 +186,11 @@ const AdminAllUsers = () => {
     resetMessages()
 
     const phone = form.phone.trim()
-    const name = form.name.trim()
+    const firstName = form.firstName.trim()
+    const lastName = form.lastName.trim()
 
-    if (!name || !phone || !form.password) {
-      setError('Name, phone and password are required.')
+    if (!firstName || !lastName || !phone || !form.password) {
+      setError('First name, last name, phone and password are required.')
       return
     }
 
@@ -186,7 +198,8 @@ const AdminAllUsers = () => {
 
     try {
       const response = await axios.post(`${API_BASE_URL}/admin/users`, {
-        name,
+        firstName,
+        lastName,
         phone,
         password: form.password,
       }, {
@@ -220,7 +233,7 @@ const AdminAllUsers = () => {
     setOpenPanel(USER_FORM_PANEL)
     setEditingUserId(user._id)
     setEditingForm({
-      name: getUserName(user),
+      ...splitUserName(user),
       phone: user.phone,
       password: '',
     })
@@ -236,24 +249,21 @@ const AdminAllUsers = () => {
     resetMessages()
 
     const phone = editingForm.phone.trim()
-    const name = editingForm.name.trim()
+    const firstName = editingForm.firstName.trim()
+    const lastName = editingForm.lastName.trim()
 
-    if (!name || !phone) {
-      setError('Name and phone are required.')
+    if (!firstName || !lastName || !phone) {
+      setError('First name, last name and phone are required.')
       return
     }
 
     setSaving(true)
 
     try {
-      const payload = {}
-
-      if (phone) {
-        payload.phone = phone
-      }
-
-      if (name) {
-        payload.name = name
+      const payload = {
+        firstName,
+        lastName,
+        phone,
       }
 
       if (editingForm.password) {
@@ -381,20 +391,38 @@ const AdminAllUsers = () => {
                 <div className="min-h-0 flex-1 overflow-y-auto border-t border-slate-200 dark:border-slate-800 px-6 py-5">
                   {editingUser ? (
                     <form onSubmit={handleUpdateUser} className="space-y-4">
-                      <div>
-                        <label htmlFor="edit-name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                          Name
-                        </label>
-                        <input
-                          id="edit-name"
-                          name="name"
-                          type="text"
-                          value={editingForm.name}
-                          onChange={handleEditingFormChange}
-                          disabled={saving}
-                          className={`mt-2 ${inputClassName}`}
-                          placeholder="Enter full name"
-                        />
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label htmlFor="edit-first-name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                            First Name
+                          </label>
+                          <input
+                            id="edit-first-name"
+                            name="firstName"
+                            type="text"
+                            value={editingForm.firstName}
+                            onChange={handleEditingFormChange}
+                            disabled={saving}
+                            className={`mt-2 ${inputClassName}`}
+                            placeholder="Enter first name"
+                          />
+                        </div>
+
+                        <div>
+                          <label htmlFor="edit-last-name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                            Last Name
+                          </label>
+                          <input
+                            id="edit-last-name"
+                            name="lastName"
+                            type="text"
+                            value={editingForm.lastName}
+                            onChange={handleEditingFormChange}
+                            disabled={saving}
+                            className={`mt-2 ${inputClassName}`}
+                            placeholder="Enter last name"
+                          />
+                        </div>
                       </div>
 
                       <div>
@@ -448,20 +476,38 @@ const AdminAllUsers = () => {
                     </form>
                   ) : (
                     <form onSubmit={handleCreateUser} className="space-y-4">
-                      <div>
-                        <label htmlFor="create-name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                          Name
-                        </label>
-                        <input
-                          id="create-name"
-                          name="name"
-                          type="text"
-                          value={form.name}
-                          onChange={handleFormChange}
-                          disabled={saving}
-                          className={`mt-2 ${inputClassName}`}
-                          placeholder="Enter full name"
-                        />
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label htmlFor="create-first-name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                            First Name
+                          </label>
+                          <input
+                            id="create-first-name"
+                            name="firstName"
+                            type="text"
+                            value={form.firstName}
+                            onChange={handleFormChange}
+                            disabled={saving}
+                            className={`mt-2 ${inputClassName}`}
+                            placeholder="Enter first name"
+                          />
+                        </div>
+
+                        <div>
+                          <label htmlFor="create-last-name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                            Last Name
+                          </label>
+                          <input
+                            id="create-last-name"
+                            name="lastName"
+                            type="text"
+                            value={form.lastName}
+                            onChange={handleFormChange}
+                            disabled={saving}
+                            className={`mt-2 ${inputClassName}`}
+                            placeholder="Enter last name"
+                          />
+                        </div>
                       </div>
 
                       <div>
