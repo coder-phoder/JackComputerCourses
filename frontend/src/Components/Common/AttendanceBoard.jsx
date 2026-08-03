@@ -268,7 +268,7 @@ const AttendanceBoard = ({
         <AttendancePrintSheet monthDate={monthDate} students={roster} records={records} />
       ) : null}
 
-      <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <aside data-tour="attendance-roster" className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="shrink-0 border-b border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/60">
           <p className="text-xs font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
             Selected day
@@ -289,7 +289,7 @@ const AttendanceBoard = ({
         </div>
 
         {isSingleStudent ? (
-          <div className="flex shrink-0 flex-wrap gap-2 border-b border-slate-200 px-5 py-3 dark:border-slate-800">
+          <div data-tour="attendance-totals" className="flex shrink-0 flex-wrap gap-2 border-b border-slate-200 px-5 py-3 dark:border-slate-800">
             {ATTENDANCE_STATUSES.map((status) => (
               <span
                 key={status.value}
@@ -303,7 +303,7 @@ const AttendanceBoard = ({
             ))}
           </div>
         ) : (
-          <div className="shrink-0 border-b border-slate-200 px-5 py-3 dark:border-slate-800">
+          <div data-tour="attendance-search" className="shrink-0 border-b border-slate-200 px-5 py-3 dark:border-slate-800">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input

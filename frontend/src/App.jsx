@@ -49,7 +49,8 @@ const ProtectedRoute = ({ role, children }) => {
   const { clearAuth, setAuth } = useAuth()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
-  // Only the user profile reports these two, so the other roles never see them.
+  // Only the user profile reports a missing name; the walkthrough is owed by both the
+  // user and the faculty profiles, and admins report neither.
   const [requiresName, setRequiresName] = useState(false)
   const [requiresTour, setRequiresTour] = useState(false)
 
@@ -99,10 +100,13 @@ const ProtectedRoute = ({ role, children }) => {
     return <UserNameSetup onComplete={() => setRequiresName(false)} />
   }
 
-  // The walkthrough is anchored to the user navigation and runs on the home page,
-  // so a first visit that came in on a saved link is sent there to see it once.
-  if (requiresTour && location.pathname !== ROLE_HOME_PATHS.user) {
-    return <Navigate to={ROLE_HOME_PATHS.user} replace />
+  // The walkthrough is anchored to the navigation of the role that is signing in and
+  // runs on its home page, so a first visit that came in on a saved link is sent to
+  // that page — never to another role's, which would only bounce back to the login.
+  const homePath = ROLE_HOME_PATHS[role]
+
+  if (requiresTour && homePath && location.pathname !== homePath) {
+    return <Navigate to={homePath} replace />
   }
 
   return children

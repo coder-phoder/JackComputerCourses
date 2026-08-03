@@ -5,6 +5,8 @@ import { ArrowRight, ChevronDown, ChevronUp, RefreshCw, Search } from 'lucide-re
 import DriveFileList from '../../Components/Common/DriveFileList'
 import SyncStatusBadge from '../../Components/Common/SyncStatusBadge'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
+import PageTour from '../../Components/Tour/PageTour'
+import facultyTopicNotesPageTour from '../Tour/Faculty/FacultyTopicNotesPageTour'
 import { useAuth } from '../../Context/AuthContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
@@ -148,15 +150,20 @@ const FacultyTopicNotes = () => {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={refreshNotes}
-            disabled={loading}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <PageTour steps={facultyTopicNotesPageTour} />
+
+            <button
+              type="button"
+              data-tour="faculty-notes-refresh"
+              onClick={refreshNotes}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
 
         {error ? (
@@ -174,7 +181,7 @@ const FacultyTopicNotes = () => {
         ) : null}
 
         {items.length ? (
-          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div data-tour="faculty-notes-search" className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="flex flex-1 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 shadow-sm">
               <Search className="h-4 w-4 shrink-0 text-slate-400" />
               <input
@@ -211,7 +218,7 @@ const FacultyTopicNotes = () => {
           </section>
         ) : filteredItems.length ? (
           <section className="grid gap-4">
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
               const isExpanded = expandedId === item.id
               const isCourseNote = item.kind === 'course'
               const fileCount = item.files.length
@@ -219,6 +226,7 @@ const FacultyTopicNotes = () => {
               return (
                 <article
                   key={item.id}
+                  data-tour={index ? undefined : 'faculty-notes-card'}
                   className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm sm:p-5"
                 >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">

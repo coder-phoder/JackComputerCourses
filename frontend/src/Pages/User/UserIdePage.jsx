@@ -31,6 +31,7 @@ import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import UserNavbar from '../../Components/User/UserNavbar'
 import { useAuth } from '../../Context/AuthContext'
 import { useTheme } from '../../Context/ThemeContext'
+import getFacultyIdePageTour from '../Tour/Faculty/FacultyIdePageTour'
 import getUserIdePageTour from '../Tour/User/UserIdePageTour'
 import { codeEditorIntelliSenseOptions, registerCodeEditorCompletions } from '../../utils/monacoCodeIntelligence'
 
@@ -51,6 +52,7 @@ const IDE_ACCESS_CONFIG = {
     profileKey: 'user',
     workspacePath: '/user/workspace',
     Navbar: UserNavbar,
+    getTour: getUserIdePageTour,
   },
   faculty: {
     role: 'faculty',
@@ -58,6 +60,7 @@ const IDE_ACCESS_CONFIG = {
     profileKey: 'faculty',
     workspacePath: '/faculty/workspace',
     Navbar: FacultyNavbar,
+    getTour: getFacultyIdePageTour,
   },
 }
 
@@ -2156,7 +2159,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
       {isTourOpen ? (
         <TourOverlay
-          steps={getUserIdePageTour({
+          steps={accessConfig.getTour({
             openActivity: setActiveActivity,
             openExplorer: () => setIsExplorerCollapsed(false),
             openTerminal: () => setIsTerminalCollapsed(false),
@@ -2297,17 +2300,15 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {accessConfig.role === 'user' ? (
-                    <button
-                      type="button"
-                      onClick={() => setIsTourOpen(true)}
-                      title="Take the tour"
-                      aria-label="Take the tour"
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                    >
-                      <Compass className="h-4 w-4" />
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setIsTourOpen(true)}
+                    title="Take the tour"
+                    aria-label="Take the tour"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    <Compass className="h-4 w-4" />
+                  </button>
 
                   <button
                     type="button"

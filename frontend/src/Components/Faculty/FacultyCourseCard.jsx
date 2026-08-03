@@ -20,13 +20,14 @@ const getPriceLabel = (value) => {
   return price === 0 ? 'Free' : price
 }
 
-const FacultyCourseCard = ({ course, detailUrl }) => {
+const FacultyCourseCard = ({ course, detailUrl, dataTour }) => {
   const description = course.shortDescription || course.description || 'Course details are not available.'
   const courseTags = [course.category, course.level, course.language].filter(Boolean)
 
   return (
     <Link
       to={detailUrl}
+      data-tour={dataTour}
       className="flex h-full flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
     >
       <div className="aspect-video overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">

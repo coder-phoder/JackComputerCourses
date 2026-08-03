@@ -2,9 +2,11 @@ import axios from 'axios'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
+import PageTour from '../../Components/Tour/PageTour'
 import UserCodePlayground from '../../Components/User/UserCodePlayground'
 import UserCourseSidebar from '../../Components/User/UserCourseSidebar'
 import UserVideoPlayer from '../../Components/User/UserVideoPlayer'
+import getFacultyCoursePageTour from '../Tour/Faculty/FacultyCoursePageTour'
 import { useAuth } from '../../Context/AuthContext'
 import { resolveInitialVideoKey, saveLastWatchedVideo } from '../../utils/courseProgress'
 
@@ -253,8 +255,16 @@ const FacultyCoursePage = () => {
             </h1>
           </div>
           <div className="flex shrink-0 items-center gap-3">
+            <PageTour
+              steps={getFacultyCoursePageTour({
+                hasIde: Boolean(course?.showIde),
+                openChapters: () => setIsSidebarCollapsed(false),
+                openPlayground: () => setIsCodeSidebarCollapsed(false),
+              })}
+            />
             <Link
               to="/faculty/courses"
+              data-tour="faculty-course-back"
               className="inline-flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300"
             >
               My Courses

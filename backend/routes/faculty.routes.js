@@ -2,7 +2,8 @@ const express = require('express');
 const {
     loginFaculty,
     logoutFaculty,
-    getFacultyProfile
+    getFacultyProfile,
+    completeFacultyTour
 } = require('../controllers/faculty.controller');
 const {
     getCoursesByFaculty,
@@ -24,6 +25,7 @@ const router = express.Router();
 router.post('/login', loginFaculty);
 router.post('/logout', logoutFaculty);
 router.get('/profile', authFaculty, getFacultyProfile);
+router.patch('/tour', authFaculty, completeFacultyTour);
 router.use('/attendance', authFaculty, staffAttendanceRoutes);
 router.use('/workspace', authFaculty, workspaceRoutes);
 router.use('/ide-share', authFaculty, ideShareRoutes);

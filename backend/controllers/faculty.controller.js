@@ -429,6 +429,32 @@ const logoutFaculty = async (req, res) => {
     }
 };
 
+// Closing the walkthrough is final: the filter keeps a second call from moving a
+// date that is already set, so replays never rewrite when the account was taught.
+const completeFacultyTour = async (req, res) => {
+    try {
+        await Faculty.updateOne(
+            {
+                _id: req.faculty._id,
+                tourCompletedAt: null
+            },
+            { $set: { tourCompletedAt: new Date() } }
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'Walkthrough marked as completed',
+            data: {}
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while saving the walkthrough',
+            data: {}
+        });
+    }
+};
+
 const getFacultyProfile = async (req, res) => {
     try {
         return res.status(200).json({
@@ -454,5 +480,6 @@ module.exports = {
     loginFaculty,
     logoutFaculty,
     getFacultyProfile,
+    completeFacultyTour,
     formatFacultyData
 };
