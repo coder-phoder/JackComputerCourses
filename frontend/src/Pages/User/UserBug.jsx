@@ -1,7 +1,9 @@
 import { useCallback, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import BugReportBoard from '../../Components/Common/BugReportBoard'
+import PageTour from '../../Components/Tour/PageTour'
 import UserNavbar from '../../Components/User/UserNavbar'
+import userBugPageTour from '../Tour/User/UserBugPageTour'
 import { useAuth } from '../../Context/AuthContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
@@ -25,11 +27,15 @@ const UserBug = () => {
       <UserNavbar />
 
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Bugs</h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            Report anything that is not working and track what you have already sent.
-          </p>
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Bugs</h1>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+              Report anything that is not working and track what you have already sent.
+            </p>
+          </div>
+
+          <PageTour steps={userBugPageTour} />
         </div>
 
         <BugReportBoard apiBaseUrl={BUGS_URL} accent="blue" onAuthError={handleAuthError} />

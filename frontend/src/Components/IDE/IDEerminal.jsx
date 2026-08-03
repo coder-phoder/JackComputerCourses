@@ -76,6 +76,7 @@ const IDEerminal = ({
       />
 
       <div
+        data-tour="ide-terminal"
         style={{ height: `${terminalHeight}px` }}
         className="relative flex min-h-0 shrink-0 flex-col overflow-hidden border-t border-slate-900 bg-slate-950 text-slate-100 shadow-2xl"
       >

@@ -16,7 +16,7 @@ const UserAttendanceLog = ({ records, selectedDate, monthLabel, onSelectDate }) 
   const days = [...records].sort((first, second) => second.date.localeCompare(first.date))
 
   return (
-    <section className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section data-tour="attendance-log" className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="border-b border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/60">
         <p className="text-[11px] font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">
           Selected day

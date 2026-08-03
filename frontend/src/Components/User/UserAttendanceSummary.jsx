@@ -66,7 +66,7 @@ const UserAttendanceSummary = ({ summary, monthLabel }) => {
   const dashOffset = RING_CIRCUMFERENCE * (1 - (summary.rate / 100))
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section data-tour="attendance-summary" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="grid gap-6 bg-linear-to-br from-blue-50 via-white to-white p-5 sm:p-6 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center dark:from-blue-950/40 dark:via-slate-900 dark:to-slate-900">
         <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
           <div className="relative h-36 w-36 shrink-0 sm:h-40 sm:w-40">

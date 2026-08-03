@@ -33,7 +33,7 @@ const UserAttendanceTrend = ({ trend, monthKey, onSelectMonth }) => {
   const sixMonths = summarizeTrend(trend)
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section data-tour="attendance-trend" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Last six months</h2>

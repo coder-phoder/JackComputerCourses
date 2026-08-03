@@ -62,6 +62,7 @@ const UserCourseSidebar = ({
   if (isCollapsed) {
     return (
       <aside
+        data-tour="course-chapters"
         role="button"
         tabIndex={0}
         onClick={onToggleCollapse}
@@ -116,7 +117,7 @@ const UserCourseSidebar = ({
   }
 
   return (
-    <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:h-full">
+    <aside data-tour="course-chapters" className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:h-full">
       <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
         <div className="min-w-0">
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Chapters</h2>

@@ -26,7 +26,7 @@ const UserAttendanceCalendar = ({
   const cells = buildMonthGrid(monthDate)
 
   return (
-    <section className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section data-tour="attendance-calendar" className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
         <div>
           <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">

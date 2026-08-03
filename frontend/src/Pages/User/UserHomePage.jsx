@@ -1,10 +1,10 @@
 import axios from 'axios'
-import { Compass } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import RoleProfileShowcase from '../../Components/Common/RoleProfileShowcase'
+import PageTour from '../../Components/Tour/PageTour'
 import UserNavbar from '../../Components/User/UserNavbar'
-import UserOnboardingTour from '../../Components/User/UserOnboardingTour'
+import userHomePageTour from '../Tour/User/UserHomePageTour'
 import { useAuth } from '../../Context/AuthContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
@@ -14,9 +14,9 @@ const UserHomePage = () => {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [userProfile, setUserProfile] = useState(null)
-  // The profile decides whether the walkthrough runs on its own; the button below
-  // starts the same one again whenever a page stops making sense.
-  const [showTour, setShowTour] = useState(false)
+  // Only an account that has never seen it gets the walkthrough unasked; the button
+  // starts the same one again whenever the site stops making sense.
+  const [firstRun, setFirstRun] = useState(false)
 
   useEffect(() => {
     let isActive = true
@@ -43,7 +43,7 @@ const UserHomePage = () => {
           token: null,
         })
         setUserProfile(user)
-        setShowTour(Boolean(user.requiresTour))
+        setFirstRun(Boolean(user.requiresTour))
         setIsAuthorized(true)
       } catch {
         if (!isActive) {
@@ -66,6 +66,24 @@ const UserHomePage = () => {
     }
   }, [clearAuth, setAuth])
 
+  // Closing the first run is what retires it for this account. A replay has nothing
+  // left to save, and a failed write only means the account is greeted once more.
+  const markWalkthroughSeen = async () => {
+    if (!firstRun) {
+      return
+    }
+
+    setFirstRun(false)
+
+    try {
+      await axios.patch(`${API_BASE_URL}/user/tour`, {}, {
+        withCredentials: true,
+      })
+    } catch {
+      // Nothing on this page depends on it, so there is nothing to report.
+    }
+  }
+
   if (checkingAuth) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 font-sans">
@@ -84,20 +102,11 @@ const UserHomePage = () => {
 
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-6 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setShowTour(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-600 dark:hover:text-blue-300"
-          >
-            <Compass className="h-4 w-4" />
-            Take the tour
-          </button>
+          <PageTour steps={userHomePageTour} autoStart={firstRun} onClose={markWalkthroughSeen} />
         </div>
 
         <RoleProfileShowcase role="user" profile={userProfile || auth} />
       </main>
-
-      {showTour ? <UserOnboardingTour onComplete={() => setShowTour(false)} /> : null}
     </div>
   )
 }

@@ -2,11 +2,13 @@ import axios from 'axios'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import PageTour from '../../Components/Tour/PageTour'
 import UserAttendanceCalendar from '../../Components/User/UserAttendanceCalendar'
 import UserAttendanceLog from '../../Components/User/UserAttendanceLog'
 import UserAttendanceSummary from '../../Components/User/UserAttendanceSummary'
 import UserAttendanceTrend from '../../Components/User/UserAttendanceTrend'
 import UserNavbar from '../../Components/User/UserNavbar'
+import getUserAttendancePageTour from '../Tour/User/UserAttendancePageTour'
 import { useAuth } from '../../Context/AuthContext'
 import {
   STATUS_META,
@@ -228,46 +230,50 @@ const UserAttendancePage = () => {
           {/* One control row above the whole page: the month it names is the month
               every card below is drawn from. */}
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleMonthChange(-1)}
-              aria-label="Previous month"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition hover:border-blue-400 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-600 dark:hover:text-blue-300"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
+            <PageTour steps={getUserAttendancePageTour({ hasTrend: trend.length > 0 })} />
 
-            <span className="inline-flex min-w-44 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
-              <CalendarDays className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              {getMonthLabel(monthDate)}
-            </span>
+            <div data-tour="attendance-month" className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleMonthChange(-1)}
+                aria-label="Previous month"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition hover:border-blue-400 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-600 dark:hover:text-blue-300"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => handleMonthChange(1)}
-              disabled={isLatestMonth}
-              aria-label="Next month"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition hover:border-blue-400 hover:text-blue-600 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-600 dark:hover:text-blue-300 dark:disabled:text-slate-600 dark:disabled:hover:border-slate-700"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
+              <span className="inline-flex min-w-44 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                <CalendarDays className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                {getMonthLabel(monthDate)}
+              </span>
 
-            <button
-              type="button"
-              onClick={() => handleMonthChange(0)}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-600 dark:hover:text-blue-300"
-            >
-              Today
-            </button>
+              <button
+                type="button"
+                onClick={() => handleMonthChange(1)}
+                disabled={isLatestMonth}
+                aria-label="Next month"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition hover:border-blue-400 hover:text-blue-600 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-600 dark:hover:text-blue-300 dark:disabled:text-slate-600 dark:disabled:hover:border-slate-700"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => fetchAttendance(monthKey)}
-              disabled={loading}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-600 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-600 dark:hover:text-blue-300 dark:disabled:text-slate-600"
-            >
-              {loading ? 'Refreshing...' : 'Refresh'}
-            </button>
+              <button
+                type="button"
+                onClick={() => handleMonthChange(0)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-600 dark:hover:text-blue-300"
+              >
+                Today
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fetchAttendance(monthKey)}
+                disabled={loading}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-600 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-600 dark:hover:text-blue-300 dark:disabled:text-slate-600"
+              >
+                {loading ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
           </div>
         </div>
 

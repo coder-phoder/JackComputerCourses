@@ -477,7 +477,7 @@ const IDEWorkspace = ({
   }, [downloadShareImage, selectedWorkspace, visibleShareBlob])
 
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
+    <main data-tour="ide-download" className="min-w-0 flex-1 overflow-y-auto bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
       <section className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="border-b border-slate-200 bg-slate-950 px-5 py-5 text-white dark:border-slate-800 dark:bg-slate-900">

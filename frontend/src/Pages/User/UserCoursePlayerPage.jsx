@@ -2,9 +2,11 @@ import axios from 'axios'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import ThemeToggle from '../../Components/Common/ThemeToggle'
+import PageTour from '../../Components/Tour/PageTour'
 import UserCodePlayground from '../../Components/User/UserCodePlayground'
 import UserCourseSidebar from '../../Components/User/UserCourseSidebar'
 import UserVideoPlayer from '../../Components/User/UserVideoPlayer'
+import getUserCoursePlayerPageTour from '../Tour/User/UserCoursePlayerPageTour'
 import { useAuth } from '../../Context/AuthContext'
 import { resolveInitialVideoKey, saveLastWatchedVideo } from '../../utils/courseProgress'
 
@@ -285,9 +287,17 @@ const UserCoursePlayerPage = () => {
             ) : null}
           </div>
           <div className="flex shrink-0 items-center gap-3">
+            <PageTour
+              steps={getUserCoursePlayerPageTour({
+                hasIde: Boolean(course?.showIde),
+                openChapters: () => setIsSidebarCollapsed(false),
+                openPlayground: () => setIsCodeSidebarCollapsed(false),
+              })}
+            />
             <ThemeToggle />
             <Link
               to="/user/courses"
+              data-tour="course-back"
               className="inline-flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-700 dark:hover:text-blue-300"
             >
               My Courses

@@ -548,7 +548,7 @@ const IDExplorer = ({
   return (
     <div className="flex min-h-0 shrink-0">
       {renderContextMenu()}
-      <nav className="flex w-14 shrink-0 flex-col items-center border-r border-slate-200 bg-slate-100 py-2 dark:border-slate-800 dark:bg-slate-950">
+      <nav data-tour="ide-activity" className="flex w-14 shrink-0 flex-col items-center border-r border-slate-200 bg-slate-100 py-2 dark:border-slate-800 dark:bg-slate-950">
         <button
           type="button"
           onClick={() => {
@@ -620,6 +620,7 @@ const IDExplorer = ({
       {isCollapsed || activeActivity !== 'explorer' ? null : (
         <>
           <aside
+            data-tour="ide-explorer"
             className="flex min-h-0 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
             style={{ width: `${explorerWidth}px` }}
           >

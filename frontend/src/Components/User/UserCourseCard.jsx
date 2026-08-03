@@ -34,7 +34,7 @@ const getAccessDisplay = (course) => {
   }
 }
 
-const UserCourseCard = ({ course, playerUrl }) => {
+const UserCourseCard = ({ course, playerUrl, dataTour }) => {
   const description = course.shortDescription || course.description || 'Course details are not available.'
   const courseTags = [course.category, course.level, course.language].filter(Boolean)
   const accessDisplay = getAccessDisplay(course)
@@ -44,6 +44,7 @@ const UserCourseCard = ({ course, playerUrl }) => {
       href={playerUrl}
       target="_blank"
       rel="noreferrer"
+      data-tour={dataTour}
       className="flex h-full flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
     >
       <div className="aspect-video overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">

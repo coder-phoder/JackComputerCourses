@@ -661,7 +661,7 @@ const IDEImportExport = ({
   }
 
   return (
-    <main className="min-w-0 flex-1 overflow-hidden bg-slate-50 dark:bg-slate-900">
+    <main data-tour="ide-import" className="min-w-0 flex-1 overflow-hidden bg-slate-50 dark:bg-slate-900">
       <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 px-3 py-3 sm:px-5 sm:py-4">
         <section className="shrink-0 border-b border-slate-200 pb-3 dark:border-slate-800">
           <div className="flex flex-wrap items-start justify-between gap-3">
