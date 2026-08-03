@@ -49,7 +49,7 @@ const CourseCatalogControls = ({
   }
 
   return (
-    <section className="mb-6 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-sm sm:p-4">
+    <section data-tour="course-filters" className="mb-6 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-sm sm:p-4">
       <div className="grid gap-3 lg:grid-cols-[minmax(280px,1.2fr)_220px] lg:items-end">
         <div>
           <label htmlFor="course-search" className={labelClass}>Search</label>

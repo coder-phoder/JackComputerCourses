@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   Braces,
   Check,
+  Compass,
   FileCode,
   Folder,
   HardDrive,
@@ -20,6 +21,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
+import TourOverlay from '../../Components/Tour/TourOverlay'
 import IDExplorer from '../../Components/IDE/IDExplorer'
 import IDEImportExport from '../../Components/IDE/IDEImportExport'
 import IDEerminal from '../../Components/IDE/IDEerminal'
@@ -29,6 +31,8 @@ import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import UserNavbar from '../../Components/User/UserNavbar'
 import { useAuth } from '../../Context/AuthContext'
 import { useTheme } from '../../Context/ThemeContext'
+import getFacultyIdePageTour from '../Tour/Faculty/FacultyIdePageTour'
+import getUserIdePageTour from '../Tour/User/UserIdePageTour'
 import { codeEditorIntelliSenseOptions, registerCodeEditorCompletions } from '../../utils/monacoCodeIntelligence'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000'
@@ -48,6 +52,7 @@ const IDE_ACCESS_CONFIG = {
     profileKey: 'user',
     workspacePath: '/user/workspace',
     Navbar: UserNavbar,
+    getTour: getUserIdePageTour,
   },
   faculty: {
     role: 'faculty',
@@ -55,6 +60,7 @@ const IDE_ACCESS_CONFIG = {
     profileKey: 'faculty',
     workspacePath: '/faculty/workspace',
     Navbar: FacultyNavbar,
+    getTour: getFacultyIdePageTour,
   },
 }
 
@@ -557,10 +563,10 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [creatingParentId, setCreatingParentId] = useState('')
   const [workspaceDraft, setWorkspaceDraft] = useState(null)
   const [nodeDraft, setNodeDraft] = useState(null)
-  const [showWorkspaceActions, setShowWorkspaceActions] = useState(false)
   const [openNodeActionMenuId, setOpenNodeActionMenuId] = useState('')
   const [activeActivity, setActiveActivity] = useState('explorer')
   const [queryNotificationCount, setQueryNotificationCount] = useState(0)
+  const [isTourOpen, setIsTourOpen] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState(null)
   const [deleteConfirmationError, setDeleteConfirmationError] = useState('')
   const [deleteConfirmationLoading, setDeleteConfirmationLoading] = useState(false)
@@ -1521,7 +1527,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       return
     }
 
-    setShowWorkspaceActions(false)
     setWorkspaceError('')
     setWorkspaceDraft({
       id: `workspace-rename-${activeWorkspace._id}`,
@@ -1628,7 +1633,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       return
     }
 
-    setShowWorkspaceActions(false)
     setWorkspaceError('')
     setDeleteConfirmationError('')
     setDeleteConfirmation({
@@ -1671,7 +1675,6 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   }
 
   const collapseWorkspaceFolders = () => {
-    setShowWorkspaceActions(false)
     setExpandedFolders(new Set())
   }
 
@@ -2154,6 +2157,20 @@ const UserIdePage = ({ accessRole = 'user' }) => {
         onConfirm={confirmDeleteSelection}
       />
 
+      {isTourOpen ? (
+        <TourOverlay
+          steps={accessConfig.getTour({
+            openActivity: setActiveActivity,
+            openExplorer: () => setIsExplorerCollapsed(false),
+            openTerminal: () => setIsTerminalCollapsed(false),
+          })}
+          onClose={() => {
+            setIsTourOpen(false)
+            setActiveActivity('explorer')
+          }}
+        />
+      ) : null}
+
       <div
         id="ide-workspace-container"
         ref={workspaceContainerRef}
@@ -2210,9 +2227,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             setIsCollapsed={setIsExplorerCollapsed}
             setNodeDraft={setNodeDraft}
             setOpenNodeActionMenuId={setOpenNodeActionMenuId}
-            setShowWorkspaceActions={setShowWorkspaceActions}
             setWorkspaceDraft={setWorkspaceDraft}
-            showWorkspaceActions={showWorkspaceActions}
             startCreateWorkspace={startCreateWorkspace}
             startCreateWorkspaceNode={startCreateWorkspaceNode}
             startRenameWorkspace={startRenameWorkspace}
@@ -2265,7 +2280,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             />
           ) : (
             <main className="flex min-w-0 flex-1 flex-col">
-              <div className="z-10 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div data-tour="ide-toolbar" className="z-10 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-center gap-2">
                     {saveStatus === 'error' ? (
@@ -2285,6 +2300,16 @@ const UserIdePage = ({ accessRole = 'user' }) => {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsTourOpen(true)}
+                    title="Take the tour"
+                    aria-label="Take the tour"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    <Compass className="h-4 w-4" />
+                  </button>
+
                   <button
                     type="button"
                     onClick={formatActiveCode}

@@ -31,7 +31,7 @@ const authFaculty = async (req, res, next) => {
             });
         }
 
-        const faculty = await Faculty.findById(decoded.id).select('name phone +activeSessionId');
+        const faculty = await Faculty.findById(decoded.id).select('name phone tourCompletedAt +activeSessionId');
 
         if (
             !faculty
@@ -49,6 +49,9 @@ const authFaculty = async (req, res, next) => {
             _id: faculty._id.toString(),
             name: faculty.name || '',
             phone: faculty.phone,
+            // Accounts that never finished the walkthrough get it on this visit,
+            // whether they were created today or years ago.
+            requiresTour: !faculty.tourCompletedAt,
             role: 'faculty'
         };
 

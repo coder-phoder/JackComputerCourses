@@ -87,7 +87,7 @@ const UserVideoPlayer = ({
   const { chapter, video } = selectedVideo
 
   return (
-    <section className={`flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm ${className}`}>
+    <section data-tour="course-video" className={`flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm ${className}`}>
       <div className="min-h-0 flex-1 bg-slate-950">
         <iframe
           key={video.playerPath}

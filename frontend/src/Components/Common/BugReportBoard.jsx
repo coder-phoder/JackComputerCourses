@@ -184,7 +184,7 @@ const BugReportBoard = ({ apiBaseUrl, accent = 'blue', onAuthError }) => {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_1fr]">
-      <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+      <section data-tour="bug-form" className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Report a Bug</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Tell us what went wrong. Screenshots help us fix it faster.
@@ -223,7 +223,7 @@ const BugReportBoard = ({ apiBaseUrl, accent = 'blue', onAuthError }) => {
             />
           </div>
 
-          <div>
+          <div data-tour="bug-images">
             <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
               Images <span className="text-slate-400">(optional, up to {MAX_BUG_IMAGES})</span>
             </span>
@@ -284,7 +284,7 @@ const BugReportBoard = ({ apiBaseUrl, accent = 'blue', onAuthError }) => {
       </section>
 
       <div className="space-y-6">
-        <section className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+        <section data-tour="bug-open" className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Open Reports</h2>
             <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -312,7 +312,7 @@ const BugReportBoard = ({ apiBaseUrl, accent = 'blue', onAuthError }) => {
           </ul>
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+        <section data-tour="bug-history" className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">History</h2>
             <span className="text-sm font-medium text-slate-500 dark:text-slate-400">

@@ -3,7 +3,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Eye, File, FileText, Image as ImageIcon, Printer, RefreshCw, X } from 'lucide-react'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
+import PageTour from '../../Components/Tour/PageTour'
 import printDriveFile from '../../utils/printDriveFile'
+import facultyCourseNotesPageTour from '../Tour/Faculty/FacultyCourseNotesPageTour'
 import { useAuth } from '../../Context/AuthContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
@@ -221,6 +223,7 @@ const FacultyCourseNotes = () => {
           <div className="min-w-0">
             <Link
               to="/faculty/notes"
+              data-tour="faculty-course-notes-back"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -237,15 +240,19 @@ const FacultyCourseNotes = () => {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => fetchCourseNotes()}
-            disabled={loading}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <PageTour steps={facultyCourseNotesPageTour} />
+
+            <button
+              type="button"
+              onClick={() => fetchCourseNotes()}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
 
         {error ? (
@@ -268,7 +275,7 @@ const FacultyCourseNotes = () => {
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Loading course notes...</p>
           </section>
         ) : notes ? (
-          <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm sm:p-5">
+          <section data-tour="faculty-course-notes" className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm sm:p-5">
             <div className="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Chapters</h2>

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Printer } from 'lucide-react'
 import { ATTENDANCE_STATUSES, WEEKDAYS, buildMonthGrid, getMonthLabel, STATUS_META } from '../../utils/attendance'
 
 // The same grid serves both readings of a month: a roster day shows how many
@@ -11,11 +11,12 @@ const AttendanceCalendar = ({
   summaries,
   singleStudent = false,
   loading = false,
+  onPrint = null,
 }) => {
   const cells = buildMonthGrid(monthDate)
 
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section data-tour="attendance-board-calendar" className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-white px-5 py-4 dark:border-slate-800 dark:from-indigo-950/40 dark:to-slate-900">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
@@ -26,6 +27,19 @@ const AttendanceCalendar = ({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Prints exactly the month on screen, so the button sits beside its name. */}
+          {onPrint ? (
+            <button
+              type="button"
+              onClick={onPrint}
+              aria-label={`Print ${getMonthLabel(monthDate)} attendance`}
+              title={`Print ${getMonthLabel(monthDate)} attendance`}
+              className="mr-1 inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-2.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700 sm:px-3"
+            >
+              <Printer className="h-4 w-4" />
+              <span className="hidden sm:inline">Print</span>
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => onMonthChange(-1)}

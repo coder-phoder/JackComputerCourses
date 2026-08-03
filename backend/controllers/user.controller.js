@@ -18,6 +18,10 @@ const userLoginCookieOptions = {
 const formatUserData = (user) => ({
     name: user.name || '',
     phone: user.phone,
+    // The app blocks on this until the account has both a first and a last name.
+    requiresName: !User.hasFullName(user.name),
+    // The guided walkthrough is owed to every account that has not finished it.
+    requiresTour: !user.tourCompletedAt,
     role: 'user'
 });
 
@@ -191,6 +195,9 @@ const loginUser = async (req, res) => {
         }
 
         user.activeSessionId = createSessionId();
+        // Older accounts were stored with whatever casing was typed, so logging in
+        // is where they pick up the "First Last" shape.
+        user.name = User.formatName(user.name);
         await user.save();
 
         await LoginHistory.startSession('user', user._id, user.activeSessionId);
@@ -235,6 +242,83 @@ const logoutUser = async (req, res) => {
     }
 };
 
+// One time backfill for accounts that were created without a full name; once a
+// first and last name are stored the account can no longer rename itself.
+const updateUserName = async (req, res) => {
+    try {
+        const { firstName, lastName } = req.body || {};
+        const trimmedFirstName = String(firstName || '').trim();
+        const trimmedLastName = String(lastName || '').trim();
+
+        if (!trimmedFirstName || !trimmedLastName) {
+            return res.status(400).json({
+                success: false,
+                message: 'First name and last name are required',
+                data: {}
+            });
+        }
+
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+                data: {}
+            });
+        }
+
+        if (User.hasFullName(user.name)) {
+            return res.status(409).json({
+                success: false,
+                message: 'Name is already set for this account',
+                data: {}
+            });
+        }
+
+        user.name = `${trimmedFirstName} ${trimmedLastName}`;
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Name saved successfully',
+            data: { user: formatUserData(user) }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while saving user name',
+            data: {}
+        });
+    }
+};
+
+// Closing the walkthrough is final: the filter keeps a second call from moving a
+// date that is already set, so replays never rewrite when the account was taught.
+const completeUserTour = async (req, res) => {
+    try {
+        await User.updateOne(
+            {
+                _id: req.user._id,
+                tourCompletedAt: null
+            },
+            { $set: { tourCompletedAt: new Date() } }
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'Walkthrough marked as completed',
+            data: {}
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while saving the walkthrough',
+            data: {}
+        });
+    }
+};
+
 const getUserProfile = async (req, res) => {
     try {
         return res.status(200).json({
@@ -255,5 +339,8 @@ module.exports = {
     registerUser,
     loginUser,
     logoutUser,
+    updateUserName,
+    completeUserTour,
+    formatUserData,
     getUserProfile
 };

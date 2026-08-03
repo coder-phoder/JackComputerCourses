@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { AlertCircle, CheckCircle2, Plus, RefreshCw, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import AdminCourseForm from '../../Components/Admin/AdminCourseForm'
@@ -35,6 +36,35 @@ const emptyCourseForm = {
 const getErrorMessage = (error, fallback) => (
   error?.response?.data?.message || fallback
 )
+
+// Page-level outcomes only: anything raised while the dialog is open belongs
+// beside the fields that caused it, not behind the backdrop.
+const PageBanner = ({ tone, message, onDismiss }) => {
+  const isError = tone === 'error'
+  const Icon = isError ? AlertCircle : CheckCircle2
+
+  return (
+    <div
+      role="status"
+      className={`mb-6 flex items-start gap-3 rounded-lg border px-4 py-3 text-sm font-medium ${
+        isError
+          ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300'
+          : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+      }`}
+    >
+      <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1">{message}</span>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss message"
+        className="-my-1 -mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition hover:bg-black/5 dark:hover:bg-white/10"
+      >
+        <X className="h-4 w-4" aria-hidden="true" />
+      </button>
+    </div>
+  )
+}
 
 const toListInput = (value) => (
   Array.isArray(value) ? value.join(', ') : ''
@@ -137,6 +167,8 @@ const AdminCourses = () => {
   const [loadingCourses, setLoadingCourses] = useState(true)
   const [courseForm, setCourseForm] = useState(emptyCourseForm)
   const [editingCourseId, setEditingCourseId] = useState('')
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [formError, setFormError] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [saving, setSaving] = useState(false)
@@ -244,26 +276,39 @@ const AdminCourses = () => {
     }))
   }
 
-  const cancelEditingCourse = () => {
+  const closeCourseForm = () => {
+    setIsFormOpen(false)
     setEditingCourseId('')
     setCourseForm(emptyCourseForm)
+    setFormError('')
+  }
+
+  const startCreatingCourse = () => {
+    resetMessages()
+    setFormError('')
+    setEditingCourseId('')
+    setCourseForm(emptyCourseForm)
+    setIsFormOpen(true)
   }
 
   const startEditingCourse = (course) => {
     resetMessages()
+    setFormError('')
     setEditingCourseId(course._id)
     setCourseForm(getCourseForm(course))
+    setIsFormOpen(true)
   }
 
   const handleSaveCourse = async (event) => {
     event.preventDefault()
     resetMessages()
+    setFormError('')
 
     const isEditing = Boolean(editingCourseId)
     const { error: payloadError, payload } = buildCoursePayload(courseForm, isEditing)
 
     if (payloadError) {
-      setError(payloadError)
+      setFormError(payloadError)
       return
     }
 
@@ -305,11 +350,10 @@ const AdminCourses = () => {
         await fetchCourses()
       }
 
-      setCourseForm(emptyCourseForm)
-      setEditingCourseId('')
+      closeCourseForm()
       setSuccess(isEditing ? 'Course updated successfully.' : 'Course created successfully.')
     } catch (saveError) {
-      setError(getErrorMessage(saveError, 'Unable to save course. Please try again.'))
+      setFormError(getErrorMessage(saveError, 'Unable to save course. Please try again.'))
     } finally {
       setSaving(false)
     }
@@ -338,10 +382,6 @@ const AdminCourses = () => {
       setCourses((currentCourses) => (
         currentCourses.filter((currentCourse) => currentCourse._id !== course._id)
       ))
-
-      if (editingCourseId === course._id) {
-        cancelEditingCourse()
-      }
 
       setSuccess('Course deleted successfully.')
     } catch (deleteError) {
@@ -372,22 +412,41 @@ const AdminCourses = () => {
       <AdminNavbar />
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
               Admin Dashboard
             </p>
             <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">Courses</h1>
           </div>
-          <button
-            type="button"
-            onClick={fetchCourses}
-            disabled={loadingCourses}
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
-          >
-            {loadingCourses ? 'Refreshing...' : 'Refresh'}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={fetchCourses}
+              disabled={loadingCourses}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
+            >
+              <RefreshCw className={`h-4 w-4 ${loadingCourses ? 'animate-spin' : ''}`} aria-hidden="true" />
+              {loadingCourses ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button
+              type="button"
+              onClick={startCreatingCourse}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              New Course
+            </button>
+          </div>
         </div>
+
+        {error ? (
+          <PageBanner tone="error" message={error} onDismiss={() => setError('')} />
+        ) : null}
+
+        {success ? (
+          <PageBanner tone="success" message={success} onDismiss={() => setSuccess('')} />
+        ) : null}
 
         {!loadingCourses && courses.length ? (
           <CourseCatalogControls
@@ -398,31 +457,28 @@ const AdminCourses = () => {
           />
         ) : null}
 
-        <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-          <AdminCourseForm
-            courseForm={courseForm}
-            editingCourse={editingCourse}
-            error={error}
-            saving={saving}
-            success={success}
-            onCancel={cancelEditingCourse}
-            onChange={handleCourseFormChange}
-            onSubmit={handleSaveCourse}
-          />
-
-          <AdminCourseList
-            courses={filteredCourses}
-            deletingCourseId={deletingCourseId}
-            editingCourseId={editingCourseId}
-            emptyMessage={courses.length ? 'No courses match your search or filters.' : 'No courses found.'}
-            loadingCourses={loadingCourses}
-            saving={saving}
-            onDeleteCourse={handleDeleteCourse}
-            onEditCourse={startEditingCourse}
-            onOpenCourse={openCourse}
-          />
-        </div>
+        <AdminCourseList
+          courses={filteredCourses}
+          deletingCourseId={deletingCourseId}
+          emptyMessage={courses.length ? 'No courses match your search or filters.' : 'No courses found.'}
+          loadingCourses={loadingCourses}
+          onDeleteCourse={handleDeleteCourse}
+          onEditCourse={startEditingCourse}
+          onOpenCourse={openCourse}
+        />
       </main>
+
+      {isFormOpen ? (
+        <AdminCourseForm
+          courseForm={courseForm}
+          editingCourse={editingCourse}
+          error={formError}
+          saving={saving}
+          onChange={handleCourseFormChange}
+          onClose={closeCourseForm}
+          onSubmit={handleSaveCourse}
+        />
+      ) : null}
     </div>
   )
 }

@@ -63,20 +63,28 @@ const FacultyNavbar = () => {
         </Link>
 
         <div className="flex items-center gap-4">
+          {/* data-tour marks what the first run walkthrough points at. Only this row
+              carries it; where it is hidden the walkthrough centres its cards instead. */}
           <div className="hidden items-center gap-2 sm:flex">
-            <NavLink to="/faculty/home" onClick={closeMobileMenu} className={getNavLinkClass}>
+            <NavLink to="/faculty/home" onClick={closeMobileMenu} data-tour="faculty-home" className={getNavLinkClass}>
               Home
             </NavLink>
-            <NavLink to="/faculty/courses" onClick={closeMobileMenu} className={getNavLinkClass}>
+            <NavLink to="/faculty/courses" onClick={closeMobileMenu} data-tour="faculty-courses" className={getNavLinkClass}>
               Courses
             </NavLink>
-            <NavLink to="/faculty/notes" onClick={closeMobileMenu} className={getNavLinkClass}>
+            <NavLink to="/faculty/ide" onClick={closeMobileMenu} data-tour="faculty-ide" className={getNavLinkClass}>
+              IDE
+            </NavLink>
+            <NavLink to="/faculty/queries" onClick={closeMobileMenu} data-tour="faculty-queries" className={getNavLinkClass}>
+              Queries
+            </NavLink>
+            <NavLink to="/faculty/notes" onClick={closeMobileMenu} data-tour="faculty-notes" className={getNavLinkClass}>
               Notes
             </NavLink>
-            <NavLink to="/faculty/attendance" onClick={closeMobileMenu} className={getNavLinkClass}>
+            <NavLink to="/faculty/attendance" onClick={closeMobileMenu} data-tour="faculty-attendance" className={getNavLinkClass}>
               Attendance
             </NavLink>
-            <NavLink to="/faculty/bugs" onClick={closeMobileMenu} className={getNavLinkClass}>
+            <NavLink to="/faculty/bugs" onClick={closeMobileMenu} data-tour="faculty-bugs" className={getNavLinkClass}>
               Report a Bug
             </NavLink>
           </div>

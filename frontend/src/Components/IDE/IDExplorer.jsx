@@ -13,7 +13,6 @@ import {
   Import,
   ListCollapse,
   MessageSquareCode,
-  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
@@ -21,6 +20,7 @@ import {
   Scissors,
   Trash2,
 } from 'lucide-react'
+import ActionMenu from '../Common/ActionMenu'
 
 const IDExplorer = ({
   activeActivity = 'explorer',
@@ -69,9 +69,7 @@ const IDExplorer = ({
   setIsCollapsed,
   setNodeDraft,
   setOpenNodeActionMenuId,
-  setShowWorkspaceActions,
   setWorkspaceDraft,
-  showWorkspaceActions,
   startCreateWorkspace,
   startCreateWorkspaceNode,
   startRenameWorkspace,
@@ -408,85 +406,34 @@ const IDExplorer = ({
                   >
                     <FolderPlus className="h-3.5 w-3.5" />
                   </button>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      setOpenNodeActionMenuId((currentId) => (currentId === node._id ? '' : node._id))
-                    }}
-                    onMouseDown={(event) => event.stopPropagation()}
-                    disabled={isBusy || saving || Boolean(nodeDraft)}
-                    title="Folder actions"
-                    aria-label="Folder actions"
-                    aria-expanded={isNodeMenuOpen}
-                    className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-white"
-                  >
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </button>
-                  {isNodeMenuOpen ? (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          setOpenNodeActionMenuId('')
-                        }}
-                      />
-                      <div
-                        className="absolute right-0 top-7 z-20 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-900"
-                        onClick={(event) => event.stopPropagation()}
-                        onMouseDown={(event) => event.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => startRenameWorkspaceNode(node)}
-                          disabled={isBusy || saving || Boolean(nodeDraft)}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-slate-800"
-                        >
-                          <Pencil className="h-4 w-4" />
-                          Rename folder
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteWorkspaceNode(node)}
-                          disabled={isBusy || saving || Boolean(nodeDraft)}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-40 dark:text-rose-300 dark:hover:bg-rose-950/40"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete folder
-                        </button>
-                      </div>
-                    </>
-                  ) : null}
                 </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      startRenameWorkspaceNode(node)
-                    }}
-                    disabled={isBusy || saving || Boolean(nodeDraft)}
-                    title="Rename"
-                    className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-white"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      deleteWorkspaceNode(node)
-                    }}
-                    disabled={isBusy || saving || Boolean(nodeDraft)}
-                    title="Delete"
-                    className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-rose-100 hover:text-rose-700 disabled:opacity-40 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </>
-              )}
+              ) : null}
+
+              {/* Files and folders both keep rename and delete behind the settings
+                  menu; only the create buttons above stay on the row. */}
+              <ActionMenu
+                size="xs"
+                tone="ghost"
+                menuWidth={176}
+                label={`Settings for ${node.name}`}
+                disabled={isBusy || saving || Boolean(nodeDraft)}
+                onOpenChange={(isMenuOpen) => setOpenNodeActionMenuId(isMenuOpen ? node._id : '')}
+                actions={[
+                  {
+                    key: 'rename',
+                    label: isFolder ? 'Rename folder' : 'Rename file',
+                    icon: Pencil,
+                    onClick: () => startRenameWorkspaceNode(node),
+                  },
+                  {
+                    key: 'delete',
+                    label: isFolder ? 'Delete folder' : 'Delete file',
+                    icon: Trash2,
+                    danger: true,
+                    onClick: () => deleteWorkspaceNode(node),
+                  },
+                ]}
+              />
             </div>
           ) : null}
         </div>
@@ -601,7 +548,7 @@ const IDExplorer = ({
   return (
     <div className="flex min-h-0 shrink-0">
       {renderContextMenu()}
-      <nav className="flex w-14 shrink-0 flex-col items-center border-r border-slate-200 bg-slate-100 py-2 dark:border-slate-800 dark:bg-slate-950">
+      <nav data-tour="ide-activity" className="flex w-14 shrink-0 flex-col items-center border-r border-slate-200 bg-slate-100 py-2 dark:border-slate-800 dark:bg-slate-950">
         <button
           type="button"
           onClick={() => {
@@ -673,6 +620,7 @@ const IDExplorer = ({
       {isCollapsed || activeActivity !== 'explorer' ? null : (
         <>
           <aside
+            data-tour="ide-explorer"
             className="flex min-h-0 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
             style={{ width: `${explorerWidth}px` }}
           >
@@ -763,43 +711,31 @@ const IDExplorer = ({
                 >
                   <ListCollapse className="h-4 w-4" />
                 </button>
-                <div className="relative shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setShowWorkspaceActions((currentValue) => !currentValue)}
+                <div className="shrink-0">
+                  <ActionMenu
+                    tone="ghost"
+                    menuWidth={224}
+                    label="Workspace settings"
                     disabled={workspacesLoading || !activeWorkspace || saving || Boolean(workspaceDraft)}
-                    title="Workspace actions"
-                    aria-label="Workspace actions"
-                    aria-expanded={showWorkspaceActions}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
-                  {showWorkspaceActions ? (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setShowWorkspaceActions(false)} />
-                      <div className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-                        <button
-                          type="button"
-                          onClick={startRenameWorkspace}
-                          disabled={workspacesLoading || !activeWorkspace || saving || Boolean(workspaceDraft)}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-slate-800"
-                        >
-                          <Pencil className="h-4 w-4" />
-                          Rename workspace
-                        </button>
-                        <button
-                          type="button"
-                          onClick={deleteActiveWorkspace}
-                          disabled={workspacesLoading || workspaces.length <= 1 || !activeWorkspace || saving || Boolean(workspaceDraft)}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-40 dark:text-rose-300 dark:hover:bg-rose-950/40"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete workspace
-                        </button>
-                      </div>
-                    </>
-                  ) : null}
+                    actions={[
+                      {
+                        key: 'rename',
+                        label: 'Rename workspace',
+                        icon: Pencil,
+                        onClick: startRenameWorkspace,
+                      },
+                      {
+                        key: 'delete',
+                        label: 'Delete workspace',
+                        icon: Trash2,
+                        danger: true,
+                        // The last workspace stays: deleting it would leave the IDE
+                        // with nothing to open.
+                        disabled: workspaces.length <= 1,
+                        onClick: deleteActiveWorkspace,
+                      },
+                    ]}
+                  />
                 </div>
               </div>
             </div>

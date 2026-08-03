@@ -1,8 +1,10 @@
 import axios from 'axios'
+import { Pencil, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import AdminNavbar from '../../Components/Admin/AdminNavbar'
 import AdminFacultyLogHistory from '../../Components/Admin/AdminFacultyLogHistory'
+import ActionMenu from '../../Components/Common/ActionMenu'
 import PasswordInput from '../../Components/Common/PasswordInput'
 import { useAuth } from '../../Context/AuthContext'
 
@@ -537,15 +539,7 @@ const AdminAllFaculties = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 align-top">
-                            <div className="flex justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => startEditingFaculty(faculty)}
-                                disabled={saving || Boolean(deletingFacultyId)}
-                                className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
-                              >
-                                {isEditing ? 'Selected' : 'Edit'}
-                              </button>
+                            <div className="flex items-center justify-end gap-2">
                               <button
                                 type="button"
                                 onClick={() => setHistoryFaculty(faculty)}
@@ -553,14 +547,26 @@ const AdminAllFaculties = () => {
                               >
                                 History
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteFaculty(faculty)}
-                                disabled={saving || isDeleting}
-                                className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300 transition hover:border-red-300 dark:hover:border-red-700 hover:bg-red-100 dark:hover:bg-red-950/60 disabled:cursor-not-allowed disabled:text-red-300 dark:disabled:text-red-500"
-                              >
-                                {isDeleting ? 'Deleting...' : 'Delete'}
-                              </button>
+                              <ActionMenu
+                                label={`Settings for ${facultyName || faculty.phone}`}
+                                busy={isDeleting}
+                                disabled={saving || Boolean(deletingFacultyId)}
+                                actions={[
+                                  {
+                                    key: 'edit',
+                                    label: 'Edit faculty',
+                                    icon: Pencil,
+                                    onClick: () => startEditingFaculty(faculty),
+                                  },
+                                  {
+                                    key: 'delete',
+                                    label: 'Delete faculty',
+                                    icon: Trash2,
+                                    danger: true,
+                                    onClick: () => handleDeleteFaculty(faculty),
+                                  },
+                                ]}
+                              />
                             </div>
                           </td>
                         </tr>

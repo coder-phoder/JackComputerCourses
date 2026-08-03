@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Navigate, Routes, Route, useLocation } from 'react-router-dom'
 import AuthLoadingScreen from './Components/Common/AuthLoadingScreen'
-import { AuthProvider, fetchRoleProfile, useAuth } from './Context/AuthContext'
+import { AuthProvider, ROLE_HOME_PATHS, fetchRoleProfile, useAuth } from './Context/AuthContext'
 import { ThemeProvider } from './Context/ThemeContext'
 import LandingPage from './Pages/Common/LandingPage'
 import LoginPage from './Pages/Common/LoginPage'
 import NotFoundPage from './Pages/Common/NotFoundPage'
 import RegisterPage from './Pages/Common/RegisterPage'
 import UserHomePage from './Pages/User/UserHomePage'
+import UserAttendancePage from './Pages/User/UserAttendancePage'
 import UserCoursesPage from './Pages/User/UserCoursesPage'
 import UserCoursePlayerPage from './Pages/User/UserCoursePlayerPage'
 import UserIdePage from './Pages/User/UserIdePage'
 import UserBug from './Pages/User/UserBug'
+import UserNameSetup from './Components/User/UserNameSetup'
 import AdminHomePage from './Pages/Admin/AdminHomePage'
 import AdminAllUsers from './Pages/Admin/AdminAllUsers'
 import AdminAttendance from './Pages/Admin/AdminAttendance'
@@ -47,6 +49,10 @@ const ProtectedRoute = ({ role, children }) => {
   const { clearAuth, setAuth } = useAuth()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
+  // Only the user profile reports a missing name; the walkthrough is owed by both the
+  // user and the faculty profiles, and admins report neither.
+  const [requiresName, setRequiresName] = useState(false)
+  const [requiresTour, setRequiresTour] = useState(false)
 
   useEffect(() => {
     let isActive = true
@@ -64,6 +70,8 @@ const ProtectedRoute = ({ role, children }) => {
           phone: profile.phone,
           token: null,
         })
+        setRequiresName(Boolean(profile.requiresName))
+        setRequiresTour(Boolean(profile.requiresTour))
         setIsAuthorized(true)
       } else {
         clearAuth()
@@ -86,6 +94,19 @@ const ProtectedRoute = ({ role, children }) => {
 
   if (!isAuthorized) {
     return <Navigate to="/login" replace state={getLoginState(location)} />
+  }
+
+  if (requiresName) {
+    return <UserNameSetup onComplete={() => setRequiresName(false)} />
+  }
+
+  // The walkthrough is anchored to the navigation of the role that is signing in and
+  // runs on its home page, so a first visit that came in on a saved link is sent to
+  // that page — never to another role's, which would only bounce back to the login.
+  const homePath = ROLE_HOME_PATHS[role]
+
+  if (requiresTour && homePath && location.pathname !== homePath) {
+    return <Navigate to={homePath} replace />
   }
 
   return children
@@ -113,6 +134,7 @@ const App = () => {
             <Route path="/user/home" element={protect('user', <UserHomePage />)} />
             <Route path="/user/courses" element={protect('user', <UserCoursesPage />)} />
             <Route path="/user/courses/:courseId/player" element={protect('user', <UserCoursePlayerPage />)} />
+            <Route path="/user/attendance" element={protect('user', <UserAttendancePage />)} />
             <Route path="/user/ide" element={protect('user', <UserIdePage />)} />
             <Route path="/user/bugs" element={protect('user', <UserBug />)} />
             <Route path="/faculty/home" element={protect('faculty', <FacultyHomePage />)} />

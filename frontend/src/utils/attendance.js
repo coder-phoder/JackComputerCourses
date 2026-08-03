@@ -23,6 +23,16 @@ export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export const getMonthLabel = (date) => `${MONTHS[date.getMonth()]} ${date.getFullYear()}`
 
+// August 2026 and Aug, both read off a YYYY-MM string, for the months the charts
+// only ever know as a key.
+export const getMonthKeyLabel = (monthKey) => {
+  const [year, month] = monthKey.split('-').map(Number)
+
+  return `${MONTHS[month - 1]} ${year}`
+}
+
+export const getShortMonthLabel = (monthKey) => MONTHS[Number(monthKey.split('-')[1]) - 1].slice(0, 3)
+
 // 2 August 2026, Sunday
 export const getDayLabel = (dateKey) => {
   const [year, month, day] = dateKey.split('-').map(Number)
@@ -31,6 +41,28 @@ export const getDayLabel = (dateKey) => {
   return `${day} ${MONTHS[date.getMonth()]} ${year}, ${
     ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][date.getDay()]
   }`
+}
+
+// Sun 2 Aug — the compact form the day log lists a month in.
+export const getShortDayLabel = (dateKey) => {
+  const [year, month, day] = dateKey.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+
+  return `${WEEKDAYS[date.getDay()]} ${day} ${MONTHS[month - 1].slice(0, 3)}`
+}
+
+// The month as a plain run of its own days, which is what the printed register
+// lays its columns out from: no leading or trailing week padding, just 1 to 28-31.
+export const getMonthDays = (monthDate) => {
+  const year = monthDate.getFullYear()
+  const month = monthDate.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  return Array.from({ length: daysInMonth }, (item, index) => {
+    const date = new Date(year, month, index + 1)
+
+    return { dateKey: toDateKey(date), dayNumber: index + 1, weekday: date.getDay() }
+  })
 }
 
 // Whole weeks only, so the grid always starts on a Sunday and ends on a Saturday.
@@ -64,12 +96,20 @@ export const buildMonthGrid = (monthDate) => {
 
 // One place for every status colour so the calendar, the chips and the buttons
 // never drift apart.
+// mark and ink are the two colours the student's charts draw with: emerald-600 and
+// rose-500 are the steps that clear the colourblind separation and the 3:1 contrast
+// gate on both the white and the slate-950 surface, so the same pair serves light
+// and dark mode. Colour still never carries the status alone — every place that
+// paints a day also shows its letter or its icon.
 export const ATTENDANCE_STATUSES = [
   {
     value: 'present',
     label: 'Present',
     short: 'P',
     dot: 'bg-emerald-500',
+    mark: 'bg-emerald-600',
+    fill: 'fill-emerald-600',
+    ink: 'text-emerald-700 dark:text-emerald-300',
     chip: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
     active: 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700',
     cell: 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40',
@@ -79,6 +119,9 @@ export const ATTENDANCE_STATUSES = [
     label: 'Absent',
     short: 'A',
     dot: 'bg-rose-500',
+    mark: 'bg-rose-500',
+    fill: 'fill-rose-500',
+    ink: 'text-rose-700 dark:text-rose-300',
     chip: 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300',
     active: 'bg-rose-600 text-white shadow-sm hover:bg-rose-700',
     cell: 'border-rose-300 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/40',
@@ -88,3 +131,88 @@ export const ATTENDANCE_STATUSES = [
 export const STATUS_META = Object.fromEntries(
   ATTENDANCE_STATUSES.map((status) => [status.value, status]),
 )
+
+export const getAttendanceRate = (present, absent) => {
+  const marked = present + absent
+
+  return marked ? Math.round((present / marked) * 100) : 0
+}
+
+// The rate alone never says whether it is good news, so every place that shows one
+// reads the same worded standing off it: one set of thresholds, one set of words, on
+// the home page and on the attendance page alike. tone is what each screen hangs its
+// own icon on, so colour is never the only thing carrying the verdict.
+export const getAttendanceStanding = (summary) => {
+  if (!summary.marked) {
+    return {
+      tone: 'none',
+      label: 'Nothing marked yet',
+      hint: 'Your attendance for this month has not been recorded.',
+      chip: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+    }
+  }
+
+  if (summary.rate >= 90) {
+    return {
+      tone: 'high',
+      label: 'Excellent',
+      hint: 'You are on top of your classes. Keep it going.',
+      chip: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+    }
+  }
+
+  if (summary.rate >= 75) {
+    return {
+      tone: 'steady',
+      label: 'On track',
+      hint: 'A steady month. A few more present days lift this fast.',
+      chip: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+    }
+  }
+
+  return {
+    tone: 'low',
+    label: 'Needs attention',
+    hint: 'You have missed more classes than usual this month.',
+    chip: 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300',
+  }
+}
+
+// Everything the student's month reads as numbers, counted in one pass over the
+// days he was actually marked on: unmarked days are not absences, so they stay out
+// of the rate. Streaks run over marked days in date order, so a gap of unmarked
+// days does not break a run of present ones.
+export const summarizeAttendance = (records) => {
+  const days = [...records]
+    .filter((record) => STATUS_META[record.status])
+    .sort((first, second) => first.date.localeCompare(second.date))
+
+  let present = 0
+  let absent = 0
+  let currentStreak = 0
+  let bestStreak = 0
+
+  days.forEach((day) => {
+    if (day.status === 'present') {
+      present += 1
+      currentStreak += 1
+      bestStreak = Math.max(bestStreak, currentStreak)
+    } else {
+      absent += 1
+      currentStreak = 0
+    }
+  })
+
+  return {
+    present,
+    absent,
+    marked: days.length,
+    rate: getAttendanceRate(present, absent),
+    // The run still going on the last marked day, which is the one the student
+    // can extend by turning up again.
+    currentStreak,
+    bestStreak,
+    firstDate: days[0]?.date || '',
+    lastDate: days.at(-1)?.date || '',
+  }
+}

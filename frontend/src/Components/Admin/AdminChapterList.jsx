@@ -1,4 +1,6 @@
+import { Pencil, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import ActionMenu from '../Common/ActionMenu'
 
 const getStatusClass = (status) => {
   if (status === 'synced') {
@@ -95,15 +97,12 @@ const AdminChapterList = ({
                     ) : null}
                   </button>
 
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onEditChapter(chapter)}
-                      disabled={savingChapter || Boolean(deletingChapterId) || Boolean(syncingChapterId)}
-                      className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
-                    >
-                      {isEditing ? 'Selected' : 'Edit'}
-                    </button>
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    {isEditing ? (
+                      <span className="rounded-full bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+                        Editing
+                      </span>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => onSyncChapter(chapter)}
@@ -112,14 +111,26 @@ const AdminChapterList = ({
                     >
                       {isSyncing ? 'Syncing...' : 'Sync Videos'}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteChapter(chapter)}
-                      disabled={savingChapter || isDeleting || Boolean(syncingChapterId)}
-                      className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300 transition hover:border-red-300 dark:hover:border-red-700 hover:bg-red-100 dark:hover:bg-red-950/60 disabled:cursor-not-allowed disabled:text-red-300 dark:disabled:text-red-500"
-                    >
-                      {isDeleting ? 'Deleting...' : 'Delete'}
-                    </button>
+                    <ActionMenu
+                      label={`Settings for ${chapter.name}`}
+                      busy={isDeleting}
+                      disabled={savingChapter || Boolean(deletingChapterId) || Boolean(syncingChapterId)}
+                      actions={[
+                        {
+                          key: 'edit',
+                          label: 'Edit chapter',
+                          icon: Pencil,
+                          onClick: () => onEditChapter(chapter),
+                        },
+                        {
+                          key: 'delete',
+                          label: 'Delete chapter',
+                          icon: Trash2,
+                          danger: true,
+                          onClick: () => onDeleteChapter(chapter),
+                        },
+                      ]}
+                    />
                   </div>
                 </div>
 

@@ -364,7 +364,7 @@ const IDEquery = ({ isDark = false, onNotificationCountChange, onWorkspaceNodeAp
   )
 
   return (
-    <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-900">
+    <main data-tour="ide-queries" className="flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-900">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
         <div>
           <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">Queries</h1>

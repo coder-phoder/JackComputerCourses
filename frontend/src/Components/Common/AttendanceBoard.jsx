@@ -1,7 +1,9 @@
 import axios from 'axios'
 import { Search, Trash2, UserCheck } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { flushSync } from 'react-dom'
 import AttendanceCalendar from './AttendanceCalendar'
+import AttendancePrintSheet from './AttendancePrintSheet'
 import {
   ATTENDANCE_STATUSES,
   STATUS_META,
@@ -22,8 +24,14 @@ const getStudentName = (student) => String(student?.name || '').trim() || 'Unnam
 
 // One board for three places: the admin page, the faculty page and the single
 // student view opened from the admin users list. basePath decides which role's
-// endpoints are called, and canSeeMarkedBy is the admin-only column.
-const AttendanceBoard = ({ basePath, canSeeMarkedBy = false, student = null }) => {
+// endpoints are called, canSeeMarkedBy is the admin-only column and canPrint is
+// the admin's month register.
+const AttendanceBoard = ({
+  basePath,
+  canSeeMarkedBy = false,
+  canPrint = false,
+  student = null,
+}) => {
   const [monthDate, setMonthDate] = useState(() => startOfMonth(new Date()))
   const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()))
   const [students, setStudents] = useState([])
@@ -32,6 +40,7 @@ const AttendanceBoard = ({ basePath, canSeeMarkedBy = false, student = null }) =
   const [savingStudentId, setSavingStudentId] = useState('')
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
+  const [printing, setPrinting] = useState(false)
 
   const monthKey = toMonthKey(monthDate)
   const studentId = student?._id || ''
@@ -164,6 +173,20 @@ const AttendanceBoard = ({ basePath, canSeeMarkedBy = false, student = null }) =
     }
   }
 
+  // A month of day columns per student is a table the board never needs on screen,
+  // so the sheet is mounted for the print itself and dropped again. window.print()
+  // blocks until the dialog closes, and flushSync puts the sheet in the document
+  // before it is called.
+  const handlePrint = () => {
+    flushSync(() => setPrinting(true))
+
+    try {
+      window.print()
+    } finally {
+      setPrinting(false)
+    }
+  }
+
   // Marking a day that is already marked rewrites it, so the same call covers
   // both adding and editing attendance.
   const markAttendance = async (studentId, status) => {
@@ -238,9 +261,14 @@ const AttendanceBoard = ({ basePath, canSeeMarkedBy = false, student = null }) =
         summaries={summaries}
         singleStudent={isSingleStudent}
         loading={loading}
+        onPrint={canPrint ? handlePrint : null}
       />
 
-      <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      {printing ? (
+        <AttendancePrintSheet monthDate={monthDate} students={roster} records={records} />
+      ) : null}
+
+      <aside data-tour="attendance-roster" className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="shrink-0 border-b border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/60">
           <p className="text-xs font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
             Selected day
@@ -261,7 +289,7 @@ const AttendanceBoard = ({ basePath, canSeeMarkedBy = false, student = null }) =
         </div>
 
         {isSingleStudent ? (
-          <div className="flex shrink-0 flex-wrap gap-2 border-b border-slate-200 px-5 py-3 dark:border-slate-800">
+          <div data-tour="attendance-totals" className="flex shrink-0 flex-wrap gap-2 border-b border-slate-200 px-5 py-3 dark:border-slate-800">
             {ATTENDANCE_STATUSES.map((status) => (
               <span
                 key={status.value}
@@ -275,7 +303,7 @@ const AttendanceBoard = ({ basePath, canSeeMarkedBy = false, student = null }) =
             ))}
           </div>
         ) : (
-          <div className="shrink-0 border-b border-slate-200 px-5 py-3 dark:border-slate-800">
+          <div data-tour="attendance-search" className="shrink-0 border-b border-slate-200 px-5 py-3 dark:border-slate-800">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input

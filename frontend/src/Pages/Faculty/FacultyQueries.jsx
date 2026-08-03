@@ -14,6 +14,8 @@ import {
   X,
 } from 'lucide-react'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
+import PageTour from '../../Components/Tour/PageTour'
+import facultyQueriesPageTour from '../Tour/Faculty/FacultyQueriesPageTour'
 import { useAuth } from '../../Context/AuthContext'
 import { useTheme } from '../../Context/ThemeContext'
 import { codeEditorIntelliSenseOptions, registerCodeEditorCompletions } from '../../utils/monacoCodeIntelligence'
@@ -313,15 +315,19 @@ const FacultyQueries = () => {
                 <h1 className="text-base font-bold text-slate-900 dark:text-slate-100">Faculty Queries</h1>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Review student code queries.</p>
               </div>
-              <button
-                type="button"
-                onClick={fetchQueries}
-                disabled={loading}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                title="Refresh"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <PageTour steps={facultyQueriesPageTour} />
+
+                <button
+                  type="button"
+                  onClick={fetchQueries}
+                  disabled={loading}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  title="Refresh"
+                >
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -336,7 +342,7 @@ const FacultyQueries = () => {
             </div>
           ) : null}
 
-          <div className={`flex min-h-0 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 ${querySectionOpen === 'open' ? 'flex-1' : 'shrink-0'}`}>
+          <div data-tour="faculty-query-open" className={`flex min-h-0 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 ${querySectionOpen === 'open' ? 'flex-1' : 'shrink-0'}`}>
             <button
               type="button"
               onClick={() => toggleQuerySection('open')}
@@ -366,7 +372,7 @@ const FacultyQueries = () => {
             ) : null}
           </div>
 
-          <div className={`flex min-h-0 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 ${querySectionOpen === 'history' ? 'flex-1' : 'shrink-0'}`}>
+          <div data-tour="faculty-query-history" className={`flex min-h-0 flex-col rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 ${querySectionOpen === 'history' ? 'flex-1' : 'shrink-0'}`}>
             <button
               type="button"
               onClick={() => toggleQuerySection('history')}
@@ -392,7 +398,7 @@ const FacultyQueries = () => {
           </div>
         </section>
 
-        <section className="min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <section data-tour="faculty-query-review" className="min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
           {mainQuery ? (
             <div className="flex h-full min-h-0 flex-col">
               <div className="shrink-0 border-b border-slate-200 p-4 dark:border-slate-800">
@@ -437,7 +443,7 @@ const FacultyQueries = () => {
                   />
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div data-tour="faculty-query-actions" className="mt-4 flex flex-wrap gap-2">
                   {mainQuery.status === 'pending' ? (
                     <>
                       <button
