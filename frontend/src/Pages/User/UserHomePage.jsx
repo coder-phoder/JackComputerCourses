@@ -2,14 +2,15 @@ import axios from 'axios'
 import { MotionConfig, motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import CourseListPanel from '../../Components/Common/CourseListPanel'
 import PageTour from '../../Components/Tour/PageTour'
-import UserHomeCourses from '../../Components/User/UserHomeCourses'
 import UserHomeHero from '../../Components/User/UserHomeHero'
 import UserHomeQuickLinks from '../../Components/User/UserHomeQuickLinks'
 import UserHomeStats from '../../Components/User/UserHomeStats'
 import UserNavbar from '../../Components/User/UserNavbar'
 import userHomePageTour from '../Tour/User/UserHomePageTour'
 import { useAuth } from '../../Context/AuthContext'
+import { getCourseAccessDisplay } from '../../utils/courseAccess'
 import {
   STATUS_META,
   getMonthLabel,
@@ -228,7 +229,23 @@ const UserHomePage = () => {
 
           <UserHomeQuickLinks />
 
-          <UserHomeCourses courses={courses} loading={loadingData} />
+          <CourseListPanel
+            title="Your courses"
+            subtitle={loadingData
+              ? 'Checking what is open to you...'
+              : `${courses.length} ${courses.length === 1 ? 'course is' : 'courses are'} open to you`}
+            courses={courses}
+            loading={loadingData}
+            accent="blue"
+            browseHref="/user/courses"
+            getHref={(course) => `/user/courses/${course._id}/player`}
+            getChip={(course) => ({
+              label: getCourseAccessDisplay(course).value,
+              className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+            })}
+            openInNewTab
+            emptyHint="Courses appear here as soon as they are published or assigned to your number."
+          />
         </motion.main>
       </MotionConfig>
     </div>
