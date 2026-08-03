@@ -1,43 +1,15 @@
+import { getCourseAccessDisplay } from '../../utils/courseAccess'
+
 const getCount = (value) => {
   const count = Number(value)
 
   return Number.isFinite(count) && count > 0 ? count : 0
 }
 
-const formatAccessDate = (value) => {
-  const dateValue = String(value || '').slice(0, 10)
-  const [year, month, day] = dateValue.split('-').map(Number)
-
-  if (!year || !month || !day) {
-    return ''
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(year, month - 1, day)))
-}
-
-const getAccessDisplay = (course) => {
-  if (course.isOpenToAll) {
-    return {
-      label: 'Access',
-      value: 'Open to all',
-    }
-  }
-
-  return {
-    label: 'Access Ends',
-    value: formatAccessDate(course.accessEndsOn || course.accessEndsAt) || 'N/A',
-  }
-}
-
 const UserCourseCard = ({ course, playerUrl, dataTour }) => {
   const description = course.shortDescription || course.description || 'Course details are not available.'
   const courseTags = [course.category, course.level, course.language].filter(Boolean)
-  const accessDisplay = getAccessDisplay(course)
+  const accessDisplay = getCourseAccessDisplay(course)
 
   return (
     <a

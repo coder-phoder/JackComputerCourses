@@ -1,5 +1,5 @@
 import { CalendarCheck, CircleCheck, CircleX, Flame, Info, TrendingUp } from 'lucide-react'
-import { STATUS_META } from '../../utils/attendance'
+import { STATUS_META, getAttendanceStanding } from '../../utils/attendance'
 
 // The ring is a meter, not a two slice pie: it reads one ratio against 100%, so the
 // unfilled part stays a lighter step of the very same hue instead of becoming a
@@ -7,42 +7,13 @@ import { STATUS_META } from '../../utils/attendance'
 const RING_RADIUS = 56
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 
-// The rate alone never says whether it is good news, so the headline carries a
-// worded standing with its own icon and colour is only ever the third cue.
-const getStanding = (summary) => {
-  if (!summary.marked) {
-    return {
-      label: 'Nothing marked yet',
-      hint: 'Your attendance for this month has not been recorded.',
-      chip: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-      Icon: Info,
-    }
-  }
-
-  if (summary.rate >= 90) {
-    return {
-      label: 'Excellent',
-      hint: 'You are on top of your classes. Keep it going.',
-      chip: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
-      Icon: CircleCheck,
-    }
-  }
-
-  if (summary.rate >= 75) {
-    return {
-      label: 'On track',
-      hint: 'A steady month. A few more present days lift this fast.',
-      chip: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
-      Icon: TrendingUp,
-    }
-  }
-
-  return {
-    label: 'Needs attention',
-    hint: 'You have missed more classes than usual this month.',
-    chip: 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300',
-    Icon: Info,
-  }
+// The words and the thresholds are shared; the icon that carries them here is this
+// headline's own, so colour is only ever the third cue.
+const STANDING_ICONS = {
+  none: Info,
+  high: CircleCheck,
+  steady: TrendingUp,
+  low: Info,
 }
 
 const StatTile = ({ label, value, sub, Icon, tone, iconTone }) => (
@@ -61,8 +32,8 @@ const StatTile = ({ label, value, sub, Icon, tone, iconTone }) => (
 )
 
 const UserAttendanceSummary = ({ summary, monthLabel }) => {
-  const standing = getStanding(summary)
-  const StandingIcon = standing.Icon
+  const standing = getAttendanceStanding(summary)
+  const StandingIcon = STANDING_ICONS[standing.tone]
   const dashOffset = RING_CIRCUMFERENCE * (1 - (summary.rate / 100))
 
   return (

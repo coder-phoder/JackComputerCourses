@@ -138,6 +138,46 @@ export const getAttendanceRate = (present, absent) => {
   return marked ? Math.round((present / marked) * 100) : 0
 }
 
+// The rate alone never says whether it is good news, so every place that shows one
+// reads the same worded standing off it: one set of thresholds, one set of words, on
+// the home page and on the attendance page alike. tone is what each screen hangs its
+// own icon on, so colour is never the only thing carrying the verdict.
+export const getAttendanceStanding = (summary) => {
+  if (!summary.marked) {
+    return {
+      tone: 'none',
+      label: 'Nothing marked yet',
+      hint: 'Your attendance for this month has not been recorded.',
+      chip: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+    }
+  }
+
+  if (summary.rate >= 90) {
+    return {
+      tone: 'high',
+      label: 'Excellent',
+      hint: 'You are on top of your classes. Keep it going.',
+      chip: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+    }
+  }
+
+  if (summary.rate >= 75) {
+    return {
+      tone: 'steady',
+      label: 'On track',
+      hint: 'A steady month. A few more present days lift this fast.',
+      chip: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+    }
+  }
+
+  return {
+    tone: 'low',
+    label: 'Needs attention',
+    hint: 'You have missed more classes than usual this month.',
+    chip: 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300',
+  }
+}
+
 // Everything the student's month reads as numbers, counted in one pass over the
 // days he was actually marked on: unmarked days are not absences, so they stay out
 // of the rate. Streaks run over marked days in date order, so a gap of unmarked
