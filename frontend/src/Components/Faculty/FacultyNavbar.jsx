@@ -73,6 +73,9 @@ const FacultyNavbar = () => {
             <NavLink to="/faculty/notes" onClick={closeMobileMenu} className={getNavLinkClass}>
               Notes
             </NavLink>
+            <NavLink to="/faculty/attendance" onClick={closeMobileMenu} className={getNavLinkClass}>
+              Attendance
+            </NavLink>
             <NavLink to="/faculty/bugs" onClick={closeMobileMenu} className={getNavLinkClass}>
               Report a Bug
             </NavLink>
@@ -119,6 +122,9 @@ const FacultyNavbar = () => {
             </NavLink>
             <NavLink to="/faculty/notes" onClick={closeMobileMenu} className={getNavLinkClass}>
               Notes
+            </NavLink>
+            <NavLink to="/faculty/attendance" onClick={closeMobileMenu} className={getNavLinkClass}>
+              Attendance
             </NavLink>
             <NavLink to="/faculty/bugs" onClick={closeMobileMenu} className={getNavLinkClass}>
               Report a Bug

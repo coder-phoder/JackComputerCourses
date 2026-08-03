@@ -96,8 +96,15 @@ const BugImageGallery = ({ imagesUrl, count, onAuthError }) => {
       ) : null}
 
       {preview ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-          <div className="relative max-h-full w-full max-w-3xl overflow-auto rounded-xl bg-white dark:bg-slate-900 p-4 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Close image preview"
+            className="absolute inset-0 bg-slate-950/80"
+            onClick={() => setPreview(null)}
+          />
+
+          <div className="relative z-10 max-h-full w-full max-w-3xl overflow-auto rounded-xl bg-white dark:bg-slate-900 p-4 shadow-xl">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
                 {preview.name || 'Bug screenshot'}
