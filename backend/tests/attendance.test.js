@@ -3,7 +3,12 @@ const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 
 const Attendance = require('../models/attendance.model');
-const { formatAttendanceData } = require('../controllers/attendance.controller');
+const {
+    formatAttendanceData,
+    buildAttendanceTrend,
+    shiftMonthKey,
+    TREND_MONTHS
+} = require('../controllers/attendance.controller');
 
 const buildRecord = (overrides = {}) => new Attendance({
     user: new mongoose.Types.ObjectId(),
@@ -55,6 +60,41 @@ test('attendance keeps one record per student per day', () => {
     ));
 
     assert.ok(hasDayIndex);
+});
+
+test('shiftMonthKey walks months across year boundaries', () => {
+    assert.equal(shiftMonthKey('2026-08', 0), '2026-08');
+    assert.equal(shiftMonthKey('2026-08', -5), '2026-03');
+    assert.equal(shiftMonthKey('2026-02', -3), '2025-11');
+    assert.equal(shiftMonthKey('2026-11', 2), '2027-01');
+});
+
+test('buildAttendanceTrend keeps a slot for every month, empty ones included', () => {
+    const trend = buildAttendanceTrend([
+        { _id: { month: '2026-08', status: 'present' }, count: 12 },
+        { _id: { month: '2026-08', status: 'absent' }, count: 3 },
+        { _id: { month: '2026-06', status: 'present' }, count: 20 }
+    ], '2026-08');
+
+    assert.equal(trend.length, TREND_MONTHS);
+    assert.deepEqual(trend.map((month) => month.month), [
+        '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'
+    ]);
+    assert.deepEqual(trend.at(-1), { month: '2026-08', present: 12, absent: 3 });
+    assert.deepEqual(trend[3], { month: '2026-06', present: 20, absent: 0 });
+    assert.deepEqual(trend[0], { month: '2026-03', present: 0, absent: 0 });
+});
+
+test('buildAttendanceTrend drops rows that are not a month and a known status', () => {
+    const trend = buildAttendanceTrend([
+        { _id: { month: '2026-8', status: 'present' }, count: 4 },
+        { _id: { month: '2026-08', status: 'holiday' }, count: 6 },
+        { _id: { month: '2025-12', status: 'present' }, count: 9 },
+        { _id: { month: '2026-08', status: 'present' }, count: 1 }
+    ], '2026-08');
+
+    assert.deepEqual(trend.at(-1), { month: '2026-08', present: 1, absent: 0 });
+    assert.ok(trend.every((month) => month.month !== '2025-12'));
 });
 
 test('formatAttendanceData hides who marked the day from faculties', () => {

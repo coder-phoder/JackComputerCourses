@@ -8,6 +8,7 @@ import LoginPage from './Pages/Common/LoginPage'
 import NotFoundPage from './Pages/Common/NotFoundPage'
 import RegisterPage from './Pages/Common/RegisterPage'
 import UserHomePage from './Pages/User/UserHomePage'
+import UserAttendancePage from './Pages/User/UserAttendancePage'
 import UserCoursesPage from './Pages/User/UserCoursesPage'
 import UserCoursePlayerPage from './Pages/User/UserCoursePlayerPage'
 import UserIdePage from './Pages/User/UserIdePage'
@@ -113,6 +114,7 @@ const App = () => {
             <Route path="/user/home" element={protect('user', <UserHomePage />)} />
             <Route path="/user/courses" element={protect('user', <UserCoursesPage />)} />
             <Route path="/user/courses/:courseId/player" element={protect('user', <UserCoursePlayerPage />)} />
+            <Route path="/user/attendance" element={protect('user', <UserAttendancePage />)} />
             <Route path="/user/ide" element={protect('user', <UserIdePage />)} />
             <Route path="/user/bugs" element={protect('user', <UserBug />)} />
             <Route path="/faculty/home" element={protect('faculty', <FacultyHomePage />)} />

@@ -12,6 +12,7 @@ const {
     getCourseVideoEmbedByUser
 } = require('../controllers/course.controller');
 const authUser = require('../middlewares/user.middleware');
+const { userAttendanceRoutes } = require('./attendance.routes');
 const workspaceRoutes = require('./workspace.routes');
 const ideShareRoutes = require('./ideShare.routes');
 const { userQueryRoutes } = require('./query.routes');
@@ -27,6 +28,7 @@ router.post('/logout', logoutUser);
 // route that requires a signed in user.
 router.use('/password-requests', publicPasswordRequestRoutes);
 router.get('/profile', authUser, getUserProfile);
+router.use('/attendance', authUser, userAttendanceRoutes);
 router.use('/workspace', authUser, workspaceRoutes);
 router.use('/ide-share', authUser, ideShareRoutes);
 router.use('/bugs', authUser, reporterBugRoutes);

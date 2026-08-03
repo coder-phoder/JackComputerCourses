@@ -12,3 +12,33 @@
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }
 }
+
+/* Attendance page: the trend columns grow out of their baseline and the calendar
+   days settle in, so opening a month reads as one movement instead of a flash. */
+.attendance-bar {
+  transform-origin: bottom;
+  animation: attendance-bar 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.attendance-cell {
+  animation: attendance-cell 320ms ease-out both;
+}
+
+@keyframes attendance-bar {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes attendance-cell {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-progress,
+  .attendance-bar,
+  .attendance-cell {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+}

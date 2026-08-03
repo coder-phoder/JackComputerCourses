@@ -4,10 +4,53 @@ const User = require('../models/user.model');
 
 const MONTH_KEY_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
+// How many months the student's own attendance page charts, the visible month included.
+const TREND_MONTHS = 6;
+
 const isValidObjectId = (id) => (
     mongoose.Types.ObjectId.isValid(id)
     && new mongoose.Types.ObjectId(id).toString() === String(id)
 );
+
+// Months are plain YYYY-MM strings here too, so walking back a few of them is
+// arithmetic on the month number instead of a Date that could shift a timezone.
+const shiftMonthKey = (monthKey, delta) => {
+    const [year, month] = monthKey.split('-').map(Number);
+    const monthIndex = (year * 12) + (month - 1) + delta;
+
+    return `${Math.floor(monthIndex / 12)}-${String((monthIndex % 12) + 1).padStart(2, '0')}`;
+};
+
+// A month with no attendance still gets a slot, so the chart keeps a fixed number
+// of columns and an empty month reads as empty instead of disappearing.
+const buildAttendanceTrend = (rows, endMonth, monthCount = TREND_MONTHS) => {
+    const countsByMonth = new Map();
+
+    rows.forEach((row) => {
+        const monthKey = row?._id?.month;
+        const status = row?._id?.status;
+
+        if (!MONTH_KEY_PATTERN.test(String(monthKey)) || !Attendance.STATUSES.includes(status)) {
+            return;
+        }
+
+        const counts = countsByMonth.get(monthKey) || {};
+
+        counts[status] = (counts[status] || 0) + (row.count || 0);
+        countsByMonth.set(monthKey, counts);
+    });
+
+    return Array.from({ length: monthCount }, (item, index) => {
+        const month = shiftMonthKey(endMonth, index - (monthCount - 1));
+        const counts = countsByMonth.get(month) || {};
+
+        return {
+            month,
+            present: counts.present || 0,
+            absent: counts.absent || 0
+        };
+    });
+};
 
 const sendError = (res, statusCode, message) => res.status(statusCode).json({
     success: false,
@@ -161,6 +204,61 @@ const markAttendance = async (req, res) => {
     }
 };
 
+// The student reads his own month only: the id comes from his token, never from
+// the query, so no student can ask for somebody else's attendance. Who marked the
+// day stays off the payload here, exactly as it does for a faculty.
+const getMyAttendance = async (req, res) => {
+    try {
+        const month = String(req.query?.month || '').trim();
+        const userId = req.user?._id;
+
+        if (!userId) {
+            return sendError(res, 401, 'Attendance is only available to a signed in student');
+        }
+
+        if (!MONTH_KEY_PATTERN.test(month)) {
+            return sendError(res, 400, 'Month must be sent as YYYY-MM');
+        }
+
+        const trendStart = shiftMonthKey(month, -(TREND_MONTHS - 1));
+
+        // The visible month is read in full for the calendar; the months behind it
+        // are only ever charted as totals, so they are counted in the database.
+        const [records, trendRows] = await Promise.all([
+            Attendance.find({
+                user: userId,
+                date: { $gte: `${month}-01`, $lte: `${month}-31` }
+            }).sort({ date: 1 }).lean(),
+            Attendance.aggregate([
+                {
+                    $match: {
+                        user: new mongoose.Types.ObjectId(userId),
+                        date: { $gte: `${trendStart}-01`, $lte: `${month}-31` }
+                    }
+                },
+                {
+                    $group: {
+                        _id: { month: { $substrBytes: ['$date', 0, 7] }, status: '$status' },
+                        count: { $sum: 1 }
+                    }
+                }
+            ])
+        ]);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Attendance fetched successfully',
+            data: {
+                month,
+                attendance: records.map((record) => formatAttendanceData(record, false)),
+                trend: buildAttendanceTrend(trendRows, month)
+            }
+        });
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while fetching attendance');
+    }
+};
+
 const deleteAttendance = async (req, res) => {
     try {
         const { attendanceId } = req.params;
@@ -188,7 +286,11 @@ const deleteAttendance = async (req, res) => {
 module.exports = {
     getStudentsForAttendance,
     getMonthAttendance,
+    getMyAttendance,
     markAttendance,
     deleteAttendance,
-    formatAttendanceData
+    formatAttendanceData,
+    buildAttendanceTrend,
+    shiftMonthKey,
+    TREND_MONTHS
 };
