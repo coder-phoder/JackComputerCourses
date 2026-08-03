@@ -51,6 +51,20 @@ export const getShortDayLabel = (dateKey) => {
   return `${WEEKDAYS[date.getDay()]} ${day} ${MONTHS[month - 1].slice(0, 3)}`
 }
 
+// The month as a plain run of its own days, which is what the printed register
+// lays its columns out from: no leading or trailing week padding, just 1 to 28-31.
+export const getMonthDays = (monthDate) => {
+  const year = monthDate.getFullYear()
+  const month = monthDate.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  return Array.from({ length: daysInMonth }, (item, index) => {
+    const date = new Date(year, month, index + 1)
+
+    return { dateKey: toDateKey(date), dayNumber: index + 1, weekday: date.getDay() }
+  })
+}
+
 // Whole weeks only, so the grid always starts on a Sunday and ends on a Saturday.
 // Leading and trailing cells belong to the neighbouring months and stay unclickable.
 export const buildMonthGrid = (monthDate) => {

@@ -23,11 +23,12 @@ const AdminAttendance = () => {
           <h1 className="mt-1 text-3xl font-bold text-slate-900 dark:text-slate-100">Attendance</h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
             Pick any day of any month, then mark, change or remove a student&apos;s attendance.
-            Every day also shows who marked it.
+            Every day also shows who marked it, and Print takes the whole visible month
+            as a register.
           </p>
         </div>
 
-        <AttendanceBoard basePath="/admin" canSeeMarkedBy />
+        <AttendanceBoard basePath="/admin" canSeeMarkedBy canPrint />
       </main>
     </div>
   )

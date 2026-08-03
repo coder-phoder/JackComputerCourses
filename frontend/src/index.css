@@ -34,6 +34,48 @@
   to { opacity: 1; transform: none; }
 }
 
+/* The attendance register (AttendancePrintSheet) is the only thing that ever goes
+   to paper, so printing hides the app beside it and lays the sheet out alone, in
+   landscape because a whole month of day columns has to fit across the page.
+   The sheet carries no colour at all, but its greys are what separate the header
+   row and the Sundays from the rest, so they are printed rather than dropped; the
+   header row is repeated by the browser on every page the roster spills onto. */
+.attendance-sheet {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.attendance-sheet thead {
+  display: table-header-group;
+}
+
+.attendance-sheet tr {
+  break-inside: avoid;
+}
+
+@media print {
+  /* A page with no margin is the only way to be rid of the date and the page
+     address the browser prints in one: it draws them inside the page margin, so
+     there is nowhere left for them. The sheet holds its own margins instead, and
+     keeps them on every page rather than only on the first and the last. */
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body > *:not(.attendance-sheet) {
+    display: none !important;
+  }
+
+  .attendance-sheet {
+    display: block !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .auth-progress,
   .attendance-bar,
