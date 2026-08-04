@@ -31,6 +31,7 @@ const AttendanceCalendar = ({
           {onPrint ? (
             <button
               type="button"
+              data-tour="attendance-print"
               onClick={onPrint}
               aria-label={`Print ${getMonthLabel(monthDate)} attendance`}
               title={`Print ${getMonthLabel(monthDate)} attendance`}

@@ -6,6 +6,8 @@ import AdminNavbar from '../../Components/Admin/AdminNavbar'
 import BugImageGallery from '../../Components/Common/BugImageGallery'
 import BugStatusBadge from '../../Components/Common/BugStatusBadge'
 import { formatBugDateTime, getBugDecisionAt, getBugDecisionLabel, isHistoryBug } from '../../Components/Common/bugStatus'
+import PageTour from '../../Components/Tour/PageTour'
+import adminBugsPageTour from '../Tour/Admin/AdminBugsPageTour'
 import { useAuth } from '../../Context/AuthContext'
 import { refreshAdminAlerts } from '../../utils/adminAlerts'
 
@@ -141,9 +143,12 @@ const AdminBugs = () => {
     }
   }
 
-  const renderBug = (bug) => {
+  // Both lists render through here, so the walkthrough anchor is pinned to the first
+  // row of the open queue: the one report that always has a decision still on it.
+  const renderBug = (bug, index) => {
     const isBusy = busyId === bug._id
     const decidedAt = getBugDecisionAt(bug)
+    const isFirstOpenBug = !index && !isHistoryBug(bug)
 
     return (
       <li key={bug._id} className="px-6 py-5">
@@ -159,7 +164,7 @@ const AdminBugs = () => {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div data-tour={isFirstOpenBug ? 'admin-bug-actions' : undefined} className="flex gap-2">
             {bug.status !== 'resolved' ? (
               <button
                 type="button"
@@ -222,11 +227,15 @@ const AdminBugs = () => {
       <AdminNavbar />
 
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Bug Reports</h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            Resolve or decline an open report to move it into history. Removing a report deletes it for everyone.
-          </p>
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Bug Reports</h1>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+              Resolve or decline an open report to move it into history. Removing a report deletes it for everyone.
+            </p>
+          </div>
+
+          <PageTour steps={adminBugsPageTour} />
         </div>
 
         {error ? (
@@ -242,7 +251,7 @@ const AdminBugs = () => {
         ) : null}
 
         <div className="space-y-6">
-          <section className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+          <section data-tour="admin-bugs-open" className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Open Reports</h2>
               <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -268,7 +277,7 @@ const AdminBugs = () => {
             </ul>
           </section>
 
-          <section className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+          <section data-tour="admin-bugs-history" className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 px-6 py-5">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">History</h2>
 

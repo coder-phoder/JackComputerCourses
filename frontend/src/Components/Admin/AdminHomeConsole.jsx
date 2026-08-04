@@ -44,7 +44,7 @@ const dateFormat = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 })
 
-const AdminHomeConsole = ({ phone, decisions, badges, loading, onOpenCommands }) => {
+const AdminHomeConsole = ({ phone, decisions, badges, children, loading, onOpenCommands }) => {
   const [now, setNow] = useState(() => new Date())
 
   // Everything decided from this console is dated — a register, a password reset, a
@@ -59,6 +59,7 @@ const AdminHomeConsole = ({ phone, decisions, badges, loading, onOpenCommands })
   return (
     <motion.section
       variants={fadeUp}
+      data-tour="admin-console"
       className="relative isolate overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 shadow-xl shadow-slate-900/10"
     >
       {/* Ruled paper, not decoration: the grid is what makes the deck read as an
@@ -143,6 +144,7 @@ const AdminHomeConsole = ({ phone, decisions, badges, loading, onOpenCommands })
 
             <button
               type="button"
+              data-tour="admin-commands"
               onClick={onOpenCommands}
               className="group inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3.5 py-2 text-sm font-bold text-slate-200 transition hover:border-violet-400/50 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
             >
@@ -152,6 +154,9 @@ const AdminHomeConsole = ({ phone, decisions, badges, loading, onOpenCommands })
                 {COMMAND_SHORTCUT}
               </span>
             </button>
+
+            {/* The walkthrough starts from the same row as the shortcut it explains. */}
+            {children}
           </div>
         </div>
 

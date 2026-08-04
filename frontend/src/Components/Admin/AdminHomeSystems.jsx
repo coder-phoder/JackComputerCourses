@@ -105,6 +105,7 @@ const AdminHomeSystems = ({ users, faculties, courses, loading }) => {
   return (
     <motion.section
       variants={staggerParent(0.07)}
+      data-tour="admin-systems"
       className={`grid gap-5 transition-opacity lg:grid-cols-3 ${loading ? 'opacity-60' : 'opacity-100'}`}
     >
       <Card

@@ -72,6 +72,7 @@ const AdminHomeAttendance = ({ records, rosterSize, today, monthLabel, loading }
   return (
     <motion.section
       variants={fadeUp}
+      data-tour="admin-register"
       className={`flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-opacity dark:border-slate-800 dark:bg-slate-900 sm:p-6 ${
         loading ? 'opacity-60' : 'opacity-100'
       }`}

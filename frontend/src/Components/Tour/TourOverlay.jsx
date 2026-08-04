@@ -1,13 +1,22 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 const CARD_WIDTH = 380
 const VIEWPORT_MARGIN = 16
 const SPOTLIGHT_GAP = 14
 const SPOTLIGHT_PADDING = 6
-// Below this a card would hang off the screen, so it is centred over the target instead.
-const MIN_CARD_ROOM = 280
+// Stands in for the card's height until it has been rendered once and measured. Every
+// decision about where the card fits is made against the height it actually has.
+const ASSUMED_CARD_HEIGHT = 280
+
+// Keeps a placed edge inside the screen: a spotlight running off the bottom, or one
+// hard against a side, must not take the card with it.
+const clampToViewport = (value, extent, limit) => Math.min(
+  Math.max(value, VIEWPORT_MARGIN),
+  Math.max(VIEWPORT_MARGIN, limit - extent - VIEWPORT_MARGIN),
+)
 
 // A step points at a selector, not at an element: panels a step opens are only in
 // the DOM once it has opened them. A target that is missing or hidden reads as
@@ -42,23 +51,46 @@ const isSameSpotlight = (first, second) => (
   )
 )
 
-const getCardPosition = (spotlight) => {
+// The card stands against whichever side of the spotlight has room for it: under the
+// target, over it, then beside it. A card placed over the thing it is describing is
+// the one outcome worth any of this, so the centred fallback is kept for the only
+// case that has nowhere else to go — a target with no room on any of the four sides.
+const getCardPosition = (spotlight, cardHeight) => {
   if (!spotlight) {
     return null
   }
 
-  const left = Math.min(
-    Math.max(spotlight.left + spotlight.width / 2 - CARD_WIDTH / 2, VIEWPORT_MARGIN),
-    Math.max(VIEWPORT_MARGIN, window.innerWidth - CARD_WIDTH - VIEWPORT_MARGIN),
+  const height = cardHeight || ASSUMED_CARD_HEIGHT
+  const left = clampToViewport(
+    spotlight.left + spotlight.width / 2 - CARD_WIDTH / 2,
+    CARD_WIDTH,
+    window.innerWidth,
   )
   const bottomEdge = spotlight.top + spotlight.height + SPOTLIGHT_GAP
 
-  if (window.innerHeight - bottomEdge >= MIN_CARD_ROOM) {
+  if (window.innerHeight - bottomEdge >= height + VIEWPORT_MARGIN) {
     return { left, top: bottomEdge }
   }
 
-  if (spotlight.top - SPOTLIGHT_GAP >= MIN_CARD_ROOM) {
+  if (spotlight.top - SPOTLIGHT_GAP >= height + VIEWPORT_MARGIN) {
     return { left, bottom: window.innerHeight - spotlight.top + SPOTLIGHT_GAP }
+  }
+
+  // A panel tall enough to fill the screen still leaves the column beside it, which
+  // is where a two column dashboard puts the card without covering anything lit.
+  const top = clampToViewport(
+    spotlight.top + spotlight.height / 2 - height / 2,
+    height,
+    window.innerHeight,
+  )
+  const rightEdge = spotlight.left + spotlight.width + SPOTLIGHT_GAP
+
+  if (window.innerWidth - rightEdge >= CARD_WIDTH + VIEWPORT_MARGIN) {
+    return { left: rightEdge, top }
+  }
+
+  if (spotlight.left - SPOTLIGHT_GAP >= CARD_WIDTH + VIEWPORT_MARGIN) {
+    return { right: window.innerWidth - spotlight.left + SPOTLIGHT_GAP, top }
   }
 
   return null
@@ -67,6 +99,8 @@ const getCardPosition = (spotlight) => {
 const TourOverlay = ({ steps, onClose }) => {
   const [stepIndex, setStepIndex] = useState(0)
   const [spotlight, setSpotlight] = useState(null)
+  const [cardHeight, setCardHeight] = useState(0)
+  const cardRef = useRef(null)
   const enteredStepId = useRef('')
 
   // A page can rebuild its steps while the tour is open — attendance drops its trend
@@ -74,7 +108,7 @@ const TourOverlay = ({ steps, onClose }) => {
   const safeIndex = Math.min(stepIndex, steps.length - 1)
   const step = steps[safeIndex]
   const isLastStep = safeIndex === steps.length - 1
-  const cardPosition = getCardPosition(spotlight)
+  const cardPosition = getCardPosition(spotlight, cardHeight)
   const StepIcon = step.icon
 
   // Opening the section a step is about is the step's own job, so the page hands
@@ -94,7 +128,22 @@ const TourOverlay = ({ steps, onClose }) => {
     }
 
     const frame = requestAnimationFrame(() => {
-      document.querySelector(step.target)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const element = document.querySelector(step.target)
+
+      if (!element) {
+        return
+      }
+
+      // Centring the target is what draws the eye, but a tall one centred splits the
+      // screen into two gaps too short to stand a card in. Those are sent to the top
+      // instead, which hands the whole of the room below them to the card.
+      const room = (window.innerHeight - element.getBoundingClientRect().height) / 2 - SPOTLIGHT_GAP
+      const cardRoom = (cardRef.current?.offsetHeight || ASSUMED_CARD_HEIGHT) + VIEWPORT_MARGIN
+
+      element.scrollIntoView({
+        behavior: 'smooth',
+        block: room >= cardRoom ? 'center' : 'start',
+      })
     })
 
     return () => cancelAnimationFrame(frame)
@@ -112,6 +161,9 @@ const TourOverlay = ({ steps, onClose }) => {
 
         return isSameSpotlight(current, next) ? current : next
       })
+      // Read on the same frame as the box it is placed against: a step with more to
+      // say is a taller card, and the side it fits on changes with it.
+      setCardHeight((current) => cardRef.current?.offsetHeight || current)
 
       frame = requestAnimationFrame(measure)
     }
@@ -145,7 +197,12 @@ const TourOverlay = ({ steps, onClose }) => {
     }
   }, [onClose, steps.length])
 
-  return (
+  // The button that starts a walkthrough sits wherever its page wants it, and a page
+  // that animates a panel into place leaves a transform on it. A transform is the
+  // containing block for anything fixed inside it, which would scope this overlay to
+  // that panel and let any animated card further down the page paint straight through
+  // it. Hung off the body, the overlay is above the page whatever the page is doing.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -174,6 +231,7 @@ const TourOverlay = ({ steps, onClose }) => {
       <AnimatePresence mode="wait">
         <motion.div
           key={step.id}
+          ref={cardRef}
           className={`pointer-events-auto max-h-[calc(100vh-6rem)] w-full max-w-95 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 ${
             cardPosition ? 'absolute' : 'relative'
           }`}
@@ -267,7 +325,8 @@ const TourOverlay = ({ steps, onClose }) => {
           )}
         </motion.div>
       </AnimatePresence>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

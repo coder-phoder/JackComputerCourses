@@ -64,13 +64,16 @@ const AdminCourseList = ({
       </div>
     ) : courses.length ? (
       <div className={gridClass}>
-        {courses.map((course) => {
+        {courses.map((course, index) => {
           const isDeleting = deletingCourseId === course._id
           const courseTags = [course.category, course.level, course.language].filter(Boolean)
 
           return (
             <article
               key={course._id}
+              // Only the first card is marked: the walkthrough points at one course,
+              // not at every card in the grid.
+              data-tour={index ? undefined : 'admin-course-card'}
               role="button"
               tabIndex={0}
               onClick={() => onOpenCourse(course)}

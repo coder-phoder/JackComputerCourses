@@ -9,11 +9,18 @@ import AdminHomeSystems from '../../Components/Admin/AdminHomeSystems'
 import AdminHomeTriage from '../../Components/Admin/AdminHomeTriage'
 import AdminNavbar from '../../Components/Admin/AdminNavbar'
 import CourseListPanel from '../../Components/Common/CourseListPanel'
+import PageTour from '../../Components/Tour/PageTour'
+import adminHomePageTour from '../Tour/Admin/AdminHomePageTour'
 import { useAuth } from '../../Context/AuthContext'
+import { completeAdminTour, isAdminTourPending } from '../../utils/adminTour'
 import { STATUS_META, getMonthKeyLabel, toDateKey } from '../../utils/attendance'
 import { staggerParent } from '../../utils/motion'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
+
+// The deck is dark in either theme, so the walkthrough button is skinned to sit beside
+// the two buttons already on it rather than punching a white hole through the panel.
+const CONSOLE_TOUR_BUTTON_CLASS = 'inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3.5 py-2 text-sm font-bold text-slate-200 transition hover:border-violet-400/50 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400'
 
 const getErrorMessage = (error, fallback) => (
   error?.response?.data?.message || fallback
@@ -26,6 +33,9 @@ const AdminHomePage = () => {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [adminProfile, setAdminProfile] = useState(null)
+  // Only a browser that has never been walked through gets the console explained
+  // unasked; the button starts the same walkthrough again whenever it is wanted.
+  const [firstRun] = useState(isAdminTourPending)
   const [users, setUsers] = useState([])
   const [faculties, setFaculties] = useState([])
   const [courses, setCourses] = useState([])
@@ -193,7 +203,14 @@ const AdminHomePage = () => {
             badges={badges}
             loading={loadingData}
             onOpenCommands={() => setPaletteOpen(true)}
-          />
+          >
+            <PageTour
+              steps={adminHomePageTour}
+              autoStart={firstRun}
+              className={CONSOLE_TOUR_BUTTON_CLASS}
+              onClose={completeAdminTour}
+            />
+          </AdminHomeConsole>
 
           {error ? (
             <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 sm:flex-row sm:items-center sm:justify-between">

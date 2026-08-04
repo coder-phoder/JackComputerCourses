@@ -92,7 +92,9 @@ const AdminNavbar = () => {
         </Link>
 
         <div className="flex items-center gap-4">
-          <div className="hidden items-center gap-2 sm:flex">
+          {/* data-tour marks what the first run walkthrough points at. Only this row
+              carries it, so the spotlight never lands on the copy inside the mobile menu. */}
+          <div data-tour="admin-sections" className="hidden items-center gap-2 sm:flex">
             {NAV_LINKS.map((link) => (
               <AdminNavLink
                 key={link.to}

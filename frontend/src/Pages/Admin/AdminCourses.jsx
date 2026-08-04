@@ -10,6 +10,8 @@ import {
   defaultCourseCatalogFilters,
   getFilteredSortedCourses,
 } from '../../Components/Common/courseCatalogFilters'
+import PageTour from '../../Components/Tour/PageTour'
+import adminCoursesPageTour from '../Tour/Admin/AdminCoursesPageTour'
 import { useAuth } from '../../Context/AuthContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
@@ -419,9 +421,12 @@ const AdminCourses = () => {
             </p>
             <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">Courses</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <PageTour steps={adminCoursesPageTour} />
+
             <button
               type="button"
+              data-tour="admin-course-refresh"
               onClick={fetchCourses}
               disabled={loadingCourses}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
@@ -431,6 +436,7 @@ const AdminCourses = () => {
             </button>
             <button
               type="button"
+              data-tour="admin-course-new"
               onClick={startCreatingCourse}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md"
             >
