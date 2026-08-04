@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Note = require('../models/note.model');
 const Course = require('../models/course.model');
+const { FACULTY_COURSE_FILTER } = require('./course.controller');
 const { parseFolderId, fetchFolderFiles, sortFilesByName } = require('../services/drive.service');
 
 const isValidObjectId = (id) => (
@@ -37,24 +38,38 @@ const formatCourseNoteData = (note) => ({
     courseSlug: note.courseId.slug
 });
 
+// One listing serves both roles, and what separates them is which courses their notes
+// are allowed to come from. The course is populated through that filter, so a note
+// whose course the reader may not open comes back without one and is dropped by the
+// same pass that drops notes left behind by a deleted course.
+const listCourseNotes = async (res, courseFilter) => {
+    const notes = await Note.find()
+        .populate({
+            path: 'courseId',
+            select: 'title slug',
+            ...(courseFilter ? { match: courseFilter } : {})
+        })
+        .lean();
+
+    const courseNotes = notes
+        .filter((note) => note.courseId)
+        .map(formatCourseNoteData)
+        .sort((first, second) => first.courseTitle.localeCompare(second.courseTitle, undefined, {
+            sensitivity: 'base'
+        }));
+
+    return res.status(200).json({
+        success: true,
+        message: 'Course notes retrieved successfully',
+        data: { notes: courseNotes }
+    });
+};
+
 // Admin Controllers
 
 const getAllNotesByAdmin = async (req, res) => {
     try {
-        const notes = await Note.find().populate('courseId', 'title slug').lean();
-
-        const courseNotes = notes
-            .filter((note) => note.courseId)
-            .map(formatCourseNoteData)
-            .sort((first, second) => first.courseTitle.localeCompare(second.courseTitle, undefined, {
-                sensitivity: 'base'
-            }));
-
-        return res.status(200).json({
-            success: true,
-            message: 'Course notes retrieved successfully',
-            data: { notes: courseNotes }
-        });
+        return await listCourseNotes(res);
     } catch (error) {
         return sendError(res, 500, error.message || 'Something went wrong while retrieving notes');
     }
@@ -292,6 +307,17 @@ const syncNoteByAdmin = async (req, res) => {
 
 // Faculty Controllers
 
+// A notes folder is the course behind it: listing the notes of a draft would hand over
+// its Drive folder and every file in it before the course exists for anybody, so both
+// reads are held to the same rule the course itself is.
+const getAllNotesByFaculty = async (req, res) => {
+    try {
+        return await listCourseNotes(res, FACULTY_COURSE_FILTER);
+    } catch (error) {
+        return sendError(res, 500, error.message || 'Something went wrong while retrieving notes');
+    }
+};
+
 const getNoteByFaculty = async (req, res) => {
     try {
         const { courseId } = req.params;
@@ -300,7 +326,7 @@ const getNoteByFaculty = async (req, res) => {
             return sendError(res, 400, 'Invalid course id');
         }
 
-        const course = await Course.findById(courseId);
+        const course = await Course.findOne({ _id: courseId, ...FACULTY_COURSE_FILTER });
         if (!course) {
             return sendError(res, 404, 'Course not found');
         }
@@ -322,8 +348,7 @@ const getNoteByFaculty = async (req, res) => {
 
 module.exports = {
     getAllNotesByAdmin,
-    // Faculty already have read access to every course, so the same listing serves both roles
-    getAllNotesByFaculty: getAllNotesByAdmin,
+    getAllNotesByFaculty,
     createNoteByAdmin,
     getNoteByAdmin,
     updateNoteByAdmin,

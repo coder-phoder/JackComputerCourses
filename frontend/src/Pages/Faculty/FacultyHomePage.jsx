@@ -259,20 +259,22 @@ const FacultyHomePage = () => {
 
           <FacultyHomeQuickLinks badges={{ pendingQueries }} />
 
+          {/* Every course listed here is published, so the chip carries the thing that
+              does differ between them: who the course is open to. */}
           <CourseListPanel
             title="Courses on the site"
             subtitle={loadingData
               ? 'Loading the catalogue...'
-              : `${courses.length} ${courses.length === 1 ? 'course' : 'courses'} your students can be given`}
+              : `${courses.length} live ${courses.length === 1 ? 'course' : 'courses'} your students can be given`}
             courses={courses}
             loading={loadingData}
             accent="indigo"
             browseHref="/faculty/courses"
             getHref={(course) => `/faculty/courses/${course._id}`}
-            getChip={(course) => (course.isPublished
-              ? { label: 'Published', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' }
-              : { label: 'Draft', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' })}
-            emptyHint="Courses appear here as soon as an admin creates them."
+            getChip={(course) => (course.isOpenToAll
+              ? { label: 'Open to all', className: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300' }
+              : { label: 'Restricted', className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' })}
+            emptyHint="Courses appear here as soon as an admin publishes one."
           />
         </motion.main>
       </MotionConfig>

@@ -1908,13 +1908,20 @@ const getCourseVideoEmbedByUser = async (req, res) => {
     }
 };
 
+// A faculty teaches whatever the site is running, so who a course was sold to is not
+// what decides it: a course held for named students is still theirs to open. A draft
+// is not, because it has not been released to anybody yet — it is the admin's until it
+// goes live. Every faculty read of a course goes through this filter, so a link to a
+// draft answers the same way as a link to a course that does not exist.
+const FACULTY_COURSE_FILTER = { isPublished: true };
+
 const getCoursesByFaculty = async (req, res) => {
     try {
         if (!req.faculty?._id) {
             return sendError(res, 401, 'Invalid faculty token');
         }
 
-        const courses = await Course.find({}).sort({ createdAt: -1 });
+        const courses = await Course.find(FACULTY_COURSE_FILTER).sort({ createdAt: -1 });
         const courseCounts = await getCourseCounts(courses.map((course) => course._id));
 
         return res.status(200).json({
@@ -1946,7 +1953,7 @@ const getCourseByFaculty = async (req, res) => {
             return sendError(res, 400, 'Invalid course id or slug');
         }
 
-        const course = await Course.findOne(courseQuery);
+        const course = await Course.findOne({ ...courseQuery, ...FACULTY_COURSE_FILTER });
 
         if (!course) {
             return sendError(res, 404, 'Course not found');
@@ -1992,7 +1999,7 @@ const saveCourseProgressByFaculty = async (req, res) => {
             return sendError(res, 400, 'Invalid course id or slug');
         }
 
-        const course = await Course.findOne(courseQuery);
+        const course = await Course.findOne({ ...courseQuery, ...FACULTY_COURSE_FILTER });
 
         if (!course) {
             return sendError(res, 404, 'Course not found');
@@ -2033,7 +2040,7 @@ const getCourseVideoEmbedByFaculty = async (req, res) => {
             return sendError(res, 400, 'Invalid video position');
         }
 
-        const course = await Course.findOne(courseQuery);
+        const course = await Course.findOne({ ...courseQuery, ...FACULTY_COURSE_FILTER });
 
         if (!course) {
             return sendError(res, 404, 'Course not found');
@@ -2090,6 +2097,7 @@ module.exports = {
     getCourseByFaculty,
     saveCourseProgressByFaculty,
     getCourseVideoEmbedByFaculty,
+    FACULTY_COURSE_FILTER,
     normalizePhoneArray,
     parseVideoKey,
     courseUserHasAccess,

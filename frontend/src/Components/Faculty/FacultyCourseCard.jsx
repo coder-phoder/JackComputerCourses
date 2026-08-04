@@ -49,19 +49,17 @@ const FacultyCourseCard = ({ course, detailUrl, dataTour }) => {
           <h2 className="line-clamp-2 text-lg font-bold text-slate-900 dark:text-slate-100">
             {course.title}
           </h2>
+          {/* Published is not worth a badge here: a faculty is only ever shown courses
+              that are live, so it could say one thing. Who a course is open to is what
+              varies, and it is what a faculty needs before pointing a student at it. */}
           <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
-            course.isPublished
-              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
-              : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
+            course.isOpenToAll
+              ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
           }`}
           >
-            {course.isPublished ? 'Published' : 'Draft'}
+            {course.isOpenToAll ? 'Open to All' : 'Restricted'}
           </span>
-          {course.isOpenToAll ? (
-            <span className="rounded-full bg-blue-50 dark:bg-blue-950/40 px-2 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
-              Open to All
-            </span>
-          ) : null}
         </div>
 
         <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
