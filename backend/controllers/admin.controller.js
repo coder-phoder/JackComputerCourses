@@ -7,6 +7,7 @@ const Course = require('../models/course.model');
 const Bug = require('../models/bug.model');
 const PasswordRequest = require('../models/passwordRequest.model');
 const LoginHistory = require('../models/loginHistory.model');
+const { getActiveUserPhones, isUserPhoneActive } = require('./course.controller');
 
 let cachedAdminPassword = null;
 let cachedAdminPasswordHash = null;
@@ -70,7 +71,10 @@ const clearCurrentAdminSession = (token, jwtSecret) => {
     }
 };
 
-const formatUserData = (user) => ({
+// Whether an account still holds a running course is decided by the courses, not by
+// the account, so it is handed in by whoever already knows it: a list works it out
+// for every row in one pass, a single account asks about itself.
+const formatUserData = (user, isActive = false) => ({
     _id: user._id.toString(),
     name: user.name || '',
     phone: user.phone,
@@ -78,6 +82,7 @@ const formatUserData = (user) => ({
     // reads them. A query that did not ask for them reads as all empty rather than
     // as missing, so a caller only has to handle "not filled in".
     profile: User.formatProfile(user.profile),
+    isActive: Boolean(isActive),
     role: 'user'
 });
 
@@ -217,12 +222,19 @@ const getAdminAlertCounts = async (req, res) => {
 
 const getAllUsersByAdmin = async (req, res) => {
     try {
-        const users = await User.find({}).select('name phone profile').sort({ phone: 1 });
+        // Every enrolment in the catalogue is read once, so the whole list is
+        // classified without a query per account.
+        const [users, activePhones] = await Promise.all([
+            User.find({}).select('name phone profile').sort({ phone: 1 }),
+            getActiveUserPhones()
+        ]);
 
         return res.status(200).json({
             success: true,
             message: 'Users fetched successfully',
-            data: { users: users.map(formatUserData) }
+            data: {
+                users: users.map((user) => formatUserData(user, activePhones.has(user.phone)))
+            }
         });
     } catch (error) {
         return res.status(500).json({
@@ -270,6 +282,8 @@ const createUserByAdmin = async (req, res) => {
         return res.status(201).json({
             success: true,
             message: 'User created successfully',
+            // A brand new account cannot hold a course yet, so it starts inactive
+            // without asking the catalogue about it.
             data: { user: formatUserData(user) }
         });
     } catch (error) {
@@ -399,10 +413,12 @@ const updateUserByAdmin = async (req, res) => {
             );
         }
 
+        // The row this replaces in the users table carries the standing too, and a
+        // changed phone has just moved its grants, so it is read back afterwards.
         return res.status(200).json({
             success: true,
             message: 'User updated successfully',
-            data: { user: formatUserData(user) }
+            data: { user: formatUserData(user, await isUserPhoneActive(user.phone)) }
         });
     } catch (error) {
         if (error.code === 11000) {
@@ -489,13 +505,16 @@ const getUserLoginHistoryByAdmin = async (req, res) => {
             });
         }
 
-        const history = await LoginHistory.getAccountHistory('user', user._id);
+        const [history, isActive] = await Promise.all([
+            LoginHistory.getAccountHistory('user', user._id),
+            isUserPhoneActive(user.phone)
+        ]);
 
         return res.status(200).json({
             success: true,
             message: 'User login history fetched successfully',
             data: {
-                user: formatUserData(user),
+                user: formatUserData(user, isActive),
                 history
             }
         });

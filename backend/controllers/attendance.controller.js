@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Attendance = require('../models/attendance.model');
 const User = require('../models/user.model');
+const { getActiveUserPhones } = require('./course.controller');
 
 const MONTH_KEY_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -89,9 +90,15 @@ const formatAttendanceData = (record, includeMarkedBy) => ({
     updatedAt: record.updatedAt
 });
 
+// The roster is read once per page, so the courses are read once beside it and the
+// whole list is split into the students who are still enrolled and the ones who are
+// not, without a query per student.
 const getStudentsForAttendance = async (req, res) => {
     try {
-        const students = await User.find({}).select('name phone').sort({ name: 1 }).lean();
+        const [students, activePhones] = await Promise.all([
+            User.find({}).select('name phone').sort({ name: 1 }).lean(),
+            getActiveUserPhones()
+        ]);
 
         return res.status(200).json({
             success: true,
@@ -100,7 +107,8 @@ const getStudentsForAttendance = async (req, res) => {
                 students: students.map((student) => ({
                     _id: student._id.toString(),
                     name: student.name || '',
-                    phone: student.phone
+                    phone: student.phone,
+                    isActive: activePhones.has(student.phone)
                 }))
             }
         });

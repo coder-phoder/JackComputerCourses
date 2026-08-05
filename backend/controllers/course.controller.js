@@ -470,6 +470,12 @@ const getUtcStartOfDay = (value) => {
 
 const addDays = (date, days) => new Date(date.getTime() + (days * MILLISECONDS_PER_DAY));
 
+// The one place a grant turns into a deadline, so the window shown on a course and
+// the enrolment counted on an account can never name a different day.
+const getGrantEndsAt = (startsAt, durationDays) => (
+    startsAt && durationDays ? addDays(startsAt, durationDays) : null
+);
+
 const formatDateOnly = (value) => {
     const date = parseDateValue(value);
 
@@ -605,12 +611,12 @@ const getCourseAccessWindow = (course, userPhone, now = new Date()) => {
     const durationMonths = getCourseDurationMonths(course);
     const durationDays = getCourseDurationDays(durationMonths);
     const startsAt = getUtcStartOfDay(accessGrant.grantedAt);
+    const endsAt = getGrantEndsAt(startsAt, durationDays);
 
-    if (!durationDays || !startsAt) {
+    if (!endsAt) {
         return null;
     }
 
-    const endsAt = addDays(startsAt, durationDays);
     const currentTime = parseDateValue(now) || new Date();
 
     return {
@@ -624,6 +630,63 @@ const getCourseAccessWindow = (course, userPhone, now = new Date()) => {
         isExpired: currentTime.getTime() >= endsAt.getTime()
     };
 };
+
+// Who still counts as enrolled, read off the courses that hand enrolments out. An
+// open-to-all course is the public catalogue rather than an enrolment, so it never
+// keeps an account active, and neither does a grant whose days have run out.
+const collectActiveUserPhones = (courses, now = new Date()) => {
+    const currentTime = parseDateValue(now) || new Date();
+    const activePhones = new Set();
+
+    (courses || []).forEach((course) => {
+        if (course?.isOpenToAll) {
+            return;
+        }
+
+        const durationDays = getCourseDurationDays(getCourseDurationMonths(course));
+
+        getCourseAccessGrants(course).forEach((grant) => {
+            const endsAt = getGrantEndsAt(getUtcStartOfDay(grant.grantedAt), durationDays);
+
+            if (endsAt && currentTime.getTime() < endsAt.getTime()) {
+                activePhones.add(grant.phone);
+            }
+        });
+    });
+
+    return activePhones;
+};
+
+const ACTIVE_PHONE_COURSE_FIELDS = 'duration isOpenToAll allowedUserPhones accessGrants createdAt updatedAt';
+
+// A roster of any size is answered by one pass over the courses, so the users list
+// and the attendance roster each cost a single extra read however many accounts
+// they show. Naming phones narrows that read to the accounts actually being asked
+// about, which is what the single-account callers do.
+const getActiveUserPhones = async (phones = null, now = new Date()) => {
+    const normalizedPhones = phones === null ? null : normalizePhoneArray(phones);
+
+    if (normalizedPhones && !normalizedPhones.length) {
+        return new Set();
+    }
+
+    const query = { isOpenToAll: { $ne: true } };
+
+    if (normalizedPhones) {
+        query.$or = [
+            { allowedUserPhones: { $in: normalizedPhones } },
+            { 'accessGrants.phone': { $in: normalizedPhones } }
+        ];
+    }
+
+    const courses = await Course.find(query).select(ACTIVE_PHONE_COURSE_FIELDS).lean();
+
+    return collectActiveUserPhones(courses, now);
+};
+
+const isUserPhoneActive = async (phone, now = new Date()) => (
+    (await getActiveUserPhones([phone], now)).has(normalizePhone(phone))
+);
 
 const formatAccessWindowData = (accessWindow) => ({
     accessType: accessWindow?.type || '',
@@ -2226,6 +2289,9 @@ module.exports = {
     parseCourseDurationMonths,
     getCourseDurationDays,
     getCourseAccessWindow,
+    collectActiveUserPhones,
+    getActiveUserPhones,
+    isUserPhoneActive,
     parsePlaylistId,
     buildVideoSnapshots,
     parseIsoDurationSeconds,

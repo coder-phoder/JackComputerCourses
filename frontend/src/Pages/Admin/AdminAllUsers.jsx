@@ -9,6 +9,9 @@ import AdminUserLogHistory from '../../Components/Admin/AdminUserLogHistory'
 import AdminUserProfile from '../../Components/Admin/AdminUserProfile'
 import ActionMenu from '../../Components/Common/ActionMenu'
 import PasswordInput from '../../Components/Common/PasswordInput'
+import UserStatusBadge from '../../Components/Common/UserStatusBadge'
+import UserStatusFilter from '../../Components/Common/UserStatusFilter'
+import { countUsersByStatus, filterUsersByStatus } from '../../Components/Common/userStatus'
 import PageTour from '../../Components/Tour/PageTour'
 import getAdminUsersPageTour from '../Tour/Admin/AdminUsersPageTour'
 import { useAuth } from '../../Context/AuthContext'
@@ -44,10 +47,13 @@ const splitUserName = (user) => {
   }
 }
 
+// Accounts that are still enrolled lead the table, so the two standings read apart
+// before any tab is picked; names order each block as they always did.
 const sortUsers = (first, second) => {
+  const statusComparison = Number(Boolean(second.isActive)) - Number(Boolean(first.isActive))
   const nameComparison = getUserName(first).localeCompare(getUserName(second))
 
-  return nameComparison || first.phone.localeCompare(second.phone)
+  return statusComparison || nameComparison || first.phone.localeCompare(second.phone)
 }
 
 const AdminAllUsers = () => {
@@ -67,12 +73,19 @@ const AdminAllUsers = () => {
   const [attendanceUser, setAttendanceUser] = useState(null)
   const [profileUser, setProfileUser] = useState(null)
   const [openPanel, setOpenPanel] = useState(USER_FORM_PANEL)
+  const [statusFilter, setStatusFilter] = useState('all')
 
   const isUserFormOpen = openPanel === USER_FORM_PANEL
 
   const sortedUsers = useMemo(
     () => [...users].sort(sortUsers),
     [users],
+  )
+  // The tabs count the whole list, so a tab always names how many rows it would show.
+  const statusCounts = useMemo(() => countUsersByStatus(users), [users])
+  const visibleUsers = useMemo(
+    () => filterUsersByStatus(sortedUsers, statusFilter),
+    [sortedUsers, statusFilter],
   )
   const editingUser = useMemo(
     () => users.find((user) => user._id === editingUserId) || null,
@@ -588,18 +601,23 @@ const AdminAllUsers = () => {
           </div>
 
           <section data-tour="admin-user-table" className="flex flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm lg:min-h-0">
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
+            <div className="flex shrink-0 flex-col gap-3 border-b border-slate-200 dark:border-slate-800 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Users</h2>
-              <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                {sortedUsers.length} total
-              </span>
+              <div className="sm:w-80">
+                <UserStatusFilter
+                  value={statusFilter}
+                  counts={statusCounts}
+                  onChange={setStatusFilter}
+                  label="Filter users by enrolment standing"
+                />
+              </div>
             </div>
 
             {loadingUsers ? (
               <div className="px-6 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
                 Loading users...
               </div>
-            ) : sortedUsers.length ? (
+            ) : visibleUsers.length ? (
               <div className="min-h-0 flex-1 overflow-auto">
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
                   <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-950">
@@ -610,13 +628,16 @@ const AdminAllUsers = () => {
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Phone
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Standing
+                      </th>
                       <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900">
-                    {sortedUsers.map((user, index) => {
+                    {visibleUsers.map((user, index) => {
                       const isEditing = editingUserId === user._id
                       const isDeleting = deletingUserId === user._id
                       const userName = getUserName(user)
@@ -637,6 +658,9 @@ const AdminAllUsers = () => {
                             <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                               {user.phone}
                             </span>
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <UserStatusBadge user={user} />
                           </td>
                           <td className="px-6 py-4 align-top">
                             {/* Only the first row is marked: the walkthrough points at
@@ -700,7 +724,7 @@ const AdminAllUsers = () => {
               </div>
             ) : (
               <div className="px-6 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
-                No users found.
+                {users.length ? 'No users have this standing.' : 'No users found.'}
               </div>
             )}
           </section>

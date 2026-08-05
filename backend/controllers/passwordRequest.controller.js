@@ -4,6 +4,7 @@ const PasswordRequest = require('../models/passwordRequest.model');
 const User = require('../models/user.model');
 const LoginHistory = require('../models/loginHistory.model');
 const { formatUserData } = require('./admin.controller');
+const { isUserPhoneActive } = require('./course.controller');
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -153,7 +154,7 @@ const approvePasswordRequestByAdmin = async (req, res) => {
                 : 'Password request approved and account created',
             data: {
                 request: formatPasswordRequestData(request, true),
-                user: formatUserData(account)
+                user: formatUserData(account, await isUserPhoneActive(account.phone))
             }
         });
     } catch (error) {
