@@ -16,6 +16,7 @@ import { countUsersByStatus, filterUsersByStatus } from '../../Components/Common
 import PageTour from '../../Components/Tour/PageTour'
 import getAdminUsersPageTour from '../Tour/Admin/AdminUsersPageTour'
 import { useAuth } from '../../Context/AuthContext'
+import { useConfirm } from '../../Context/ConfirmContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -59,6 +60,7 @@ const sortUsers = (first, second) => {
 
 const AdminAllUsers = () => {
   const { auth, clearAuth, setAuth } = useAuth()
+  const confirm = useConfirm()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [users, setUsers] = useState([])
@@ -319,7 +321,12 @@ const AdminAllUsers = () => {
   const handleDeleteUser = async (user) => {
     resetMessages()
 
-    const confirmed = window.confirm(`Delete user ${user.phone}?`)
+    const confirmed = await confirm({
+      title: 'Delete this student?',
+      description: 'Their enrolments, attendance and workspaces are removed with the account, and none of it can be brought back.',
+      subject: [getUserName(user), user.phone].filter(Boolean).join(' · '),
+      confirmLabel: 'Delete student',
+    })
 
     if (!confirmed) {
       return

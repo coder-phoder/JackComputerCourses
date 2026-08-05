@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Navigate, Routes, Route, useLocation } from 'react-router-dom'
 import AuthLoadingScreen from './Components/Common/AuthLoadingScreen'
 import { AuthProvider, ROLE_HOME_PATHS, fetchRoleProfile, useAuth } from './Context/AuthContext'
+import { ConfirmProvider } from './Context/ConfirmContext'
 import { ThemeProvider } from './Context/ThemeContext'
 import LandingPage from './Pages/Common/LandingPage'
 import LoginPage from './Pages/Common/LoginPage'
@@ -123,45 +124,47 @@ const App = () => {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route
-              path="/register"
-              element={SELF_REGISTRATION_ENABLED ? <RegisterPage /> : <Navigate to="/login" replace />}
-            />
-            <Route path="/shared-ide/:token" element={<SharedIDE />} />
-            <Route path="/user/home" element={protect('user', <UserHomePage />)} />
-            <Route path="/user/courses" element={protect('user', <UserCoursesPage />)} />
-            <Route path="/user/courses/:courseId/player" element={protect('user', <UserCoursePlayerPage />)} />
-            <Route path="/user/attendance" element={protect('user', <UserAttendancePage />)} />
-            <Route path="/user/ide" element={protect('user', <UserIdePage />)} />
-            <Route path="/user/bugs" element={protect('user', <UserBug />)} />
-            <Route path="/user/profile" element={protect('user', <UserProfilePage />)} />
-            <Route path="/faculty/home" element={protect('faculty', <FacultyHomePage />)} />
-            <Route path="/faculty/courses" element={protect('faculty', <FacultyCoursesPage />)} />
-            <Route path="/faculty/courses/:courseId" element={protect('faculty', <FacultyCoursePage />)} />
-            <Route path="/faculty/ide" element={protect('faculty', <FacultyIdePage />)} />
-            <Route path="/faculty/queries" element={protect('faculty', <FacultyQueries />)} />
-            <Route path="/faculty/notes" element={protect('faculty', <FacultyTopicNotes />)} />
-            <Route path="/faculty/notes/:courseId" element={protect('faculty', <FacultyCourseNotes />)} />
-            <Route path="/faculty/topic-notes" element={protect('faculty', <FacultyTopicNotes />)} />
-            <Route path="/faculty/bugs" element={protect('faculty', <FacultyBug />)} />
-            <Route path="/faculty/attendance" element={protect('faculty', <FacultyAttendance />)} />
-            <Route path="/admin/home" element={protect('admin', <AdminHomePage />)} />
-            <Route path="/admin/users" element={protect('admin', <AdminAllUsers />)} />
-            <Route path="/admin/faculties" element={protect('admin', <AdminAllFaculties />)} />
-            <Route path="/admin/attendance" element={protect('admin', <AdminAttendance />)} />
-            <Route path="/admin/courses" element={protect('admin', <AdminCourses />)} />
-            <Route path="/admin/topic-notes" element={protect('admin', <AdminTopicNotes />)} />
-            <Route path="/admin/bugs" element={protect('admin', <AdminBugs />)} />
-            <Route path="/admin/courses/:courseId/access" element={protect('admin', <CourseAccessPage />)} />
-            <Route path="/admin/courses/:courseId/notes" element={protect('admin', <AdminNotes />)} />
-            <Route path="/admin/courses/:courseId" element={protect('admin', <Course />)} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Router>
+        <ConfirmProvider>
+          <Router>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/register"
+                element={SELF_REGISTRATION_ENABLED ? <RegisterPage /> : <Navigate to="/login" replace />}
+              />
+              <Route path="/shared-ide/:token" element={<SharedIDE />} />
+              <Route path="/user/home" element={protect('user', <UserHomePage />)} />
+              <Route path="/user/courses" element={protect('user', <UserCoursesPage />)} />
+              <Route path="/user/courses/:courseId/player" element={protect('user', <UserCoursePlayerPage />)} />
+              <Route path="/user/attendance" element={protect('user', <UserAttendancePage />)} />
+              <Route path="/user/ide" element={protect('user', <UserIdePage />)} />
+              <Route path="/user/bugs" element={protect('user', <UserBug />)} />
+              <Route path="/user/profile" element={protect('user', <UserProfilePage />)} />
+              <Route path="/faculty/home" element={protect('faculty', <FacultyHomePage />)} />
+              <Route path="/faculty/courses" element={protect('faculty', <FacultyCoursesPage />)} />
+              <Route path="/faculty/courses/:courseId" element={protect('faculty', <FacultyCoursePage />)} />
+              <Route path="/faculty/ide" element={protect('faculty', <FacultyIdePage />)} />
+              <Route path="/faculty/queries" element={protect('faculty', <FacultyQueries />)} />
+              <Route path="/faculty/notes" element={protect('faculty', <FacultyTopicNotes />)} />
+              <Route path="/faculty/notes/:courseId" element={protect('faculty', <FacultyCourseNotes />)} />
+              <Route path="/faculty/topic-notes" element={protect('faculty', <FacultyTopicNotes />)} />
+              <Route path="/faculty/bugs" element={protect('faculty', <FacultyBug />)} />
+              <Route path="/faculty/attendance" element={protect('faculty', <FacultyAttendance />)} />
+              <Route path="/admin/home" element={protect('admin', <AdminHomePage />)} />
+              <Route path="/admin/users" element={protect('admin', <AdminAllUsers />)} />
+              <Route path="/admin/faculties" element={protect('admin', <AdminAllFaculties />)} />
+              <Route path="/admin/attendance" element={protect('admin', <AdminAttendance />)} />
+              <Route path="/admin/courses" element={protect('admin', <AdminCourses />)} />
+              <Route path="/admin/topic-notes" element={protect('admin', <AdminTopicNotes />)} />
+              <Route path="/admin/bugs" element={protect('admin', <AdminBugs />)} />
+              <Route path="/admin/courses/:courseId/access" element={protect('admin', <CourseAccessPage />)} />
+              <Route path="/admin/courses/:courseId/notes" element={protect('admin', <AdminNotes />)} />
+              <Route path="/admin/courses/:courseId" element={protect('admin', <Course />)} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Router>
+        </ConfirmProvider>
       </ThemeProvider>
     </AuthProvider>
   )

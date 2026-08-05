@@ -8,6 +8,7 @@ import AdminNavbar from '../../Components/Admin/AdminNavbar'
 import PageTour from '../../Components/Tour/PageTour'
 import getAdminCoursePageTour from '../Tour/Admin/AdminCoursePageTour'
 import { useAuth } from '../../Context/AuthContext'
+import { useConfirm } from '../../Context/ConfirmContext'
 import { sumChapterDurationSeconds } from '../../utils/courseDuration'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
@@ -70,6 +71,7 @@ const parseChapterOrder = (value) => {
 const Course = () => {
   const { courseId } = useParams()
   const { auth, clearAuth, setAuth } = useAuth()
+  const confirm = useConfirm()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [course, setCourse] = useState(null)
@@ -282,7 +284,12 @@ const Course = () => {
   const handleDeleteChapter = async (chapter) => {
     resetMessages()
 
-    const confirmed = window.confirm(`Delete chapter ${chapter.name}?`)
+    const confirmed = await confirm({
+      title: 'Delete this chapter?',
+      description: 'The chapter leaves the course for everyone enrolled in it, and the progress recorded against it goes with it.',
+      subject: chapter.name,
+      confirmLabel: 'Delete chapter',
+    })
 
     if (!confirmed) {
       return

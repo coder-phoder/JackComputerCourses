@@ -21,6 +21,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import ActionMenu from '../Common/ActionMenu'
+import { useConfirm } from '../../Context/ConfirmContext'
 
 const IDExplorer = ({
   activeActivity = 'explorer',
@@ -84,6 +85,7 @@ const IDExplorer = ({
   workspaces,
   workspacesLoading,
 }) => {
+  const confirm = useConfirm()
   const workspaceDraftInputRef = useRef(null)
   const nodeDraftInputRef = useRef(null)
   const [contextMenu, setContextMenu] = useState(null)
@@ -676,11 +678,30 @@ const IDExplorer = ({
                   <select
                     id="workspace-select"
                     value={activeWorkspaceId}
-                    onChange={(event) => {
-                      if (isDirty && !window.confirm('Switch workspace and discard unsaved changes?')) {
-                        return
+                    onChange={async (event) => {
+                      const nextWorkspaceId = event.target.value
+
+                      if (isDirty) {
+                        // The select has already moved to the new workspace by the time
+                        // this runs, so it is put back before the question is asked: the
+                        // sidebar goes on naming the workspace that is still open behind
+                        // the dialog, and only an answer of yes moves it.
+                        event.target.value = activeWorkspaceId
+
+                        const confirmed = await confirm({
+                          title: 'Discard unsaved changes?',
+                          description: 'The file open in the editor has edits that were never saved. Switching workspace leaves them behind for good.',
+                          confirmLabel: 'Switch anyway',
+                          cancelLabel: 'Stay here',
+                          tone: 'warning',
+                        })
+
+                        if (!confirmed) {
+                          return
+                        }
                       }
-                      setActiveWorkspaceId(event.target.value)
+
+                      setActiveWorkspaceId(nextWorkspaceId)
                     }}
                     disabled={workspacesLoading || !workspaces.length || saving}
                     className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:ring-2 focus:ring-blue-500 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"

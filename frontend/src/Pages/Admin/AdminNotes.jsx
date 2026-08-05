@@ -5,6 +5,7 @@ import AdminNavbar from '../../Components/Admin/AdminNavbar'
 import PageTour from '../../Components/Tour/PageTour'
 import getAdminCourseNotesPageTour from '../Tour/Admin/AdminCourseNotesPageTour'
 import { useAuth } from '../../Context/AuthContext'
+import { useConfirm } from '../../Context/ConfirmContext'
 import printDriveFile from '../../utils/printDriveFile'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
@@ -16,6 +17,7 @@ const getErrorMessage = (error, fallback) => (
 const AdminNotes = () => {
   const { courseId } = useParams()
   const { auth, clearAuth, setAuth } = useAuth()
+  const confirm = useConfirm()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
 
@@ -271,9 +273,13 @@ const AdminNotes = () => {
   // Handle Note Deletion (DELETE)
   const handleDeleteNotes = async () => {
     resetMessages()
-    const confirmed = window.confirm(
-      'Are you sure you want to delete this notes configuration? This will remove all synced file links.'
-    )
+    const confirmed = await confirm({
+      title: 'Delete this notes configuration?',
+      description: 'Every synced file link is removed and the course is left with no notes. The folder in Drive is untouched, so the configuration can be set up again.',
+      subject: title || undefined,
+      confirmLabel: 'Delete configuration',
+    })
+
     if (!confirmed) return
 
     setDeleting(true)
