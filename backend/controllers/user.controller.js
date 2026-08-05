@@ -22,6 +22,9 @@ const formatUserData = (user) => ({
     requiresName: !User.hasFullName(user.name),
     // The guided walkthrough is owed to every account that has not finished it.
     requiresTour: !user.tourCompletedAt,
+    // The optional details, and whether this login is due to be asked for them.
+    profile: User.formatProfile(user.profile),
+    requiresProfile: User.needsProfilePrompt(user),
     role: 'user'
 });
 
@@ -319,6 +322,77 @@ const completeUserTour = async (req, res) => {
     }
 };
 
+// The whole profile is optional, so saving is also the answer to the prompt: whatever
+// was typed is kept, and the account is not asked for it again.
+const updateUserProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+                data: {}
+            });
+        }
+
+        User.applyProfileInput(user, req.body || {});
+        user.profileUpdatedAt = new Date();
+        user.profileRemindAfter = null;
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Profile saved successfully',
+            data: { user: formatUserData(user) }
+        });
+    } catch (error) {
+        // A value that is not an email, a number or a real date is the sender's to
+        // correct, so the field's own rule is quoted back instead of a server fault.
+        if (['ValidationError', 'CastError'].includes(error.name)) {
+            return res.status(400).json({
+                success: false,
+                message: Object.values(error.errors || {})[0]?.message || 'Enter valid profile details',
+                data: {}
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while saving user profile',
+            data: {}
+        });
+    }
+};
+
+// Asking for later buys a fixed number of days, counted from the moment it was asked.
+// An account that has already filled the form in is never put back on the clock.
+const remindUserProfileLater = async (req, res) => {
+    try {
+        const remindAfter = User.getProfileRemindAfter();
+
+        await User.updateOne(
+            {
+                _id: req.user._id,
+                profileUpdatedAt: null
+            },
+            { $set: { profileRemindAfter: remindAfter } }
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'Profile reminder scheduled',
+            data: { remindAfter }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while scheduling the profile reminder',
+            data: {}
+        });
+    }
+};
+
 const getUserProfile = async (req, res) => {
     try {
         return res.status(200).json({
@@ -341,6 +415,8 @@ module.exports = {
     logoutUser,
     updateUserName,
     completeUserTour,
+    updateUserProfile,
+    remindUserProfileLater,
     formatUserData,
     getUserProfile
 };

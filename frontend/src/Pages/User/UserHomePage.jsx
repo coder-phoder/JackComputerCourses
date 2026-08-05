@@ -8,6 +8,7 @@ import UserHomeHero from '../../Components/User/UserHomeHero'
 import UserHomeQuickLinks from '../../Components/User/UserHomeQuickLinks'
 import UserHomeStats from '../../Components/User/UserHomeStats'
 import UserNavbar from '../../Components/User/UserNavbar'
+import UserProfilePrompt from '../../Components/User/Profile/UserProfilePrompt'
 import userHomePageTour from '../Tour/User/UserHomePageTour'
 import { useAuth } from '../../Context/AuthContext'
 import { getCourseAccessDisplay } from '../../utils/courseAccess'
@@ -36,6 +37,9 @@ const UserHomePage = () => {
   // Only an account that has never seen it gets the walkthrough unasked; the button
   // starts the same one again whenever the site stops making sense.
   const [firstRun, setFirstRun] = useState(false)
+  // The optional details are asked for on the login that lands here, and only until
+  // the account has either filled them in or asked to be left alone for a few days.
+  const [askForProfile, setAskForProfile] = useState(false)
   const [courses, setCourses] = useState([])
   const [records, setRecords] = useState([])
   const [loadingData, setLoadingData] = useState(true)
@@ -128,6 +132,7 @@ const UserHomePage = () => {
         })
         setUserProfile(user)
         setFirstRun(Boolean(user.requiresTour))
+        setAskForProfile(Boolean(user.requiresProfile))
         setIsAuthorized(true)
         setCheckingAuth(false)
         await loadDashboard({ shouldUpdate: () => isActive })
@@ -248,6 +253,12 @@ const UserHomePage = () => {
           />
         </motion.main>
       </MotionConfig>
+
+      {/* The walkthrough owns the first screen an account ever sees, so the profile is
+          asked for once it is done rather than over the top of it. */}
+      {askForProfile && !firstRun ? (
+        <UserProfilePrompt onDismiss={() => setAskForProfile(false)} />
+      ) : null}
     </div>
   )
 }

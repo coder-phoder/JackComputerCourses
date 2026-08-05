@@ -13,6 +13,7 @@ import UserCoursesPage from './Pages/User/UserCoursesPage'
 import UserCoursePlayerPage from './Pages/User/UserCoursePlayerPage'
 import UserIdePage from './Pages/User/UserIdePage'
 import UserBug from './Pages/User/UserBug'
+import UserProfilePage from './Pages/User/UserProfilePage'
 import UserNameSetup from './Components/User/UserNameSetup'
 import AdminHomePage from './Pages/Admin/AdminHomePage'
 import AdminAllUsers from './Pages/Admin/AdminAllUsers'
@@ -137,6 +138,7 @@ const App = () => {
             <Route path="/user/attendance" element={protect('user', <UserAttendancePage />)} />
             <Route path="/user/ide" element={protect('user', <UserIdePage />)} />
             <Route path="/user/bugs" element={protect('user', <UserBug />)} />
+            <Route path="/user/profile" element={protect('user', <UserProfilePage />)} />
             <Route path="/faculty/home" element={protect('faculty', <FacultyHomePage />)} />
             <Route path="/faculty/courses" element={protect('faculty', <FacultyCoursesPage />)} />
             <Route path="/faculty/courses/:courseId" element={protect('faculty', <FacultyCoursePage />)} />

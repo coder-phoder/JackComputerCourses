@@ -5,6 +5,8 @@ const {
     logoutUser,
     updateUserName,
     completeUserTour,
+    updateUserProfile,
+    remindUserProfileLater,
     getUserProfile
 } = require('../controllers/user.controller');
 const {
@@ -30,6 +32,8 @@ router.post('/logout', logoutUser);
 // route that requires a signed in user.
 router.use('/password-requests', publicPasswordRequestRoutes);
 router.get('/profile', authUser, getUserProfile);
+router.patch('/profile/remind-later', authUser, remindUserProfileLater);
+router.patch('/profile', authUser, updateUserProfile);
 router.patch('/name', authUser, updateUserName);
 router.patch('/tour', authUser, completeUserTour);
 router.use('/attendance', authUser, userAttendanceRoutes);
