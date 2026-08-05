@@ -1317,6 +1317,74 @@ const getAllCoursesByAdmin = async (req, res) => {
     }
 };
 
+// Running enrolments first with the nearest deadline on top, so what the admin has to
+// act on is what he reads first; the ended ones follow, most recently ended first. A
+// deadline is a YYYY-MM-DD string, so the dates order as they read.
+const compareEnrolments = (first, second) => {
+    if (first.isEnrolmentRunning !== second.isEnrolmentRunning) {
+        return first.isEnrolmentRunning ? -1 : 1;
+    }
+
+    return first.isEnrolmentRunning
+        ? first.accessEndsOn.localeCompare(second.accessEndsOn)
+        : second.accessEndsOn.localeCompare(first.accessEndsOn);
+};
+
+// What one account was actually enrolled in, which the admin users list opens beside
+// it. Open-to-all courses are the public catalogue rather than an enrolment, so they
+// are left out here for the same reason they never make an account active. Only a name
+// and a deadline are read off this, so only what those need is fetched and sent.
+const getUserCoursesByAdmin = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!isValidObjectId(id)) {
+            return sendError(res, 400, 'Invalid user id');
+        }
+
+        const user = await User.findById(id).select('name phone');
+
+        if (!user) {
+            return sendError(res, 404, 'User not found');
+        }
+
+        const courses = await Course.find({
+            isOpenToAll: { $ne: true },
+            $or: [
+                { allowedUserPhones: user.phone },
+                { 'accessGrants.phone': user.phone }
+            ]
+        }).select('title duration allowedUserPhones accessGrants createdAt updatedAt').lean();
+        const now = new Date();
+        const userCourses = courses
+            .map((course) => {
+                const accessWindow = getCourseAccessWindow(course, user.phone, now);
+
+                return {
+                    _id: course._id.toString(),
+                    title: course.title,
+                    accessEndsOn: accessWindow?.endsOn || '',
+                    // A course whose duration was never set has no deadline to be
+                    // inside of, so it reads as ended here exactly as it fails to
+                    // make its account active.
+                    isEnrolmentRunning: Boolean(accessWindow && !accessWindow.isExpired)
+                };
+            })
+            .sort(compareEnrolments);
+
+        return res.status(200).json({
+            success: true,
+            message: 'User courses fetched successfully',
+            data: {
+                courses: userCourses,
+                runningCount: userCourses.filter((course) => course.isEnrolmentRunning).length
+            }
+        });
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while fetching user courses');
+    }
+};
+
 const createCourseByAdmin = async (req, res) => {
     try {
         const { payload, errors } = buildCoursePayload(req.body || {}, { isCreate: true });
@@ -2261,6 +2329,7 @@ const getCourseVideoEmbedByFaculty = async (req, res) => {
 
 module.exports = {
     getAllCoursesByAdmin,
+    getUserCoursesByAdmin,
     createCourseByAdmin,
     getCourseByAdmin,
     updateCourseByAdmin,

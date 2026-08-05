@@ -36,9 +36,9 @@ const getAdminUsersPageTour = ({ openUserForm, openRequests }) => [
     eyebrow: 'Stop 3',
     title: 'Everyone on the site',
     points: [
-      'Every student account, newest first',
+      'Every student account, the enrolled ones first',
+      'The tabs split them by enrolment standing',
       'The row you are editing is highlighted',
-      'Refresh reloads it from the server',
     ],
   },
   {
@@ -50,8 +50,8 @@ const getAdminUsersPageTour = ({ openUserForm, openRequests }) => [
     points: [
       'The first icon opens everything on file for them',
       'The calendar reads their attendance',
-      'History is every login they made',
-      'Edit and delete sit under the dots',
+      'The book lists the courses they hold',
+      'Login history, edit and delete sit under the settings icon',
     ],
   },
 ]

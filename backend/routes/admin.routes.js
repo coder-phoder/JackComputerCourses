@@ -17,6 +17,7 @@ const {
     deleteFacultyByAdmin,
     getFacultyLoginHistoryByAdmin
 } = require('../controllers/faculty.controller');
+const { getUserCoursesByAdmin } = require('../controllers/course.controller');
 const { getAllNotesByAdmin } = require('../controllers/note.controller');
 const authAdmin = require('../middlewares/admin.middleware');
 const { staffAttendanceRoutes } = require('./attendance.routes');
@@ -34,6 +35,7 @@ router.get('/alerts', authAdmin, getAdminAlertCounts);
 router.get('/users', authAdmin, getAllUsersByAdmin);
 router.post('/users', authAdmin, createUserByAdmin);
 router.get('/users/:id/login-history', authAdmin, getUserLoginHistoryByAdmin);
+router.get('/users/:id/courses', authAdmin, getUserCoursesByAdmin);
 router.patch('/users/:id', authAdmin, updateUserByAdmin);
 router.delete('/users/:id', authAdmin, deleteUserByAdmin);
 router.get('/faculties', authAdmin, getAllFacultiesByAdmin);
