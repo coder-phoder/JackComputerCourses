@@ -74,6 +74,10 @@ const formatUserData = (user) => ({
     _id: user._id.toString(),
     name: user.name || '',
     phone: user.phone,
+    // The details an account volunteered, in the same shape its own profile page
+    // reads them. A query that did not ask for them reads as all empty rather than
+    // as missing, so a caller only has to handle "not filled in".
+    profile: User.formatProfile(user.profile),
     role: 'user'
 });
 
@@ -213,7 +217,7 @@ const getAdminAlertCounts = async (req, res) => {
 
 const getAllUsersByAdmin = async (req, res) => {
     try {
-        const users = await User.find({}).select('name phone').sort({ phone: 1 });
+        const users = await User.find({}).select('name phone profile').sort({ phone: 1 });
 
         return res.status(200).json({
             success: true,
@@ -475,7 +479,7 @@ const getUserLoginHistoryByAdmin = async (req, res) => {
             });
         }
 
-        const user = await User.findById(id).select('name phone');
+        const user = await User.findById(id).select('name phone profile');
 
         if (!user) {
             return res.status(404).json({

@@ -48,6 +48,7 @@ const getAdminUsersPageTour = ({ openUserForm, openRequests }) => [
     eyebrow: 'Stop 4',
     title: 'What you can do to one',
     points: [
+      'The first icon opens everything on file for them',
       'The calendar reads their attendance',
       'History is every login they made',
       'Edit and delete sit under the dots',
