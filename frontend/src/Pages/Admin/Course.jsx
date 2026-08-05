@@ -5,7 +5,10 @@ import AdminChapterForm from '../../Components/Admin/AdminChapterForm'
 import AdminChapterList from '../../Components/Admin/AdminChapterList'
 import AdminCourseSummary from '../../Components/Admin/AdminCourseSummary'
 import AdminNavbar from '../../Components/Admin/AdminNavbar'
+import PageTour from '../../Components/Tour/PageTour'
+import getAdminCoursePageTour from '../Tour/Admin/AdminCoursePageTour'
 import { useAuth } from '../../Context/AuthContext'
+import { sumChapterDurationSeconds } from '../../utils/courseDuration'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -33,6 +36,14 @@ const sortChapters = (chapters) => [...chapters].sort((first, second) => {
 const getVideoCount = (chapters) => chapters.reduce((total, chapter) => (
   total + (chapter.videos?.length || chapter.videoCount || 0)
 ), 0)
+
+// The summary's totals are re-derived from the chapters the page already holds, so adding,
+// deleting or re-syncing one moves them immediately instead of after another fetch.
+const getCourseTotals = (chapters) => ({
+  chapterCount: chapters.length,
+  videoCount: getVideoCount(chapters),
+  totalDurationSeconds: sumChapterDurationSeconds(chapters),
+})
 
 const getChapterForm = (chapter) => ({
   name: chapter.name || '',
@@ -80,11 +91,7 @@ const Course = () => {
   const setCourseAndChapters = useCallback((nextCourse, nextChapters) => {
     const sortedChapters = sortChapters(nextChapters || [])
 
-    setCourse(nextCourse ? {
-      ...nextCourse,
-      chapterCount: sortedChapters.length,
-      videoCount: getVideoCount(sortedChapters),
-    } : null)
+    setCourse(nextCourse ? { ...nextCourse, ...getCourseTotals(sortedChapters) } : null)
     setChapters(sortedChapters)
   }, [])
 
@@ -92,11 +99,9 @@ const Course = () => {
     const sortedChapters = sortChapters(nextChapters)
 
     setChapters(sortedChapters)
-    setCourse((currentCourse) => (currentCourse ? {
-      ...currentCourse,
-      chapterCount: sortedChapters.length,
-      videoCount: getVideoCount(sortedChapters),
-    } : currentCourse))
+    setCourse((currentCourse) => (currentCourse
+      ? { ...currentCourse, ...getCourseTotals(sortedChapters) }
+      : currentCourse))
   }, [])
 
   const fetchCourse = useCallback(async (options = {}) => {
@@ -359,7 +364,7 @@ const Course = () => {
       <AdminNavbar />
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-wrap gap-3">
+        <div className="mb-6 flex flex-wrap items-center gap-3">
           <Link
             to="/admin/courses"
             className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300"
@@ -369,6 +374,7 @@ const Course = () => {
           {course && !course.isOpenToAll ? (
             <Link
               to={`/admin/courses/${courseId}/access`}
+              data-tour="admin-course-access"
               className="inline-flex rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
             >
               User Access
@@ -377,10 +383,19 @@ const Course = () => {
           {course ? (
             <Link
               to={`/admin/courses/${courseId}/notes`}
+              data-tour="admin-course-notes"
               className="inline-flex rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
             >
               Manage Notes
             </Link>
+          ) : null}
+
+          {/* Held back until the course is read: which stops the walkthrough has
+              depends on whether this one is open to all. */}
+          {course ? (
+            <PageTour
+              steps={getAdminCoursePageTour({ canManageAccess: !course.isOpenToAll })}
+            />
           ) : null}
         </div>
 

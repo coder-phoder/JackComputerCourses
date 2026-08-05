@@ -1,9 +1,11 @@
+import { getCourseLengthLabel } from '../../utils/courseDuration'
+
 const getDurationLabel = (course) => (
   course.isOpenToAll || !course.duration ? 'N/A' : `${course.duration} mo`
 )
 
 const AdminCourseSummary = ({ course }) => (
-  <section className="mb-6 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+  <section data-tour="admin-course-summary" className="mb-6 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
     <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
       {course.thumbnailUrl ? (
         <img
@@ -39,7 +41,7 @@ const AdminCourseSummary = ({ course }) => (
           {course.shortDescription || course.description}
         </p>
 
-        <div className="mt-5 grid gap-3 text-sm sm:grid-cols-4">
+        <div className="mt-5 grid gap-3 text-sm sm:grid-cols-5">
           <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               Chapters
@@ -51,6 +53,12 @@ const AdminCourseSummary = ({ course }) => (
               Videos
             </p>
             <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{course.videoCount || 0}</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+              Length
+            </p>
+            <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{getCourseLengthLabel(course)}</p>
           </div>
           <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">

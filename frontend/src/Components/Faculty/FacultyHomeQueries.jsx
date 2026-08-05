@@ -3,39 +3,9 @@ import { ArrowRight, ChevronRight, CircleCheck, FileCode2, MessageSquareCode } f
 import { Link } from 'react-router-dom'
 import AnimatedNumber from '../Common/AnimatedNumber'
 import { fadeUp, staggerParent } from '../../utils/motion'
+import { getWaitedLabel } from '../../utils/relativeTime'
 
 const PREVIEW_COUNT = 3
-
-const MINUTE = 60_000
-const HOUR = 60 * MINUTE
-const DAY = 24 * HOUR
-
-// How long a student has been waiting, in the roughest unit that still reads as a
-// wait. Anything older than a week is a date, because "9 days ago" stops meaning
-// anything a faculty can act on.
-const getWaitedLabel = (value) => {
-  const sent = new Date(value).getTime()
-
-  if (!sent) {
-    return ''
-  }
-
-  const elapsed = Date.now() - sent
-
-  if (elapsed < HOUR) {
-    return `${Math.max(Math.round(elapsed / MINUTE), 1)}m ago`
-  }
-
-  if (elapsed < DAY) {
-    return `${Math.round(elapsed / HOUR)}h ago`
-  }
-
-  if (elapsed < 7 * DAY) {
-    return `${Math.round(elapsed / DAY)}d ago`
-  }
-
-  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(sent)
-}
 
 // What students are waiting on, oldest wait first: a queue is only useful if the one
 // that has been sitting longest is the one on top.

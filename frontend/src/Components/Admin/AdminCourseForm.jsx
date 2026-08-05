@@ -1,5 +1,5 @@
 import { AlertCircle, Loader2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 disabled:bg-slate-100 dark:disabled:bg-slate-800'
 const textAreaClass = `${inputClass} resize-y`
@@ -31,6 +31,33 @@ const AdminCourseForm = ({
   // The dialog is mounted fresh per open, so an edit that already carries any of
   // these values starts expanded instead of hiding them one click deep.
   const [showAdditionalDetails, setShowAdditionalDetails] = useState(() => hasAdditionalDetails(courseForm))
+  const additionalDetailsRef = useRef(null)
+  // Only a click asks for the scroll below. A dialog that opens already expanded still
+  // starts at the title, because that is where an edit is read from.
+  const shouldRevealDetails = useRef(false)
+
+  const toggleAdditionalDetails = () => {
+    const nextOpen = !showAdditionalDetails
+
+    shouldRevealDetails.current = nextOpen
+    setShowAdditionalDetails(nextOpen)
+  }
+
+  // The disclosure sits at the bottom of a dialog that is already taller than it can
+  // show, so opening it used to reveal the fields off screen and leave the reader to
+  // go looking for what they had just asked for. Opening it now carries the section up
+  // to the top of the dialog instead, where it becomes the whole of what is on screen.
+  useEffect(() => {
+    if (!shouldRevealDetails.current) {
+      return
+    }
+
+    shouldRevealDetails.current = false
+    additionalDetailsRef.current?.scrollIntoView({
+      block: 'start',
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    })
+  }, [showAdditionalDetails])
 
   // Escape closes it the same way the header button does, but never mid-save:
   // the request is already out and its result still belongs in this form.
@@ -238,134 +265,143 @@ const AdminCourseForm = ({
               </label>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowAdditionalDetails((isOpen) => !isOpen)}
-              disabled={saving}
-              aria-expanded={showAdditionalDetails}
-              className="flex w-full items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100 transition hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
-            >
-              <span>Additional Details</span>
-              <span className="text-lg leading-none">{showAdditionalDetails ? '-' : '+'}</span>
-            </button>
+            {/* Header and panel scroll as one, so the section that comes up to the top
+                brings its own title with it and the reader can close it from where it
+                landed. */}
+            <div ref={additionalDetailsRef} className="scroll-mt-6 space-y-4">
+              <button
+                type="button"
+                onClick={toggleAdditionalDetails}
+                disabled={saving}
+                aria-expanded={showAdditionalDetails}
+                aria-controls="course-additional-details"
+                className="flex w-full items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100 transition hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
+              >
+                <span>Additional Details</span>
+                <span className="text-lg leading-none">{showAdditionalDetails ? '-' : '+'}</span>
+              </button>
 
-            {showAdditionalDetails ? (
-              <div className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-                <div>
-                  <label htmlFor="course-thumbnail" className={labelClass}>
-                    Thumbnail URL
-                  </label>
-                  <input
-                    id="course-thumbnail"
-                    name="thumbnailUrl"
-                    type="url"
-                    value={courseForm.thumbnailUrl}
-                    onChange={onChange}
-                    disabled={saving}
-                    className={inputClass}
-                    placeholder="https://example.com/image.jpg"
-                  />
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-3">
+              {showAdditionalDetails ? (
+                <div
+                  id="course-additional-details"
+                  className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
+                >
                   <div>
-                    <label htmlFor="course-category" className={labelClass}>
-                      Category
+                    <label htmlFor="course-thumbnail" className={labelClass}>
+                      Thumbnail URL
                     </label>
                     <input
-                      id="course-category"
-                      name="category"
-                      type="text"
-                      value={courseForm.category}
+                      id="course-thumbnail"
+                      name="thumbnailUrl"
+                      type="url"
+                      value={courseForm.thumbnailUrl}
                       onChange={onChange}
                       disabled={saving}
                       className={inputClass}
-                      placeholder="Web"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div>
+                      <label htmlFor="course-category" className={labelClass}>
+                        Category
+                      </label>
+                      <input
+                        id="course-category"
+                        name="category"
+                        type="text"
+                        value={courseForm.category}
+                        onChange={onChange}
+                        disabled={saving}
+                        className={inputClass}
+                        placeholder="Web"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="course-level" className={labelClass}>
+                        Level
+                      </label>
+                      <input
+                        id="course-level"
+                        name="level"
+                        type="text"
+                        value={courseForm.level}
+                        onChange={onChange}
+                        disabled={saving}
+                        className={inputClass}
+                        placeholder="Beginner"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="course-language" className={labelClass}>
+                        Language
+                      </label>
+                      <input
+                        id="course-language"
+                        name="language"
+                        type="text"
+                        value={courseForm.language}
+                        onChange={onChange}
+                        disabled={saving}
+                        className={inputClass}
+                        placeholder="English"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="course-tags" className={labelClass}>
+                      Tags
+                    </label>
+                    <input
+                      id="course-tags"
+                      name="tags"
+                      type="text"
+                      value={courseForm.tags}
+                      onChange={onChange}
+                      disabled={saving}
+                      className={inputClass}
+                      placeholder="html, css, javascript"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="course-level" className={labelClass}>
-                      Level
+                    <label htmlFor="course-highlights" className={labelClass}>
+                      Highlights
                     </label>
-                    <input
-                      id="course-level"
-                      name="level"
-                      type="text"
-                      value={courseForm.level}
+                    <textarea
+                      id="course-highlights"
+                      name="highlights"
+                      rows="2"
+                      value={courseForm.highlights}
                       onChange={onChange}
                       disabled={saving}
-                      className={inputClass}
-                      placeholder="Beginner"
+                      className={textAreaClass}
+                      placeholder="Live projects, certificate"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="course-language" className={labelClass}>
-                      Language
+                    <label htmlFor="course-prerequisites" className={labelClass}>
+                      Prerequisites
                     </label>
-                    <input
-                      id="course-language"
-                      name="language"
-                      type="text"
-                      value={courseForm.language}
+                    <textarea
+                      id="course-prerequisites"
+                      name="prerequisites"
+                      rows="2"
+                      value={courseForm.prerequisites}
                       onChange={onChange}
                       disabled={saving}
-                      className={inputClass}
-                      placeholder="English"
+                      className={textAreaClass}
+                      placeholder="Basic computer knowledge"
                     />
                   </div>
                 </div>
-
-                <div>
-                  <label htmlFor="course-tags" className={labelClass}>
-                    Tags
-                  </label>
-                  <input
-                    id="course-tags"
-                    name="tags"
-                    type="text"
-                    value={courseForm.tags}
-                    onChange={onChange}
-                    disabled={saving}
-                    className={inputClass}
-                    placeholder="html, css, javascript"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="course-highlights" className={labelClass}>
-                    Highlights
-                  </label>
-                  <textarea
-                    id="course-highlights"
-                    name="highlights"
-                    rows="2"
-                    value={courseForm.highlights}
-                    onChange={onChange}
-                    disabled={saving}
-                    className={textAreaClass}
-                    placeholder="Live projects, certificate"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="course-prerequisites" className={labelClass}>
-                    Prerequisites
-                  </label>
-                  <textarea
-                    id="course-prerequisites"
-                    name="prerequisites"
-                    rows="2"
-                    value={courseForm.prerequisites}
-                    onChange={onChange}
-                    disabled={saving}
-                    className={textAreaClass}
-                    placeholder="Basic computer knowledge"
-                  />
-                </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
 
           {error ? (

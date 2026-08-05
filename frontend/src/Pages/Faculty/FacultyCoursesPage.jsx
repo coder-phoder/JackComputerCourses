@@ -146,7 +146,9 @@ const FacultyCoursesPage = () => {
             </p>
             <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">Courses</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Browse every course available on the website.
+              Browse every published course on the website, whether it is open to
+              everyone or held for named students. Drafts stay with the admin until
+              they go live.
             </p>
           </div>
 
@@ -216,7 +218,7 @@ const FacultyCoursesPage = () => {
           <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-12 text-center shadow-sm">
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">No courses available yet</h2>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Courses will appear here after they are added to the website.
+              Courses will appear here once an admin publishes one.
             </p>
           </section>
         )}

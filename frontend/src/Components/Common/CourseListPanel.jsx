@@ -2,11 +2,12 @@ import { motion } from 'framer-motion'
 import { ArrowRight, ChevronRight, Layers3, PlayCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { fadeUp, staggerParent } from '../../utils/motion'
+import { getCourseLengthShortLabel } from '../../utils/courseDuration'
 
 // A list, not a wall of cards: one line per course is what makes opening the right one
-// quick. Both home pages draw their courses through this, so a student and a faculty
-// are never reading two different shapes of the same thing — only the badge each role
-// cares about and where a row leads differ.
+// quick. All three home pages draw their courses through this, so a student, a faculty
+// and an admin are never reading three different shapes of the same thing — only the
+// badge each role cares about, its accent and where a row leads differ.
 const ACCENTS = {
   blue: {
     row: 'hover:bg-blue-50/60 focus-visible:bg-blue-50/60 dark:hover:bg-blue-950/20 dark:focus-visible:bg-blue-950/20',
@@ -21,6 +22,13 @@ const ACCENTS = {
     chevron: 'group-hover:text-indigo-600 dark:group-hover:text-indigo-400',
     link: 'text-indigo-700 hover:border-indigo-300 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40',
     placeholder: 'bg-indigo-50 text-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-800',
+  },
+  violet: {
+    row: 'hover:bg-violet-50/60 focus-visible:bg-violet-50/60 dark:hover:bg-violet-950/20 dark:focus-visible:bg-violet-950/20',
+    title: 'group-hover:text-violet-700 dark:group-hover:text-violet-300',
+    chevron: 'group-hover:text-violet-600 dark:group-hover:text-violet-400',
+    link: 'text-violet-700 hover:border-violet-300 hover:bg-violet-50 dark:text-violet-300 dark:hover:border-violet-700 dark:hover:bg-violet-950/40',
+    placeholder: 'bg-violet-50 text-violet-300 dark:bg-violet-950/40 dark:text-violet-800',
   },
 }
 
@@ -64,7 +72,7 @@ const CourseRow = ({ course, accent, href, openInNewTab, chip }) => {
 
       <span className="hidden shrink-0 items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 md:inline-flex">
         <Layers3 className="h-3.5 w-3.5" />
-        {getCount(course.chapterCount)} chapters · {getCount(course.videoCount)} videos
+        {getCount(course.chapterCount)} chapters · {getCount(course.videoCount)} videos · {getCourseLengthShortLabel(course)}
       </span>
 
       {chip ? (

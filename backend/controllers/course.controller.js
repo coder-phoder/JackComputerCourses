@@ -309,6 +309,109 @@ const buildVideoSnapshots = async (playlistId) => {
     }
 };
 
+// YouTube reports a video length as an ISO 8601 duration ("PT1H2M3S"). Courses are read
+// far more often than their playlists are synced, so every length is parsed once at sync
+// time and only the resolved seconds are stored.
+const ISO_DURATION_PATTERN = /^P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/;
+
+const parseIsoDurationSeconds = (value) => {
+    const match = ISO_DURATION_PATTERN.exec(String(value || '').trim());
+
+    if (!match) {
+        return 0;
+    }
+
+    const [, weeks, days, hours, minutes, seconds] = match;
+
+    return Math.round(
+        ((Number(weeks) || 0) * 604800)
+        + ((Number(days) || 0) * 86400)
+        + ((Number(hours) || 0) * 3600)
+        + ((Number(minutes) || 0) * 60)
+        + (Number(seconds) || 0)
+    );
+};
+
+const sumVideoDurationSeconds = (videos) => (videos || []).reduce(
+    (total, video) => total + parseIsoDurationSeconds(video?.duration),
+    0
+);
+
+// The stored total is rebuilt from the chapters rather than nudged by a delta, so a
+// failed write can never leave a course carrying a length it does not have.
+const recalculateCourseDuration = async (courseId) => {
+    const [totals] = await Chapter.aggregate([
+        { $match: { courseId: new mongoose.Types.ObjectId(courseId) } },
+        { $group: { _id: null, totalDurationSeconds: { $sum: '$durationSeconds' } } }
+    ]);
+
+    const totalDurationSeconds = totals?.totalDurationSeconds || 0;
+
+    await Course.updateOne({ _id: courseId }, { $set: { totalDurationSeconds } });
+
+    return totalDurationSeconds;
+};
+
+// Chapters synced before lengths were stored already hold every video's ISO duration, so
+// the existing catalogue is resolved from what is on disk instead of re-hitting YouTube.
+// The two passes are guarded separately and in dependency order: a boot that dies between
+// them still leaves the second one owed, and once both are done each guard matches nothing
+// and later boots cost two empty reads.
+const backfillChapterDurations = async () => {
+    const chapters = await Chapter.find({ durationSeconds: { $exists: false } })
+        .select('videos.duration')
+        .lean();
+
+    if (!chapters.length) {
+        return 0;
+    }
+
+    await Chapter.bulkWrite(chapters.map((chapter) => ({
+        updateOne: {
+            filter: { _id: chapter._id },
+            update: { $set: { durationSeconds: sumVideoDurationSeconds(chapter.videos) } }
+        }
+    })));
+
+    return chapters.length;
+};
+
+const backfillCourseTotalDurations = async () => {
+    const courses = await Course.find({ totalDurationSeconds: { $exists: false } })
+        .select('_id')
+        .lean();
+
+    if (!courses.length) {
+        return 0;
+    }
+
+    const courseIds = courses.map((course) => course._id);
+    const courseTotals = new Map((await Chapter.aggregate([
+        { $match: { courseId: { $in: courseIds } } },
+        { $group: { _id: '$courseId', totalDurationSeconds: { $sum: '$durationSeconds' } } }
+    ])).map((total) => [total._id.toString(), total.totalDurationSeconds]));
+
+    // Courses with no chapters are written too, so a course is never left without the
+    // field and reconsidered on every boot from here on.
+    await Course.bulkWrite(courseIds.map((courseId) => ({
+        updateOne: {
+            filter: { _id: courseId },
+            update: {
+                $set: { totalDurationSeconds: courseTotals.get(courseId.toString()) || 0 }
+            }
+        }
+    })));
+
+    return courses.length;
+};
+
+const backfillCourseDurations = async () => {
+    const chapterCount = await backfillChapterDurations();
+    const courseCount = await backfillCourseTotalDurations();
+
+    return { chapterCount, courseCount };
+};
+
 const parseCourseDurationMonths = (value) => {
     const rawValue = String(value ?? '').trim();
 
@@ -561,6 +664,7 @@ const formatCourseData = (course, counts = {}, options = {}) => {
         duration: course.duration || '',
         durationMonths,
         durationDays,
+        totalDurationSeconds: course.totalDurationSeconds || 0,
         price: course.price,
         description: course.description,
         shortDescription: course.shortDescription,
@@ -606,6 +710,7 @@ const formatChapterData = (chapter) => ({
     playlistId: chapter.playlistId,
     order: chapter.order,
     videoCount: chapter.videoCount,
+    durationSeconds: chapter.durationSeconds || 0,
     lastSyncedAt: chapter.lastSyncedAt,
     syncStatus: chapter.syncStatus,
     syncError: chapter.syncError,
@@ -698,6 +803,7 @@ const formatUserChapterData = (chapter) => ({
     name: chapter.name,
     order: chapter.order,
     videoCount: chapter.videoCount,
+    durationSeconds: chapter.durationSeconds || 0,
     videos: (chapter.videos || []).map((video) => formatUserVideoData(chapter, video))
 });
 
@@ -716,6 +822,7 @@ const formatFacultyChapterData = (chapter) => ({
     name: chapter.name,
     order: chapter.order,
     videoCount: chapter.videoCount,
+    durationSeconds: chapter.durationSeconds || 0,
     videos: (chapter.videos || []).map((video) => formatFacultyVideoData(chapter, video))
 });
 
@@ -1120,6 +1227,7 @@ const getNextChapterOrder = async (courseId) => {
 const applySyncedVideosToChapter = (chapter, videos) => {
     chapter.videos = videos;
     chapter.videoCount = videos.length;
+    chapter.durationSeconds = sumVideoDurationSeconds(videos);
     chapter.lastSyncedAt = new Date();
     chapter.syncStatus = 'synced';
     chapter.syncError = '';
@@ -1541,10 +1649,13 @@ const createChapterByAdmin = async (req, res) => {
             order,
             videos,
             videoCount: videos.length,
+            durationSeconds: sumVideoDurationSeconds(videos),
             lastSyncedAt: syncedAt,
             syncStatus: 'synced',
             syncError: ''
         });
+
+        await recalculateCourseDuration(courseId);
 
         return res.status(201).json({
             success: true,
@@ -1580,6 +1691,7 @@ const updateChapterByAdmin = async (req, res) => {
 
         const allowedFields = ['name', 'playlistUrl', 'order'];
         const hasUpdate = allowedFields.some((field) => hasField(req.body, field));
+        let hasResyncedVideos = false;
 
         if (!hasUpdate) {
             return sendError(res, 400, 'At least one chapter field is required');
@@ -1618,10 +1730,17 @@ const updateChapterByAdmin = async (req, res) => {
                 chapter.playlistUrl = trimmedPlaylistUrl;
                 chapter.playlistId = playlistId;
                 applySyncedVideosToChapter(chapter, videos);
+                hasResyncedVideos = true;
             }
         }
 
         await chapter.save();
+
+        // Renaming or reordering a chapter cannot move the course length, so the
+        // recount is spent only when a new playlist was actually pulled in.
+        if (hasResyncedVideos) {
+            await recalculateCourseDuration(courseId);
+        }
 
         return res.status(200).json({
             success: true,
@@ -1655,6 +1774,8 @@ const deleteChapterByAdmin = async (req, res) => {
             return sendError(res, 404, 'Chapter not found');
         }
 
+        await recalculateCourseDuration(courseId);
+
         return res.status(200).json({
             success: true,
             message: 'Chapter deleted successfully',
@@ -1687,6 +1808,7 @@ const syncChapterVideosByAdmin = async (req, res) => {
             const videos = await buildVideoSnapshots(chapter.playlistId);
             applySyncedVideosToChapter(chapter, videos);
             await chapter.save();
+            await recalculateCourseDuration(courseId);
         } catch (error) {
             chapter.syncStatus = 'failed';
             chapter.syncError = error.message || 'Unable to fetch YouTube playlist videos';
@@ -1908,13 +2030,20 @@ const getCourseVideoEmbedByUser = async (req, res) => {
     }
 };
 
+// A faculty teaches whatever the site is running, so who a course was sold to is not
+// what decides it: a course held for named students is still theirs to open. A draft
+// is not, because it has not been released to anybody yet — it is the admin's until it
+// goes live. Every faculty read of a course goes through this filter, so a link to a
+// draft answers the same way as a link to a course that does not exist.
+const FACULTY_COURSE_FILTER = { isPublished: true };
+
 const getCoursesByFaculty = async (req, res) => {
     try {
         if (!req.faculty?._id) {
             return sendError(res, 401, 'Invalid faculty token');
         }
 
-        const courses = await Course.find({}).sort({ createdAt: -1 });
+        const courses = await Course.find(FACULTY_COURSE_FILTER).sort({ createdAt: -1 });
         const courseCounts = await getCourseCounts(courses.map((course) => course._id));
 
         return res.status(200).json({
@@ -1946,7 +2075,7 @@ const getCourseByFaculty = async (req, res) => {
             return sendError(res, 400, 'Invalid course id or slug');
         }
 
-        const course = await Course.findOne(courseQuery);
+        const course = await Course.findOne({ ...courseQuery, ...FACULTY_COURSE_FILTER });
 
         if (!course) {
             return sendError(res, 404, 'Course not found');
@@ -1992,7 +2121,7 @@ const saveCourseProgressByFaculty = async (req, res) => {
             return sendError(res, 400, 'Invalid course id or slug');
         }
 
-        const course = await Course.findOne(courseQuery);
+        const course = await Course.findOne({ ...courseQuery, ...FACULTY_COURSE_FILTER });
 
         if (!course) {
             return sendError(res, 404, 'Course not found');
@@ -2033,7 +2162,7 @@ const getCourseVideoEmbedByFaculty = async (req, res) => {
             return sendError(res, 400, 'Invalid video position');
         }
 
-        const course = await Course.findOne(courseQuery);
+        const course = await Course.findOne({ ...courseQuery, ...FACULTY_COURSE_FILTER });
 
         if (!course) {
             return sendError(res, 404, 'Course not found');
@@ -2090,6 +2219,7 @@ module.exports = {
     getCourseByFaculty,
     saveCourseProgressByFaculty,
     getCourseVideoEmbedByFaculty,
+    FACULTY_COURSE_FILTER,
     normalizePhoneArray,
     parseVideoKey,
     courseUserHasAccess,
@@ -2097,5 +2227,8 @@ module.exports = {
     getCourseDurationDays,
     getCourseAccessWindow,
     parsePlaylistId,
-    buildVideoSnapshots
+    buildVideoSnapshots,
+    parseIsoDurationSeconds,
+    sumVideoDurationSeconds,
+    backfillCourseDurations
 };

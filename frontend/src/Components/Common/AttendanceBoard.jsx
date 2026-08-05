@@ -269,7 +269,7 @@ const AttendanceBoard = ({
       ) : null}
 
       <aside data-tour="attendance-roster" className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="shrink-0 border-b border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/60">
+        <div data-tour="attendance-day" className="shrink-0 border-b border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/60">
           <p className="text-xs font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
             Selected day
           </p>

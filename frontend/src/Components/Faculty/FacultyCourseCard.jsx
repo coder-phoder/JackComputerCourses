@@ -1,24 +1,8 @@
 import { Link } from 'react-router-dom'
-
-const getCount = (value) => {
-  const count = Number(value)
-
-  return Number.isFinite(count) && count > 0 ? count : 0
-}
-
-const getDurationLabel = (course) => (
-  course.isOpenToAll || !course.duration ? 'N/A' : `${course.duration} mo`
-)
-
-const getPriceLabel = (value) => {
-  const price = Number(value)
-
-  if (!Number.isFinite(price)) {
-    return 'N/A'
-  }
-
-  return price === 0 ? 'Free' : price
-}
+import CourseCardFooter from '../Common/CourseCardFooter'
+import CourseMetaList from '../Common/CourseMetaList'
+import CourseThumbnail from '../Common/CourseThumbnail'
+import { accessLengthMeta, chapterMeta, priceMeta, videoMeta } from '../../utils/courseMeta'
 
 const FacultyCourseCard = ({ course, detailUrl, dataTour }) => {
   const description = course.shortDescription || course.description || 'Course details are not available.'
@@ -28,90 +12,44 @@ const FacultyCourseCard = ({ course, detailUrl, dataTour }) => {
     <Link
       to={detailUrl}
       data-tour={dataTour}
-      className="flex h-full flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-xl focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 dark:focus-visible:ring-indigo-900/40"
     >
-      <div className="aspect-video overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
-        {course.thumbnailUrl ? (
-          <img
-            src={course.thumbnailUrl}
-            alt={`${course.title} thumbnail`}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-indigo-50 dark:bg-indigo-950/40 text-4xl font-bold text-indigo-200">
-            J
-          </div>
-        )}
-      </div>
+      <CourseThumbnail course={course} fallbackClassName="from-indigo-500 to-indigo-700">
+        {/* Published is not worth a badge here: a faculty is only ever shown courses that
+            are live, so it could only ever say one thing. Who a course is open to is what
+            varies, and it is what a faculty needs before pointing a student at it. */}
+        <span className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-xs font-bold shadow-sm backdrop-blur ${
+          course.isOpenToAll
+            ? 'bg-white/90 text-blue-700 dark:bg-slate-900/90 dark:text-blue-300'
+            : 'bg-slate-900/80 text-slate-100'
+        }`}
+        >
+          {course.isOpenToAll ? 'Open to All' : 'Restricted'}
+        </span>
+      </CourseThumbnail>
 
-      <div className="mt-4 flex flex-1 flex-col">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="line-clamp-2 text-lg font-bold text-slate-900 dark:text-slate-100">
-            {course.title}
-          </h2>
-          <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
-            course.isPublished
-              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
-              : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
-          }`}
-          >
-            {course.isPublished ? 'Published' : 'Draft'}
-          </span>
-          {course.isOpenToAll ? (
-            <span className="rounded-full bg-blue-50 dark:bg-blue-950/40 px-2 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
-              Open to All
-            </span>
-          ) : null}
-        </div>
-
-        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+      <div className="flex flex-1 flex-col p-5">
+        <h2 className="line-clamp-2 text-base font-bold text-slate-900 dark:text-slate-100 transition group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
+          {course.title}
+        </h2>
+        <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
           {description}
         </p>
 
-        <div className="mt-5 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              Price
-            </p>
-            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
-              {getPriceLabel(course.price)}
-            </p>
-          </div>
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              Duration
-            </p>
-            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
-              {getDurationLabel(course)}
-            </p>
-          </div>
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              Chapters
-            </p>
-            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
-              {getCount(course.chapterCount)}
-            </p>
-          </div>
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              Videos
-            </p>
-            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
-              {getCount(course.videoCount)}
-            </p>
-          </div>
-        </div>
-
         {courseTags.length ? (
-          <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+          <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
             {courseTags.map((tag, index) => (
-              <span key={`${tag}-${index}`} className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1">
+              <span key={`${tag}-${index}`} className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1">
                 {tag}
               </span>
             ))}
           </div>
         ) : null}
+
+        <div className="mt-auto pt-4">
+          <CourseMetaList items={[chapterMeta(course), videoMeta(course)]} />
+          <CourseCardFooter primary={priceMeta(course)} secondary={accessLengthMeta(course)} />
+        </div>
       </div>
     </Link>
   )

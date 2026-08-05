@@ -92,6 +92,11 @@ const courseSchema = new mongoose.Schema({
         type: [String],
         default: []
     },
+    totalDurationSeconds: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
     isPublished: {
         type: Boolean,
         default: false

@@ -15,6 +15,8 @@ import AdminNavbar from '../../Components/Admin/AdminNavbar'
 import ActionMenu from '../../Components/Common/ActionMenu'
 import DriveFileList from '../../Components/Common/DriveFileList'
 import SyncStatusBadge from '../../Components/Common/SyncStatusBadge'
+import PageTour from '../../Components/Tour/PageTour'
+import adminTopicNotesPageTour from '../Tour/Admin/AdminTopicNotesPageTour'
 import { useAuth } from '../../Context/AuthContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
@@ -391,9 +393,12 @@ const AdminTopicNotes = () => {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <PageTour steps={adminTopicNotesPageTour} />
+
             <button
               type="button"
+              data-tour="admin-notes-refresh"
               onClick={refreshNotes}
               disabled={loading}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600"
@@ -403,6 +408,7 @@ const AdminTopicNotes = () => {
             </button>
             <button
               type="button"
+              data-tour="admin-notes-add"
               onClick={openCreateForm}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
             >
@@ -431,7 +437,7 @@ const AdminTopicNotes = () => {
         ) : null}
 
         {items.length ? (
-          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div data-tour="admin-notes-search" className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="flex flex-1 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 shadow-sm">
               <Search className="h-4 w-4 shrink-0 text-slate-400" />
               <input
@@ -468,7 +474,7 @@ const AdminTopicNotes = () => {
           </section>
         ) : filteredItems.length ? (
           <section className="grid gap-4">
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
               const isExpanded = expandedId === item.id
               const isBusy = busyId === item.id
               const isCourseNote = item.kind === 'course'
@@ -477,6 +483,9 @@ const AdminTopicNotes = () => {
               return (
                 <article
                   key={item.id}
+                  // Only the first card is marked: the walkthrough points at one folder,
+                  // not at every folder on the page.
+                  data-tour={index ? undefined : 'admin-notes-card'}
                   className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm sm:p-5"
                 >
                   <div className="flex items-start justify-between gap-3">

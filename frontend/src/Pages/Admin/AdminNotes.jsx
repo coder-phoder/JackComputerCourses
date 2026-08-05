@@ -2,6 +2,8 @@ import axios from 'axios'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import AdminNavbar from '../../Components/Admin/AdminNavbar'
+import PageTour from '../../Components/Tour/PageTour'
+import getAdminCourseNotesPageTour from '../Tour/Admin/AdminCourseNotesPageTour'
 import { useAuth } from '../../Context/AuthContext'
 import printDriveFile from '../../utils/printDriveFile'
 
@@ -350,6 +352,7 @@ const AdminNotes = () => {
           <div className="flex items-center gap-3">
             <Link
               to={`/admin/courses/${courseId}`}
+              data-tour="admin-notes-back"
               className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300"
             >
               Back to Course
@@ -361,9 +364,15 @@ const AdminNotes = () => {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* Held back until the course is read: which stops the walkthrough has
+                depends on whether a Drive folder has been linked yet. */}
+            {loading ? null : (
+              <PageTour steps={getAdminCourseNotesPageTour({ hasNotes: Boolean(notes) })} />
+            )}
             {notes && (
               <button
                 type="button"
+                data-tour="admin-notes-settings"
                 onClick={() => setIsSettingsOpen(true)}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
               >
@@ -408,7 +417,7 @@ const AdminNotes = () => {
           <div className="flex-1 min-h-0 flex flex-col gap-6">
             {!notes ? (
               /* If notes are not configured, show CTA card */
-              <div className="flex-1 flex flex-col items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 text-center max-w-2xl w-full mx-auto my-auto shadow-sm">
+              <div data-tour="admin-notes-setup" className="flex-1 flex flex-col items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 text-center max-w-2xl w-full mx-auto my-auto shadow-sm">
                 <div className="rounded-full bg-indigo-50 dark:bg-indigo-950/50 p-4 mb-4">
                   <svg className="h-10 w-10 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
@@ -420,6 +429,7 @@ const AdminNotes = () => {
                 </p>
                 <button
                   type="button"
+                  data-tour="admin-notes-settings"
                   onClick={() => setIsSettingsOpen(true)}
                   className="mt-6 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-500 cursor-pointer"
                 >
@@ -431,7 +441,7 @@ const AdminNotes = () => {
               </div>
             ) : (
               /* Synced Files list (full width) */
-              <div className="flex-1 min-h-0 flex flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+              <div data-tour="admin-notes-files" className="flex-1 min-h-0 flex flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
                 <div className="flex shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 mb-3">
                   <div>
                     <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{notes.title}</h2>

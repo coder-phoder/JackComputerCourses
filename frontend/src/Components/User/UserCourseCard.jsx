@@ -1,15 +1,11 @@
-import { getCourseAccessDisplay } from '../../utils/courseAccess'
-
-const getCount = (value) => {
-  const count = Number(value)
-
-  return Number.isFinite(count) && count > 0 ? count : 0
-}
+import CourseCardFooter from '../Common/CourseCardFooter'
+import CourseMetaList from '../Common/CourseMetaList'
+import CourseThumbnail from '../Common/CourseThumbnail'
+import { accessEndsMeta, chapterMeta, videoMeta } from '../../utils/courseMeta'
 
 const UserCourseCard = ({ course, playerUrl, dataTour }) => {
   const description = course.shortDescription || course.description || 'Course details are not available.'
   const courseTags = [course.category, course.level, course.language].filter(Boolean)
-  const accessDisplay = getCourseAccessDisplay(course)
 
   return (
     <a
@@ -17,66 +13,34 @@ const UserCourseCard = ({ course, playerUrl, dataTour }) => {
       target="_blank"
       rel="noreferrer"
       data-tour={dataTour}
-      className="flex h-full flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-xl focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:focus-visible:ring-blue-900/40"
     >
-      <div className="aspect-video overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
-        {course.thumbnailUrl ? (
-          <img
-            src={course.thumbnailUrl}
-            alt={`${course.title} thumbnail`}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-blue-50 dark:bg-blue-950/40 text-4xl font-bold text-blue-200">
-            J
-          </div>
-        )}
-      </div>
+      <CourseThumbnail course={course} fallbackClassName="from-blue-500 to-blue-700" />
 
-      <div className="mt-4 flex flex-1 flex-col">
-        <h2 className="line-clamp-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+      <div className="flex flex-1 flex-col p-5">
+        <h2 className="line-clamp-2 text-base font-bold text-slate-900 dark:text-slate-100 transition group-hover:text-blue-700 dark:group-hover:text-blue-300">
           {course.title}
         </h2>
-        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+        <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
           {description}
         </p>
 
-        <div className="mt-5 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-          <div className="col-span-2 rounded-lg bg-slate-50 dark:bg-slate-950 p-3 sm:col-span-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              {accessDisplay.label}
-            </p>
-            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
-              {accessDisplay.value}
-            </p>
-          </div>
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              Chapters
-            </p>
-            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
-              {getCount(course.chapterCount)}
-            </p>
-          </div>
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              Videos
-            </p>
-            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
-              {getCount(course.videoCount)}
-            </p>
-          </div>
-        </div>
-
         {courseTags.length ? (
-          <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+          <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
             {courseTags.map((tag, index) => (
-              <span key={`${tag}-${index}`} className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1">
+              <span key={`${tag}-${index}`} className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1">
                 {tag}
               </span>
             ))}
           </div>
         ) : null}
+
+        {/* A student has already paid to be here, so the deadline is what they need off a
+            card — it closes on its own line rather than queueing behind the chapter count. */}
+        <div className="mt-auto pt-4">
+          <CourseMetaList items={[chapterMeta(course), videoMeta(course)]} />
+          <CourseCardFooter primary={accessEndsMeta(course)} />
+        </div>
       </div>
     </a>
   )

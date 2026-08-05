@@ -143,7 +143,7 @@ const AdminPasswordRequests = ({ isOpen, onToggle, onUserChanged }) => {
   }
 
   return (
-    <section className={`flex flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm ${isOpen ? 'min-h-0 flex-1' : ''}`}>
+    <section data-tour="admin-password-requests" className={`flex flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm ${isOpen ? 'min-h-0 flex-1' : ''}`}>
       <button
         type="button"
         onClick={onToggle}
