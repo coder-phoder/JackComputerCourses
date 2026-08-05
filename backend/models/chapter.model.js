@@ -80,6 +80,11 @@ const chapterSchema = new mongoose.Schema({
         default: 0,
         min: 0
     },
+    durationSeconds: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
     lastSyncedAt: {
         type: Date,
         default: null

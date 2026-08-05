@@ -1,32 +1,21 @@
-import { Clock, LibraryBig, Pencil, PlayCircle, Tag, Trash2, Users } from 'lucide-react'
+import { LibraryBig, Pencil, Trash2 } from 'lucide-react'
 import ActionMenu from '../Common/ActionMenu'
+import CourseCardFooter from '../Common/CourseCardFooter'
+import CourseMetaList from '../Common/CourseMetaList'
+import CourseThumbnail from '../Common/CourseThumbnail'
+import {
+  accessCountMeta,
+  accessLengthMeta,
+  chapterMeta,
+  priceMeta,
+  videoMeta,
+} from '../../utils/courseMeta'
 
 const SKELETON_KEYS = ['a', 'b', 'c', 'd', 'e', 'f']
 
 const gridClass = 'grid gap-5 p-5 sm:grid-cols-2 xl:grid-cols-3'
 
-const getDurationLabel = (course) => (
-  course.isOpenToAll || !course.duration ? 'N/A' : `${course.duration} mo`
-)
-
-const getPriceLabel = (course) => {
-  const price = Number(course.price)
-
-  if (!Number.isFinite(price)) {
-    return 'N/A'
-  }
-
-  return price === 0 ? 'Free' : price
-}
-
-// Four numbers is what an admin scans a course by, so they read as one strip of
-// hairline-separated cells rather than four boxes competing with the card.
-const getCourseStats = (course) => [
-  { key: 'price', icon: Tag, label: 'Price', value: getPriceLabel(course) },
-  { key: 'duration', icon: Clock, label: 'Duration', value: getDurationLabel(course) },
-  { key: 'videos', icon: PlayCircle, label: 'Videos', value: course.videoCount || 0 },
-  { key: 'access', icon: Users, label: 'Access', value: course.isOpenToAll ? 'All' : course.accessUserCount || 0 },
-]
+const badgeClass = 'rounded-full px-2.5 py-1 text-xs font-bold shadow-sm backdrop-blur'
 
 const AdminCourseList = ({
   courses,
@@ -57,7 +46,8 @@ const AdminCourseList = ({
               <div className="h-4 w-3/4 rounded bg-slate-100 dark:bg-slate-800" />
               <div className="h-3 w-1/3 rounded bg-slate-100 dark:bg-slate-800" />
               <div className="h-3 w-full rounded bg-slate-100 dark:bg-slate-800" />
-              <div className="h-16 rounded-xl bg-slate-100 dark:bg-slate-800" />
+              <div className="h-3 w-2/3 rounded bg-slate-100 dark:bg-slate-800" />
+              <div className="h-4 w-1/2 rounded bg-slate-100 dark:bg-slate-800" />
             </div>
           </div>
         ))}
@@ -87,25 +77,10 @@ const AdminCourseList = ({
                 isDeleting ? 'pointer-events-none opacity-50' : ''
               }`}
             >
-              <div className="relative aspect-video overflow-hidden bg-slate-100 dark:bg-slate-800">
-                {course.thumbnailUrl ? (
-                  <img
-                    src={course.thumbnailUrl}
-                    alt=""
-                    loading="lazy"
-                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-indigo-500 to-indigo-700 text-5xl font-bold text-white/90">
-                    J
-                  </div>
-                )}
-
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-slate-900/60 to-transparent" />
-
+              <CourseThumbnail course={course} fallbackClassName="from-indigo-500 to-indigo-700">
                 <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
                   <div className="flex flex-wrap gap-1.5">
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold shadow-sm backdrop-blur ${
+                    <span className={`${badgeClass} ${
                       course.isPublished
                         ? 'bg-emerald-500/95 text-white'
                         : 'bg-amber-400/95 text-amber-950'
@@ -114,7 +89,7 @@ const AdminCourseList = ({
                       {course.isPublished ? 'Published' : 'Draft'}
                     </span>
                     {course.isOpenToAll ? (
-                      <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-bold text-blue-700 shadow-sm backdrop-blur dark:bg-slate-900/90 dark:text-blue-300">
+                      <span className={`${badgeClass} bg-white/90 text-blue-700 dark:bg-slate-900/90 dark:text-blue-300`}>
                         Open to All
                       </span>
                     ) : null}
@@ -142,7 +117,7 @@ const AdminCourseList = ({
                     ]}
                   />
                 </div>
-              </div>
+              </CourseThumbnail>
 
               <div className="flex flex-1 flex-col p-5">
                 <h3 className="line-clamp-2 text-base font-bold text-slate-900 dark:text-slate-100 transition group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
@@ -165,20 +140,19 @@ const AdminCourseList = ({
                   </div>
                 ) : null}
 
-                <div className="mt-auto pt-5">
-                  <div className="grid grid-cols-4 gap-px overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-200 dark:bg-slate-800">
-                    {getCourseStats(course).map((stat) => (
-                      <div key={stat.key} className="bg-slate-50 dark:bg-slate-950 px-2 py-3 text-center">
-                        <stat.icon className="mx-auto h-4 w-4 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-                        <p className="mt-1.5 truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-                          {stat.value}
-                        </p>
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                          {stat.label}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                {/* What a course holds reads quietly; its price and how long an enrolment
+                    lasts are the pair an admin scans a list for, so they close the card. A
+                    headcount only means something on a course that is not open to all, and
+                    the thumbnail badge already says which of those this is. */}
+                <div className="mt-auto pt-4">
+                  <CourseMetaList
+                    items={[
+                      chapterMeta(course),
+                      videoMeta(course),
+                      ...(course.isOpenToAll ? [] : [accessCountMeta(course)]),
+                    ]}
+                  />
+                  <CourseCardFooter primary={priceMeta(course)} secondary={accessLengthMeta(course)} />
                 </div>
               </div>
             </article>

@@ -22,7 +22,18 @@ app.use(cookieParser());
 
 // CONNECTION TO DATABASE
 const connectToDb = require('./db/db');
-connectToDb();
+const { backfillCourseDurations } = require('./controllers/course.controller');
+
+connectToDb()
+    .then(() => backfillCourseDurations())
+    .then(({ chapterCount, courseCount }) => {
+        if (chapterCount || courseCount) {
+            console.log(`backfilled durations for ${chapterCount} chapters and ${courseCount} courses`);
+        }
+    })
+    .catch((error) => {
+        console.log('error in course duration backfill: ', error);
+    });
 
 app.get('/', (req, res) => {
     res.status(200).json({

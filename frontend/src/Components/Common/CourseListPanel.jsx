@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, ChevronRight, Layers3, PlayCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { fadeUp, staggerParent } from '../../utils/motion'
+import { getCourseLengthShortLabel } from '../../utils/courseDuration'
 
 // A list, not a wall of cards: one line per course is what makes opening the right one
 // quick. All three home pages draw their courses through this, so a student, a faculty
@@ -71,7 +72,7 @@ const CourseRow = ({ course, accent, href, openInNewTab, chip }) => {
 
       <span className="hidden shrink-0 items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 md:inline-flex">
         <Layers3 className="h-3.5 w-3.5" />
-        {getCount(course.chapterCount)} chapters · {getCount(course.videoCount)} videos
+        {getCount(course.chapterCount)} chapters · {getCount(course.videoCount)} videos · {getCourseLengthShortLabel(course)}
       </span>
 
       {chip ? (

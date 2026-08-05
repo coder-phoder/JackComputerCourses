@@ -8,6 +8,7 @@ import AdminNavbar from '../../Components/Admin/AdminNavbar'
 import PageTour from '../../Components/Tour/PageTour'
 import getAdminCoursePageTour from '../Tour/Admin/AdminCoursePageTour'
 import { useAuth } from '../../Context/AuthContext'
+import { sumChapterDurationSeconds } from '../../utils/courseDuration'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -35,6 +36,14 @@ const sortChapters = (chapters) => [...chapters].sort((first, second) => {
 const getVideoCount = (chapters) => chapters.reduce((total, chapter) => (
   total + (chapter.videos?.length || chapter.videoCount || 0)
 ), 0)
+
+// The summary's totals are re-derived from the chapters the page already holds, so adding,
+// deleting or re-syncing one moves them immediately instead of after another fetch.
+const getCourseTotals = (chapters) => ({
+  chapterCount: chapters.length,
+  videoCount: getVideoCount(chapters),
+  totalDurationSeconds: sumChapterDurationSeconds(chapters),
+})
 
 const getChapterForm = (chapter) => ({
   name: chapter.name || '',
@@ -82,11 +91,7 @@ const Course = () => {
   const setCourseAndChapters = useCallback((nextCourse, nextChapters) => {
     const sortedChapters = sortChapters(nextChapters || [])
 
-    setCourse(nextCourse ? {
-      ...nextCourse,
-      chapterCount: sortedChapters.length,
-      videoCount: getVideoCount(sortedChapters),
-    } : null)
+    setCourse(nextCourse ? { ...nextCourse, ...getCourseTotals(sortedChapters) } : null)
     setChapters(sortedChapters)
   }, [])
 
@@ -94,11 +99,9 @@ const Course = () => {
     const sortedChapters = sortChapters(nextChapters)
 
     setChapters(sortedChapters)
-    setCourse((currentCourse) => (currentCourse ? {
-      ...currentCourse,
-      chapterCount: sortedChapters.length,
-      videoCount: getVideoCount(sortedChapters),
-    } : currentCourse))
+    setCourse((currentCourse) => (currentCourse
+      ? { ...currentCourse, ...getCourseTotals(sortedChapters) }
+      : currentCourse))
   }, [])
 
   const fetchCourse = useCallback(async (options = {}) => {
