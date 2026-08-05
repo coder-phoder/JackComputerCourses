@@ -1,7 +1,7 @@
 // How long a course stays open is read the same way wherever a course is shown: the
 // catalogue card and the home list both ask this, so one of them can never start
 // naming a different date than the other.
-const formatAccessDate = (value) => {
+export const formatAccessDate = (value) => {
   const dateValue = String(value || '').slice(0, 10)
   const [year, month, day] = dateValue.split('-').map(Number)
 

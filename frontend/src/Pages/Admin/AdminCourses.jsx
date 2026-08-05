@@ -13,6 +13,7 @@ import {
 import PageTour from '../../Components/Tour/PageTour'
 import adminCoursesPageTour from '../Tour/Admin/AdminCoursesPageTour'
 import { useAuth } from '../../Context/AuthContext'
+import { useConfirm } from '../../Context/ConfirmContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -162,6 +163,7 @@ const buildCoursePayload = (form, isEditing) => {
 const AdminCourses = () => {
   const navigate = useNavigate()
   const { auth, clearAuth, setAuth } = useAuth()
+  const confirm = useConfirm()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [courses, setCourses] = useState([])
@@ -364,7 +366,12 @@ const AdminCourses = () => {
   const handleDeleteCourse = async (course) => {
     resetMessages()
 
-    const confirmed = window.confirm(`Delete course ${course.title}?`)
+    const confirmed = await confirm({
+      title: 'Delete this course?',
+      description: 'Every chapter inside it goes too, and the students enrolled in it lose the course along with their progress through it.',
+      subject: course.title,
+      confirmLabel: 'Delete course',
+    })
 
     if (!confirmed) {
       return

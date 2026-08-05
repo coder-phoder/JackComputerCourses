@@ -470,6 +470,12 @@ const getUtcStartOfDay = (value) => {
 
 const addDays = (date, days) => new Date(date.getTime() + (days * MILLISECONDS_PER_DAY));
 
+// The one place a grant turns into a deadline, so the window shown on a course and
+// the enrolment counted on an account can never name a different day.
+const getGrantEndsAt = (startsAt, durationDays) => (
+    startsAt && durationDays ? addDays(startsAt, durationDays) : null
+);
+
 const formatDateOnly = (value) => {
     const date = parseDateValue(value);
 
@@ -605,12 +611,12 @@ const getCourseAccessWindow = (course, userPhone, now = new Date()) => {
     const durationMonths = getCourseDurationMonths(course);
     const durationDays = getCourseDurationDays(durationMonths);
     const startsAt = getUtcStartOfDay(accessGrant.grantedAt);
+    const endsAt = getGrantEndsAt(startsAt, durationDays);
 
-    if (!durationDays || !startsAt) {
+    if (!endsAt) {
         return null;
     }
 
-    const endsAt = addDays(startsAt, durationDays);
     const currentTime = parseDateValue(now) || new Date();
 
     return {
@@ -624,6 +630,63 @@ const getCourseAccessWindow = (course, userPhone, now = new Date()) => {
         isExpired: currentTime.getTime() >= endsAt.getTime()
     };
 };
+
+// Who still counts as enrolled, read off the courses that hand enrolments out. An
+// open-to-all course is the public catalogue rather than an enrolment, so it never
+// keeps an account active, and neither does a grant whose days have run out.
+const collectActiveUserPhones = (courses, now = new Date()) => {
+    const currentTime = parseDateValue(now) || new Date();
+    const activePhones = new Set();
+
+    (courses || []).forEach((course) => {
+        if (course?.isOpenToAll) {
+            return;
+        }
+
+        const durationDays = getCourseDurationDays(getCourseDurationMonths(course));
+
+        getCourseAccessGrants(course).forEach((grant) => {
+            const endsAt = getGrantEndsAt(getUtcStartOfDay(grant.grantedAt), durationDays);
+
+            if (endsAt && currentTime.getTime() < endsAt.getTime()) {
+                activePhones.add(grant.phone);
+            }
+        });
+    });
+
+    return activePhones;
+};
+
+const ACTIVE_PHONE_COURSE_FIELDS = 'duration isOpenToAll allowedUserPhones accessGrants createdAt updatedAt';
+
+// A roster of any size is answered by one pass over the courses, so the users list
+// and the attendance roster each cost a single extra read however many accounts
+// they show. Naming phones narrows that read to the accounts actually being asked
+// about, which is what the single-account callers do.
+const getActiveUserPhones = async (phones = null, now = new Date()) => {
+    const normalizedPhones = phones === null ? null : normalizePhoneArray(phones);
+
+    if (normalizedPhones && !normalizedPhones.length) {
+        return new Set();
+    }
+
+    const query = { isOpenToAll: { $ne: true } };
+
+    if (normalizedPhones) {
+        query.$or = [
+            { allowedUserPhones: { $in: normalizedPhones } },
+            { 'accessGrants.phone': { $in: normalizedPhones } }
+        ];
+    }
+
+    const courses = await Course.find(query).select(ACTIVE_PHONE_COURSE_FIELDS).lean();
+
+    return collectActiveUserPhones(courses, now);
+};
+
+const isUserPhoneActive = async (phone, now = new Date()) => (
+    (await getActiveUserPhones([phone], now)).has(normalizePhone(phone))
+);
 
 const formatAccessWindowData = (accessWindow) => ({
     accessType: accessWindow?.type || '',
@@ -1251,6 +1314,74 @@ const getAllCoursesByAdmin = async (req, res) => {
         });
     } catch (error) {
         return sendError(res, 500, 'Something went wrong while fetching courses');
+    }
+};
+
+// Running enrolments first with the nearest deadline on top, so what the admin has to
+// act on is what he reads first; the ended ones follow, most recently ended first. A
+// deadline is a YYYY-MM-DD string, so the dates order as they read.
+const compareEnrolments = (first, second) => {
+    if (first.isEnrolmentRunning !== second.isEnrolmentRunning) {
+        return first.isEnrolmentRunning ? -1 : 1;
+    }
+
+    return first.isEnrolmentRunning
+        ? first.accessEndsOn.localeCompare(second.accessEndsOn)
+        : second.accessEndsOn.localeCompare(first.accessEndsOn);
+};
+
+// What one account was actually enrolled in, which the admin users list opens beside
+// it. Open-to-all courses are the public catalogue rather than an enrolment, so they
+// are left out here for the same reason they never make an account active. Only a name
+// and a deadline are read off this, so only what those need is fetched and sent.
+const getUserCoursesByAdmin = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!isValidObjectId(id)) {
+            return sendError(res, 400, 'Invalid user id');
+        }
+
+        const user = await User.findById(id).select('name phone');
+
+        if (!user) {
+            return sendError(res, 404, 'User not found');
+        }
+
+        const courses = await Course.find({
+            isOpenToAll: { $ne: true },
+            $or: [
+                { allowedUserPhones: user.phone },
+                { 'accessGrants.phone': user.phone }
+            ]
+        }).select('title duration allowedUserPhones accessGrants createdAt updatedAt').lean();
+        const now = new Date();
+        const userCourses = courses
+            .map((course) => {
+                const accessWindow = getCourseAccessWindow(course, user.phone, now);
+
+                return {
+                    _id: course._id.toString(),
+                    title: course.title,
+                    accessEndsOn: accessWindow?.endsOn || '',
+                    // A course whose duration was never set has no deadline to be
+                    // inside of, so it reads as ended here exactly as it fails to
+                    // make its account active.
+                    isEnrolmentRunning: Boolean(accessWindow && !accessWindow.isExpired)
+                };
+            })
+            .sort(compareEnrolments);
+
+        return res.status(200).json({
+            success: true,
+            message: 'User courses fetched successfully',
+            data: {
+                courses: userCourses,
+                runningCount: userCourses.filter((course) => course.isEnrolmentRunning).length
+            }
+        });
+    } catch (error) {
+        return sendError(res, 500, 'Something went wrong while fetching user courses');
     }
 };
 
@@ -2198,6 +2329,7 @@ const getCourseVideoEmbedByFaculty = async (req, res) => {
 
 module.exports = {
     getAllCoursesByAdmin,
+    getUserCoursesByAdmin,
     createCourseByAdmin,
     getCourseByAdmin,
     updateCourseByAdmin,
@@ -2226,6 +2358,9 @@ module.exports = {
     parseCourseDurationMonths,
     getCourseDurationDays,
     getCourseAccessWindow,
+    collectActiveUserPhones,
+    getActiveUserPhones,
+    isUserPhoneActive,
     parsePlaylistId,
     buildVideoSnapshots,
     parseIsoDurationSeconds,

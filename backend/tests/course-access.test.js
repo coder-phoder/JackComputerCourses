@@ -6,7 +6,8 @@ const {
     courseUserHasAccess,
     parseCourseDurationMonths,
     getCourseDurationDays,
-    getCourseAccessWindow
+    getCourseAccessWindow,
+    collectActiveUserPhones
 } = require('../controllers/course.controller');
 
 test('normalizePhoneArray trims, splits comma lists, and removes duplicates', () => {
@@ -52,6 +53,51 @@ test('course duration accepts only positive month values and converts them to da
     assert.equal(getCourseDurationDays('1.5'), 45);
     assert.equal(getCourseDurationDays('0.1'), 3);
     assert.equal(getCourseDurationDays('0.01'), 1);
+});
+
+test('only a grant that is still running keeps an account active', () => {
+    const now = new Date('2026-08-06T12:00:00.000Z');
+    const activePhones = collectActiveUserPhones([
+        {
+            duration: '3',
+            accessGrants: [
+                { phone: '9000000001', grantedAt: new Date('2026-07-01T10:00:00.000Z') },
+                { phone: '9000000002', grantedAt: new Date('2026-01-01T10:00:00.000Z') }
+            ]
+        },
+        {
+            // A second course the expired account is also on, still expired.
+            duration: '1',
+            accessGrants: [
+                { phone: '9000000002', grantedAt: new Date('2026-05-01T10:00:00.000Z') }
+            ]
+        },
+        {
+            // Open to all is the public catalogue, not an enrolment.
+            isOpenToAll: true,
+            duration: '',
+            allowedUserPhones: ['9000000003']
+        },
+        {
+            // A course without a usable duration has no deadline to be inside of.
+            duration: '',
+            allowedUserPhones: ['9000000004'],
+            createdAt: new Date('2026-08-01T10:00:00.000Z')
+        }
+    ], now);
+
+    assert.deepEqual([...activePhones], ['9000000001']);
+});
+
+test('a grant with no date of its own falls back to the course it was made on', () => {
+    const course = {
+        duration: '1',
+        allowedUserPhones: ['9000000005'],
+        createdAt: new Date('2026-08-01T10:00:00.000Z')
+    };
+
+    assert.equal(collectActiveUserPhones([course], new Date('2026-08-06T12:00:00.000Z')).size, 1);
+    assert.equal(collectActiveUserPhones([course], new Date('2026-09-06T12:00:00.000Z')).size, 0);
 });
 
 test('course access expires at midnight after the converted duration days', () => {

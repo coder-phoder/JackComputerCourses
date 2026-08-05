@@ -31,7 +31,8 @@ const authUser = async (req, res, next) => {
             });
         }
 
-        const user = await User.findById(decoded.id).select('name phone tourCompletedAt +activeSessionId');
+        const user = await User.findById(decoded.id)
+            .select('name phone tourCompletedAt profile profileUpdatedAt profileRemindAfter +activeSessionId');
 
         if (
             !user
@@ -53,6 +54,10 @@ const authUser = async (req, res, next) => {
             // Accounts that never finished the walkthrough get it on this visit,
             // whether they registered today or years ago.
             requiresTour: !user.tourCompletedAt,
+            // Optional details, sent with every profile read so the page it fills can
+            // start from what is already stored.
+            profile: User.formatProfile(user.profile),
+            requiresProfile: User.needsProfilePrompt(user),
             role: 'user'
         };
 

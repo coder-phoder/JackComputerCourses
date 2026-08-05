@@ -64,8 +64,10 @@ const UserNavbar = () => {
 
         <div className="flex items-center gap-4">
           {/* data-tour marks what the first run walkthrough points at. Only this row
-              carries it; where it is hidden the walkthrough centres its cards instead. */}
-          <div className="hidden items-center gap-2 sm:flex">
+              carries it; where it is hidden the walkthrough centres its cards instead.
+              Six destinations no longer fit a small screen, so the row stands down a
+              breakpoint later and the menu below carries all of them. */}
+          <div className="hidden items-center gap-2 md:flex">
             <NavLink to="/user/home" onClick={closeMobileMenu} data-tour="home" className={getNavLinkClass}>
               Home
             </NavLink>
@@ -81,9 +83,12 @@ const UserNavbar = () => {
             <NavLink to="/user/bugs" onClick={closeMobileMenu} data-tour="bugs" className={getNavLinkClass}>
               Report a Bug
             </NavLink>
+            <NavLink to="/user/profile" onClick={closeMobileMenu} data-tour="profile" className={getNavLinkClass}>
+              Profile
+            </NavLink>
           </div>
           {error ? (
-            <span className="hidden text-sm font-medium text-red-600 dark:text-red-300 sm:inline">
+            <span className="hidden text-sm font-medium text-red-600 dark:text-red-300 md:inline">
               {error}
             </span>
           ) : null}
@@ -92,7 +97,7 @@ const UserNavbar = () => {
             type="button"
             onClick={handleLogout}
             disabled={loading}
-            className="hidden rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400 dark:disabled:bg-slate-700 sm:inline-flex"
+            className="hidden rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400 dark:disabled:bg-slate-700 md:inline-flex"
           >
             {loading ? 'Logging out...' : 'Logout'}
           </button>
@@ -101,14 +106,16 @@ const UserNavbar = () => {
             onClick={() => setMobileMenuOpen((isOpen) => !isOpen)}
             aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={mobileMenuOpen}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus:ring-offset-slate-900 sm:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus:ring-offset-slate-900 md:hidden"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
       </div>
       {mobileMenuOpen ? (
-        <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-4 sm:hidden">
+        <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-4 md:hidden">
+          {/* The menu is the only way to these pages while the row above is hidden, so
+              it carries every destination that row does. */}
           <div className="grid gap-2">
             <NavLink to="/user/home" onClick={closeMobileMenu} className={getNavLinkClass}>
               Home
@@ -119,8 +126,14 @@ const UserNavbar = () => {
             <NavLink to="/user/attendance" onClick={closeMobileMenu} className={getNavLinkClass}>
               Attendance
             </NavLink>
+            <NavLink to="/user/ide" onClick={closeMobileMenu} className={getNavLinkClass}>
+              IDE
+            </NavLink>
             <NavLink to="/user/bugs" onClick={closeMobileMenu} className={getNavLinkClass}>
               Report a Bug
+            </NavLink>
+            <NavLink to="/user/profile" onClick={closeMobileMenu} className={getNavLinkClass}>
+              Profile
             </NavLink>
             <button
               type="button"
@@ -134,7 +147,7 @@ const UserNavbar = () => {
         </div>
       ) : null}
       {error ? (
-        <div className="border-t border-red-100 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 sm:hidden">
+        <div className="border-t border-red-100 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 md:hidden">
           {error}
         </div>
       ) : null}

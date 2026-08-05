@@ -18,6 +18,7 @@ import SyncStatusBadge from '../../Components/Common/SyncStatusBadge'
 import PageTour from '../../Components/Tour/PageTour'
 import adminTopicNotesPageTour from '../Tour/Admin/AdminTopicNotesPageTour'
 import { useAuth } from '../../Context/AuthContext'
+import { useConfirm } from '../../Context/ConfirmContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 const TOPIC_NOTES_URL = `${API_BASE_URL}/admin/topic-notes`
@@ -107,6 +108,7 @@ const getServerNote = (response) => (
 
 const AdminTopicNotes = () => {
   const { auth, clearAuth } = useAuth()
+  const confirm = useConfirm()
   const [isAuthorized, setIsAuthorized] = useState(true)
   const [items, setItems] = useState([])
   const [courses, setCourses] = useState([])
@@ -346,9 +348,22 @@ const AdminTopicNotes = () => {
   }
 
   const handleDelete = async (item) => {
-    const confirmed = window.confirm(item.kind === 'course'
-      ? `Remove the notes folder from the "${item.heading}" course? The course itself is not deleted.`
-      : `Delete "${item.heading}" notes? Faculty will no longer see them.`)
+    // Detaching a folder from a course and deleting a standalone note set are the
+    // same button on two very different things, so the dialog says which one it is.
+    const confirmed = await confirm(item.kind === 'course'
+      ? {
+        title: 'Remove the notes folder?',
+        description: 'Only the link to the Drive folder is removed. The course itself, and the folder in Drive, are left alone.',
+        subject: item.heading,
+        confirmLabel: 'Remove folder',
+        tone: 'warning',
+      }
+      : {
+        title: 'Delete these notes?',
+        description: 'Faculty stop seeing this note set. The files stay in Drive, but the synced links to them are dropped.',
+        subject: item.heading,
+        confirmLabel: 'Delete notes',
+      })
 
     if (!confirmed) {
       return

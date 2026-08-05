@@ -30,6 +30,7 @@ import IDEWorkspace from '../../Components/IDE/IDEWorkspace'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import UserNavbar from '../../Components/User/UserNavbar'
 import { useAuth } from '../../Context/AuthContext'
+import { useConfirm } from '../../Context/ConfirmContext'
 import { useTheme } from '../../Context/ThemeContext'
 import getFacultyIdePageTour from '../Tour/Faculty/FacultyIdePageTour'
 import getUserIdePageTour from '../Tour/User/UserIdePageTour'
@@ -542,6 +543,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const accessConfig = IDE_ACCESS_CONFIG[accessRole] || IDE_ACCESS_CONFIG.user
   const storageKeys = useMemo(() => getStorageKeys(accessConfig.role), [accessConfig.role])
   const { clearAuth, setAuth } = useAuth()
+  const confirm = useConfirm()
   const { isDark } = useTheme()
 
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -1189,7 +1191,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     })
   }
 
-  const openFile = (node) => {
+  const openFile = async (node) => {
     if (!node || node.type !== 'file') {
       return
     }
@@ -1198,8 +1200,18 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       return
     }
 
-    if (isDirty && !window.confirm('Open another file and discard unsaved changes?')) {
-      return
+    if (isDirty) {
+      const confirmed = await confirm({
+        title: 'Discard unsaved changes?',
+        description: 'The file you are in has edits that were never saved. Opening another one leaves them behind for good.',
+        confirmLabel: 'Open anyway',
+        cancelLabel: 'Keep editing',
+        tone: 'warning',
+      })
+
+      if (!confirmed) {
+        return
+      }
     }
 
     activateFile(node, nodes)

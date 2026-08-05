@@ -9,6 +9,7 @@ import PasswordInput from '../../Components/Common/PasswordInput'
 import PageTour from '../../Components/Tour/PageTour'
 import adminFacultiesPageTour from '../Tour/Admin/AdminFacultiesPageTour'
 import { useAuth } from '../../Context/AuthContext'
+import { useConfirm } from '../../Context/ConfirmContext'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -32,6 +33,7 @@ const sortFaculties = (first, second) => {
 
 const AdminAllFaculties = () => {
   const { auth, clearAuth, setAuth } = useAuth()
+  const confirm = useConfirm()
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [faculties, setFaculties] = useState([])
@@ -270,7 +272,12 @@ const AdminAllFaculties = () => {
   const handleDeleteFaculty = async (faculty) => {
     resetMessages()
 
-    const confirmed = window.confirm(`Delete faculty ${faculty.phone}?`)
+    const confirmed = await confirm({
+      title: 'Delete this faculty account?',
+      description: 'They lose access to the portal immediately. The courses they taught stay where they are.',
+      subject: [getFacultyName(faculty), faculty.phone].filter(Boolean).join(' · '),
+      confirmLabel: 'Delete faculty',
+    })
 
     if (!confirmed) {
       return

@@ -4,6 +4,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { flushSync } from 'react-dom'
 import AttendanceCalendar from './AttendanceCalendar'
 import AttendancePrintSheet from './AttendancePrintSheet'
+import UserStatusBadge from './UserStatusBadge'
+import UserStatusFilter from './UserStatusFilter'
+import {
+  USER_STATUS_META,
+  countUsersByStatus,
+  filterUsersByStatus,
+  groupUsersByStatus,
+} from './userStatus'
 import {
   ATTENDANCE_STATUSES,
   STATUS_META,
@@ -39,6 +47,7 @@ const AttendanceBoard = ({
   const [loading, setLoading] = useState(true)
   const [savingStudentId, setSavingStudentId] = useState('')
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [error, setError] = useState('')
   const [printing, setPrinting] = useState(false)
 
@@ -149,19 +158,35 @@ const AttendanceBoard = ({
     return dayMap
   }, [records, selectedDate])
 
+  const statusCounts = useMemo(() => countUsersByStatus(students), [students])
+
   const roster = useMemo(() => {
     if (student) {
       return [student]
     }
 
     const query = search.trim().toLowerCase()
+    const matchingStudents = filterUsersByStatus(students, statusFilter)
 
     return query
-      ? students.filter((item) => (
+      ? matchingStudents.filter((item) => (
         `${getStudentName(item)} ${item.phone}`.toLowerCase().includes(query)
       ))
-      : students
-  }, [search, student, students])
+      : matchingStudents
+  }, [search, statusFilter, student, students])
+
+  // Marking runs down the still-enrolled students first and the ended ones after,
+  // so the two never sit interleaved even when neither tab is picked.
+  const rosterGroups = useMemo(() => (
+    isSingleStudent ? [{ status: '', users: roster }] : groupUsersByStatus(roster)
+  ), [isSingleStudent, roster])
+
+  // The register is printed in the order the board shows, so a row is found on
+  // paper where it was read on screen.
+  const printRoster = useMemo(
+    () => rosterGroups.flatMap((group) => group.users),
+    [rosterGroups],
+  )
 
   // -1 and 1 are the arrows beside the month name; 0 is the Today button, which
   // jumps back to this month and reselects today.
@@ -251,6 +276,77 @@ const AttendanceBoard = ({
     }), {})
   ), [records])
 
+  // One row, wherever it is grouped, so a student is marked the same way whichever
+  // standing he is listed under.
+  const renderStudentRow = (item) => {
+    const record = dayRecords.get(item._id)
+    const isSaving = savingStudentId === item._id
+
+    return (
+      <li
+        key={item._id}
+        className={`rounded-xl border p-3 transition ${
+          record
+            ? STATUS_META[record.status].cell
+            : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
+        }`}
+      >
+        {/* Two statuses fit beside the name, so a student stays one row tall. */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
+              {getStudentName(item)}
+            </p>
+            <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+              {item.phone}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            {ATTENDANCE_STATUSES.map((status) => {
+              const isActive = record?.status === status.value
+
+              return (
+                <button
+                  key={status.value}
+                  type="button"
+                  onClick={() => markAttendance(item._id, status.value)}
+                  disabled={isSaving || isActive}
+                  className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition disabled:cursor-not-allowed ${
+                    isActive
+                      ? status.active
+                      : 'border border-slate-300 bg-white text-slate-600 hover:border-indigo-400 hover:text-indigo-600 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-600 dark:hover:text-indigo-300'
+                  }`}
+                >
+                  {status.label}
+                </button>
+              )
+            })}
+            {record ? (
+              <button
+                type="button"
+                onClick={() => clearAttendance(record)}
+                disabled={isSaving}
+                aria-label={`Remove attendance for ${getStudentName(item)}`}
+                className="rounded-lg border border-red-200 bg-red-50 p-1.5 text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {canSeeMarkedBy && record?.markedByName ? (
+          <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            <UserCheck className="h-3.5 w-3.5" />
+            Marked by {record.markedByName}
+            {record.markedByRole === 'faculty' ? ' (Faculty)' : ''}
+          </p>
+        ) : null}
+      </li>
+    )
+  }
+
   return (
     <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[1fr_minmax(0,24rem)]">
       <AttendanceCalendar
@@ -265,7 +361,7 @@ const AttendanceBoard = ({
       />
 
       {printing ? (
-        <AttendancePrintSheet monthDate={monthDate} students={roster} records={records} />
+        <AttendancePrintSheet monthDate={monthDate} students={printRoster} records={records} />
       ) : null}
 
       <aside data-tour="attendance-roster" className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -276,15 +372,20 @@ const AttendanceBoard = ({
           <h3 className="mt-1 text-base font-bold text-slate-900 dark:text-slate-100">
             {getDayLabel(selectedDate)}
           </h3>
-          <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            {isSingleStudent
-              ? `${getStudentName(student)} · ${student.phone}`
-              : [
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            {isSingleStudent ? (
+              <>
+                <span>{`${getStudentName(student)} · ${student.phone}`}</span>
+                <UserStatusBadge user={student} />
+              </>
+            ) : (
+              [
                 ...ATTENDANCE_STATUSES.map((status) => (
                   `${dayCounts[status.value] || 0} ${status.label.toLowerCase()}`
                 )),
                 `${Math.max(students.length - markedCount, 0)} unmarked`,
-              ].join(' · ')}
+              ].join(' · ')
+            )}
           </p>
         </div>
 
@@ -303,7 +404,7 @@ const AttendanceBoard = ({
             ))}
           </div>
         ) : (
-          <div data-tour="attendance-search" className="shrink-0 border-b border-slate-200 px-5 py-3 dark:border-slate-800">
+          <div data-tour="attendance-search" className="shrink-0 space-y-2 border-b border-slate-200 px-5 py-3 dark:border-slate-800">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
@@ -314,6 +415,15 @@ const AttendanceBoard = ({
                 className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-indigo-900/40"
               />
             </div>
+
+            {/* The counts are of the whole roster, so they stay put while a search
+                narrows the list below them. */}
+            <UserStatusFilter
+              value={statusFilter}
+              counts={statusCounts}
+              onChange={setStatusFilter}
+              label="Filter students by enrolment standing"
+            />
           </div>
         )}
 
@@ -325,76 +435,24 @@ const AttendanceBoard = ({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
           {roster.length ? (
-            <ul className="space-y-2">
-              {roster.map((item) => {
-                const record = dayRecords.get(item._id)
-                const isSaving = savingStudentId === item._id
+            <div className="space-y-4">
+              {rosterGroups.map((group) => (
+                <section key={group.status || 'roster'}>
+                  {group.status ? (
+                    <p className="mb-2 flex items-center gap-2 px-1 text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      {USER_STATUS_META[group.status].label}
+                      <span className="rounded-full bg-slate-100 px-1.5 text-[10px] dark:bg-slate-800">
+                        {group.users.length}
+                      </span>
+                    </p>
+                  ) : null}
 
-                return (
-                  <li
-                    key={item._id}
-                    className={`rounded-xl border p-3 transition ${
-                      record
-                        ? STATUS_META[record.status].cell
-                        : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
-                    }`}
-                  >
-                    {/* Two statuses fit beside the name, so a student stays one row tall. */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-                          {getStudentName(item)}
-                        </p>
-                        <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
-                          {item.phone}
-                        </p>
-                      </div>
-
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        {ATTENDANCE_STATUSES.map((status) => {
-                          const isActive = record?.status === status.value
-
-                          return (
-                            <button
-                              key={status.value}
-                              type="button"
-                              onClick={() => markAttendance(item._id, status.value)}
-                              disabled={isSaving || isActive}
-                              className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition disabled:cursor-not-allowed ${
-                                isActive
-                                  ? status.active
-                                  : 'border border-slate-300 bg-white text-slate-600 hover:border-indigo-400 hover:text-indigo-600 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-600 dark:hover:text-indigo-300'
-                              }`}
-                            >
-                              {status.label}
-                            </button>
-                          )
-                        })}
-                        {record ? (
-                          <button
-                            type="button"
-                            onClick={() => clearAttendance(record)}
-                            disabled={isSaving}
-                            aria-label={`Remove attendance for ${getStudentName(item)}`}
-                            className="rounded-lg border border-red-200 bg-red-50 p-1.5 text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {canSeeMarkedBy && record?.markedByName ? (
-                      <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                        <UserCheck className="h-3.5 w-3.5" />
-                        Marked by {record.markedByName}
-                        {record.markedByRole === 'faculty' ? ' (Faculty)' : ''}
-                      </p>
-                    ) : null}
-                  </li>
-                )
-              })}
-            </ul>
+                  <ul className="space-y-2">
+                    {group.users.map(renderStudentRow)}
+                  </ul>
+                </section>
+              ))}
+            </div>
           ) : (
             <p className="px-3 py-10 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
               {loading ? 'Loading students...' : 'No students found.'}

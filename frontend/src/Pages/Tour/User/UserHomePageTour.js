@@ -75,10 +75,22 @@ const userHomePageTour = [
     ],
   },
   {
+    id: 'profile',
+    target: '[data-tour="profile"]',
+    icon: UserRound,
+    eyebrow: 'Stop 6',
+    title: 'Profile',
+    points: [
+      'Email and address, if you want to give them',
+      'All of it is optional',
+      'Change it whenever you like',
+    ],
+  },
+  {
     id: 'tour-button',
     target: '[data-tour="tour-button"]',
     icon: Route,
-    eyebrow: 'Stop 6',
+    eyebrow: 'Stop 7',
     title: 'Every page has this',
     points: [
       'It explains that page, part by part',
