@@ -6,6 +6,7 @@ const {
     getAdminAlertCounts,
     getAllUsersByAdmin,
     createUserByAdmin,
+    bulkCreateUsersByAdmin,
     updateUserByAdmin,
     deleteUserByAdmin,
     getUserLoginHistoryByAdmin
@@ -34,6 +35,7 @@ router.get('/profile', authAdmin, getAdminProfile);
 router.get('/alerts', authAdmin, getAdminAlertCounts);
 router.get('/users', authAdmin, getAllUsersByAdmin);
 router.post('/users', authAdmin, createUserByAdmin);
+router.post('/users/bulk', authAdmin, bulkCreateUsersByAdmin);
 router.get('/users/:id/login-history', authAdmin, getUserLoginHistoryByAdmin);
 router.get('/users/:id/courses', authAdmin, getUserCoursesByAdmin);
 router.patch('/users/:id', authAdmin, updateUserByAdmin);

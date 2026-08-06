@@ -1,7 +1,8 @@
 import axios from 'axios'
-import { BookOpen, CalendarCheck, ChevronDown, CircleUser, History, Pencil, Trash2 } from 'lucide-react'
+import { BookOpen, CalendarCheck, ChevronDown, CircleUser, History, Pencil, Sheet, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import AdminBulkImportUsers from '../../Components/Admin/AdminBulkImportUsers'
 import AdminNavbar from '../../Components/Admin/AdminNavbar'
 import AdminPasswordRequests from '../../Components/Admin/AdminPasswordRequests'
 import AdminUserAttendance from '../../Components/Admin/AdminUserAttendance'
@@ -78,6 +79,7 @@ const AdminAllUsers = () => {
   const [profileUser, setProfileUser] = useState(null)
   const [openPanel, setOpenPanel] = useState(USER_FORM_PANEL)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [bulkImportOpen, setBulkImportOpen] = useState(false)
 
   const isUserFormOpen = openPanel === USER_FORM_PANEL
 
@@ -316,6 +318,18 @@ const AdminAllUsers = () => {
     } finally {
       setSaving(false)
     }
+  }
+
+  // The sheet has already been answered row by row inside the modal, so the page only
+  // takes the accounts that were made and leaves the modal to explain the rest.
+  const handleUsersImported = (importedUsers) => {
+    if (!importedUsers.length) {
+      return
+    }
+
+    setUsers((currentUsers) => [...currentUsers, ...importedUsers])
+    setError('')
+    setSuccess(`${importedUsers.length} user${importedUsers.length === 1 ? '' : 's'} imported successfully.`)
   }
 
   const handleDeleteUser = async (user) => {
@@ -583,6 +597,23 @@ const AdminAllUsers = () => {
                       >
                         {saving ? 'Creating...' : 'Create User'}
                       </button>
+
+                      {/* The same account, a sheet at a time. It sits under the form
+                          rather than beside it, so one account stays the ordinary way
+                          to add one and the sheet is the answer to a whole intake. */}
+                      <button
+                        type="button"
+                        data-tour="admin-bulk-import"
+                        onClick={() => {
+                          resetMessages()
+                          setBulkImportOpen(true)
+                        }}
+                        disabled={saving}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-700 dark:hover:text-indigo-300 dark:disabled:text-slate-600"
+                      >
+                        <Sheet className="h-4 w-4" />
+                        Bulk Import Users
+                      </button>
                     </form>
                   )}
                 </div>
@@ -762,6 +793,13 @@ const AdminAllUsers = () => {
 
       {profileUser ? (
         <AdminUserProfile user={profileUser} onClose={() => setProfileUser(null)} />
+      ) : null}
+
+      {bulkImportOpen ? (
+        <AdminBulkImportUsers
+          onClose={() => setBulkImportOpen(false)}
+          onImported={handleUsersImported}
+        />
       ) : null}
     </div>
   )

@@ -93,6 +93,39 @@ const isValidUserId = (id) => (
     && new mongoose.Types.ObjectId(id).toString() === String(id)
 );
 
+// A sheet is allowed to leave the password column empty, and when it does the site
+// picks the same password every time: the first name in lower case with 123 after it.
+const GENERATED_PASSWORD_SUFFIX = '123';
+
+const getGeneratedPassword = (firstName) => (
+    `${String(firstName).toLowerCase().replace(/\s+/g, '')}${GENERATED_PASSWORD_SUFFIX}`
+);
+
+// The create form and the bulk sheet hand over the same four fields, so the trimming,
+// the missing-field refusal and the single name they are stored under are decided here
+// for both. Only a sheet may arrive without a password, so only a sheet is given one.
+// A refusal still carries whatever the row did say, so it can name itself on screen.
+const prepareNewUserInput = (input = {}, { generatePassword = false } = {}) => {
+    const firstName = String(input.firstName || '').trim();
+    const lastName = String(input.lastName || '').trim();
+    const phone = String(input.phone || '').trim();
+    const typedPassword = String(input.password || '');
+    const password = typedPassword || (generatePassword && firstName ? getGeneratedPassword(firstName) : '');
+    const isComplete = Boolean(firstName && lastName && phone && password);
+
+    return {
+        name: [firstName, lastName].filter(Boolean).join(' '),
+        phone,
+        password,
+        isPasswordGenerated: Boolean(password) && !typedPassword,
+        message: isComplete
+            ? ''
+            : (generatePassword
+                ? 'First name, last name and phone are required'
+                : 'First name, last name, phone and password are required')
+    };
+};
+
 const loginAdmin = async (req, res) => {
     try {
         const { phone, password } = req.body || {};
@@ -247,22 +280,18 @@ const getAllUsersByAdmin = async (req, res) => {
 
 const createUserByAdmin = async (req, res) => {
     try {
-        const { firstName, lastName, phone, password } = req.body || {};
-        // The halves are only an input shape: the account still stores one name.
-        const trimmedFirstName = String(firstName || '').trim();
-        const trimmedLastName = String(lastName || '').trim();
-        const trimmedPhone = String(phone || '').trim();
-        const userPassword = String(password || '');
+        // The name halves are only an input shape: the account still stores one name.
+        const newUser = prepareNewUserInput(req.body);
 
-        if (!trimmedFirstName || !trimmedLastName || !trimmedPhone || !userPassword) {
+        if (newUser.message) {
             return res.status(400).json({
                 success: false,
-                message: 'First name, last name, phone and password are required',
+                message: newUser.message,
                 data: {}
             });
         }
 
-        const existingUser = await User.findOne({ phone: trimmedPhone });
+        const existingUser = await User.findOne({ phone: newUser.phone });
 
         if (existingUser) {
             return res.status(409).json({
@@ -272,11 +301,10 @@ const createUserByAdmin = async (req, res) => {
             });
         }
 
-        const hashedPassword = await bcrypt.hash(userPassword, 10);
         const user = await User.create({
-            name: `${trimmedFirstName} ${trimmedLastName}`,
-            phone: trimmedPhone,
-            password: hashedPassword
+            name: newUser.name,
+            phone: newUser.phone,
+            password: await bcrypt.hash(newUser.password, 10)
         });
 
         return res.status(201).json({
@@ -298,6 +326,105 @@ const createUserByAdmin = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Something went wrong while creating user',
+            data: {}
+        });
+    }
+};
+
+// Hashing is what a sheet costs, and it is paid once per row, so the file is held to a
+// size that still answers inside one request.
+const MAX_BULK_USERS = 200;
+
+// A whole sheet of accounts in one request. Every row is answered on its own: a row
+// that cannot be made says why and the rows around it are still created, so the admin
+// fixes the few that were refused instead of uploading the file again.
+const bulkCreateUsersByAdmin = async (req, res) => {
+    try {
+        const rows = Array.isArray(req.body?.users) ? req.body.users : [];
+
+        if (!rows.length) {
+            return res.status(400).json({
+                success: false,
+                message: 'The sheet has no users in it',
+                data: {}
+            });
+        }
+
+        if (rows.length > MAX_BULK_USERS) {
+            return res.status(400).json({
+                success: false,
+                message: `A sheet can hold at most ${MAX_BULK_USERS} users. Split the file and import it in parts.`,
+                data: {}
+            });
+        }
+
+        // Every phone in the sheet is looked up in one query, and a phone the sheet
+        // itself repeats belongs to the row that reached it first.
+        const existingUsers = await User.find({
+            phone: { $in: rows.map((row) => String(row?.phone || '').trim()).filter(Boolean) }
+        }).select('phone');
+        const takenPhones = new Set(existingUsers.map((user) => user.phone));
+
+        const users = [];
+        const results = [];
+
+        for (const row of rows) {
+            const newUser = prepareNewUserInput(row, { generatePassword: true });
+
+            if (newUser.message || takenPhones.has(newUser.phone)) {
+                results.push({
+                    status: 'failed',
+                    name: newUser.name,
+                    phone: newUser.phone,
+                    message: newUser.message || 'User with this phone already exists'
+                });
+                continue;
+            }
+
+            try {
+                const user = await User.create({
+                    name: newUser.name,
+                    phone: newUser.phone,
+                    password: await bcrypt.hash(newUser.password, 10)
+                });
+
+                takenPhones.add(user.phone);
+                users.push(formatUserData(user));
+                results.push({
+                    status: 'created',
+                    name: user.name,
+                    phone: user.phone,
+                    // The admin has to be able to hand the account over, and a password
+                    // the site generated is written down nowhere else.
+                    password: newUser.password,
+                    isPasswordGenerated: newUser.isPasswordGenerated
+                });
+            } catch (rowError) {
+                results.push({
+                    status: 'failed',
+                    name: newUser.name,
+                    phone: newUser.phone,
+                    message: rowError.code === 11000
+                        ? 'User with this phone already exists'
+                        : 'This row could not be created'
+                });
+            }
+        }
+
+        const counts = {
+            created: users.length,
+            failed: results.length - users.length
+        };
+
+        return res.status(counts.created ? 201 : 200).json({
+            success: true,
+            message: `${counts.created} of ${results.length} users created`,
+            data: { users, results, counts }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while importing users',
             data: {}
         });
     }
@@ -534,9 +661,13 @@ module.exports = {
     getAdminAlertCounts,
     getAllUsersByAdmin,
     createUserByAdmin,
+    bulkCreateUsersByAdmin,
     updateUserByAdmin,
     deleteUserByAdmin,
     getUserLoginHistoryByAdmin,
     formatUserData,
+    getGeneratedPassword,
+    prepareNewUserInput,
+    MAX_BULK_USERS,
     getActiveAdminSessionId: () => activeAdminSessionId
 };

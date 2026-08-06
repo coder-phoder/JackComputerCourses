@@ -13,6 +13,7 @@ const getAdminUsersPageTour = ({ openUserForm, openRequests }) => [
       'Name, phone and a first password',
       'The phone is how they sign in',
       'Editing one opens the same panel',
+      'Bulk Import Users takes a whole sheet at once',
     ],
     onEnter: openUserForm,
   },
