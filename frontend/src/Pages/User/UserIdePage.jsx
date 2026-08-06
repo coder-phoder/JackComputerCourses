@@ -26,6 +26,7 @@ import IDExplorer from '../../Components/IDE/IDExplorer'
 import IDEImportExport from '../../Components/IDE/IDEImportExport'
 import IDEerminal from '../../Components/IDE/IDEerminal'
 import IDEquery from '../../Components/IDE/IDEquery'
+import IDETestCases from '../../Components/IDE/IDETestCases'
 import IDEWorkspace from '../../Components/IDE/IDEWorkspace'
 import FacultyNavbar from '../../Components/Faculty/FacultyNavbar'
 import UserNavbar from '../../Components/User/UserNavbar'
@@ -45,6 +46,12 @@ const TERMINAL_MIN_HEIGHT = 120
 const TERMINAL_DRAG_COLLAPSE_HEIGHT = 90
 const MIN_EDITOR_WIDTH_WITH_EXPLORER = 560
 const MIN_EDITOR_HEIGHT_WITH_TERMINAL = 360
+const TESTCASES_MIN_WIDTH = 260
+const TESTCASES_MAX_WIDTH = 560
+const TESTCASES_DRAG_COLLAPSE_WIDTH = 200
+const MIN_EDITOR_WIDTH_WITH_TESTCASES = 420
+const MAX_TEST_CASES_PER_FILE = 20
+const TEST_CASE_SAVE_DEBOUNCE_MS = 800
 
 const IDE_ACCESS_CONFIG = {
   user: {
@@ -96,7 +103,27 @@ const getStorageKeys = (role) => ({
   terminalHeight: 'jack_ide_terminal_height',
   explorerWidth: `jack_ide_${role}_explorer_width`,
   explorerCollapsed: `jack_ide_${role}_explorer_collapsed`,
+  testCasesWidth: `jack_ide_${role}_testcases_width`,
+  testCasesCollapsed: `jack_ide_${role}_testcases_collapsed`,
 })
+
+let testCaseIdSequence = 0
+
+const createTestCaseId = () => {
+  testCaseIdSequence += 1
+  return `tc-${Date.now().toString(36)}-${testCaseIdSequence.toString(36)}`
+}
+
+const createTestCaseDrafts = (testCases) => (Array.isArray(testCases) ? testCases : []).map((testCase) => ({
+  id: createTestCaseId(),
+  input: String(testCase?.input || ''),
+  expectedOutput: String(testCase?.expectedOutput || ''),
+}))
+
+const toTestCasePayload = (testCases) => testCases.map((testCase) => ({
+  input: testCase.input,
+  expectedOutput: testCase.expectedOutput,
+}))
 
 const getLastOpenedFileKey = (role, workspaceId) => `jack_ide_${role}_${workspaceId}_last_file_id`
 
@@ -582,6 +609,13 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const [isRunning, setIsRunning] = useState(false)
   const [socket, setSocket] = useState(null)
 
+  const [testCases, setTestCases] = useState([])
+  const [testCaseResults, setTestCaseResults] = useState({})
+  const [testCaseBatchError, setTestCaseBatchError] = useState('')
+  const [testCaseSaveError, setTestCaseSaveError] = useState('')
+  const [isCompilingTestCases, setIsCompilingTestCases] = useState(false)
+  const [isRunningTestCases, setIsRunningTestCases] = useState(false)
+
   const editorRef = useRef(null)
   const formatCodeRef = useRef(null)
   const formatActionDisposableRef = useRef(null)
@@ -590,6 +624,9 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const workspaceDraftCancelingRef = useRef(false)
   const nodeDraftCancelingRef = useRef(false)
   const workspaceContainerRef = useRef(null)
+  const testCaseSaveTimerRef = useRef(null)
+  const pendingTestCaseSaveRef = useRef(null)
+  const persistTestCasesRef = useRef(null)
 
   const [fontSize, setFontSize] = useState(() => {
     const saved = localStorage.getItem(storageKeys.fontSize)
@@ -613,6 +650,15 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     localStorage.getItem(storageKeys.explorerCollapsed) === 'true'
   ))
   const [workspaceSize, setWorkspaceSize] = useState({ width: 0, height: 0 })
+
+  const [testCasesWidth, setTestCasesWidth] = useState(() => {
+    const saved = localStorage.getItem(storageKeys.testCasesWidth)
+    return saved ? parseInt(saved, 10) : 340
+  })
+  const [isDraggingTestCases, setIsDraggingTestCases] = useState(false)
+  const [isTestCasesCollapsed, setIsTestCasesCollapsed] = useState(() => (
+    localStorage.getItem(storageKeys.testCasesCollapsed) !== 'false'
+  ))
 
   const workspaceBaseUrl = `${API_BASE_URL}${accessConfig.workspacePath}`
   const shareBaseUrl = `${API_BASE_URL}/${accessConfig.role}/ide-share`
@@ -646,6 +692,13 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   const isQueryActivity = accessConfig.role === 'user' && activeActivity === 'query'
   const isWorkspaceActivity = activeActivity === 'download'
   const isImportExportActivity = activeActivity === 'importExport'
+  const isEditorActivity = !isQueryActivity && !isWorkspaceActivity && !isImportExportActivity
+  const explorerFootprintWidth = EXPLORER_ACTIVITY_BAR_WIDTH
+    + (isExplorerLayoutCollapsed || activeActivity !== 'explorer' ? 0 : explorerWidth)
+  const shouldAutoCollapseTestCases = !isTestCasesCollapsed
+    && workspaceSize.width > 0
+    && workspaceSize.width - explorerFootprintWidth - testCasesWidth < MIN_EDITOR_WIDTH_WITH_TESTCASES
+  const isTestCasesLayoutCollapsed = isTestCasesCollapsed || shouldAutoCollapseTestCases
 
   const childrenByParentId = useMemo(() => {
     const groupedChildren = new Map()
@@ -661,10 +714,15 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   }, [nodes])
 
   const activateFile = useCallback((node, nodeList = [], expandAncestors = true) => {
+    setTestCaseResults({})
+    setTestCaseBatchError('')
+    setTestCaseSaveError('')
+
     if (!node || node.type !== 'file') {
       setActiveNodeId('')
       setCode('')
       setSavedCode('')
+      setTestCases([])
       if (lastOpenedFileKey) {
         localStorage.removeItem(lastOpenedFileKey)
       }
@@ -674,6 +732,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
     setActiveNodeId(node._id)
     setCode(node.content || '')
     setSavedCode(node.content || '')
+    setTestCases(createTestCaseDrafts(node.testCases))
     setSaveStatus('saved')
     setSaveError('')
     if (lastOpenedFileKey) {
@@ -774,6 +833,8 @@ const UserIdePage = ({ accessRole = 'user' }) => {
 
       setCode(nextContent)
       setSavedCode(nextContent)
+      setTestCases(createTestCaseDrafts(updatedNode.testCases))
+      setTestCaseResults({})
       setSaveStatus('saved')
       setSaveError('')
     }
@@ -879,9 +940,53 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       setIsRunning(false)
     })
 
+    socketInstance.on('testcase-batch-compiling', () => {
+      setIsCompilingTestCases(true)
+    })
+
+    socketInstance.on('testcase-started', ({ id }) => {
+      setIsCompilingTestCases(false)
+      setTestCaseResults((currentResults) => ({
+        ...currentResults,
+        [id]: { status: 'running' },
+      }))
+    })
+
+    socketInstance.on('testcase-result', (result) => {
+      setTestCaseResults((currentResults) => ({
+        ...currentResults,
+        [result.id]: { ...result, status: 'done' },
+      }))
+    })
+
+    socketInstance.on('testcase-batch-done', ({ error, compileOutput } = {}) => {
+      setIsRunningTestCases(false)
+      setIsCompilingTestCases(false)
+      setTestCaseResults((currentResults) => {
+        const runningIds = Object.keys(currentResults)
+          .filter((testCaseId) => currentResults[testCaseId].status === 'running')
+
+        if (!runningIds.length) {
+          return currentResults
+        }
+
+        const nextResults = { ...currentResults }
+        runningIds.forEach((testCaseId) => {
+          delete nextResults[testCaseId]
+        })
+        return nextResults
+      })
+
+      if (error) {
+        setTestCaseBatchError(compileOutput ? `${error}\n${compileOutput}` : error)
+      }
+    })
+
     socketInstance.on('connect_error', () => {
       setTerminalOutput((prev) => prev + '\nSystem: Server connection error. Make sure backend is running.\n')
       setIsRunning(false)
+      setIsRunningTestCases(false)
+      setIsCompilingTestCases(false)
     })
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -1015,6 +1120,175 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       setSaving(false)
     }
   }, [activeNode, code, savedCode, saving, workspaceNodesUrl])
+
+  const persistTestCases = useCallback(async (nodeId, testCasesToSave) => {
+    if (!workspaceNodesUrl || !nodeId) {
+      return
+    }
+
+    try {
+      const response = await axios.patch(`${workspaceNodesUrl}/${nodeId}/testcases`, {
+        testCases: toTestCasePayload(testCasesToSave),
+      }, {
+        withCredentials: true,
+      })
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Unable to save test cases')
+      }
+
+      const updatedNode = response.data?.data?.node
+
+      setNodes((currentNodes) => currentNodes.map((node) => (
+        node._id === updatedNode._id ? { ...node, testCases: updatedNode.testCases } : node
+      )))
+      setTestCaseSaveError('')
+    } catch (testCaseSaveFailure) {
+      setTestCaseSaveError(getErrorMessage(testCaseSaveFailure, 'Unable to save test cases.'))
+    }
+  }, [workspaceNodesUrl])
+
+  useEffect(() => {
+    persistTestCasesRef.current = persistTestCases
+  }, [persistTestCases])
+
+  const flushTestCaseSave = useCallback(() => {
+    if (testCaseSaveTimerRef.current) {
+      window.clearTimeout(testCaseSaveTimerRef.current)
+      testCaseSaveTimerRef.current = null
+    }
+
+    const pendingSave = pendingTestCaseSaveRef.current
+    pendingTestCaseSaveRef.current = null
+
+    if (pendingSave) {
+      persistTestCasesRef.current?.(pendingSave.nodeId, pendingSave.testCases)
+    }
+  }, [])
+
+  const scheduleTestCaseSave = useCallback((nodeId, nextTestCases) => {
+    const pendingSave = pendingTestCaseSaveRef.current
+
+    if (pendingSave && pendingSave.nodeId !== nodeId) {
+      flushTestCaseSave()
+    }
+
+    pendingTestCaseSaveRef.current = { nodeId, testCases: nextTestCases }
+
+    if (testCaseSaveTimerRef.current) {
+      window.clearTimeout(testCaseSaveTimerRef.current)
+    }
+
+    testCaseSaveTimerRef.current = window.setTimeout(flushTestCaseSave, TEST_CASE_SAVE_DEBOUNCE_MS)
+  }, [flushTestCaseSave])
+
+  useEffect(() => () => {
+    if (testCaseSaveTimerRef.current) {
+      window.clearTimeout(testCaseSaveTimerRef.current)
+      testCaseSaveTimerRef.current = null
+    }
+
+    const pendingSave = pendingTestCaseSaveRef.current
+    pendingTestCaseSaveRef.current = null
+
+    if (pendingSave) {
+      persistTestCasesRef.current?.(pendingSave.nodeId, pendingSave.testCases)
+    }
+  }, [])
+
+  const handleAddTestCase = useCallback(() => {
+    if (!activeNode || testCases.length >= MAX_TEST_CASES_PER_FILE) {
+      return
+    }
+
+    const nextTestCases = [...testCases, {
+      id: createTestCaseId(),
+      input: '',
+      expectedOutput: '',
+    }]
+
+    setTestCases(nextTestCases)
+    scheduleTestCaseSave(activeNode._id, nextTestCases)
+  }, [activeNode, scheduleTestCaseSave, testCases])
+
+  const handleUpdateTestCase = useCallback((testCaseId, changes) => {
+    if (!activeNode) {
+      return
+    }
+
+    const nextTestCases = testCases.map((testCase) => (
+      testCase.id === testCaseId ? { ...testCase, ...changes } : testCase
+    ))
+
+    setTestCases(nextTestCases)
+    scheduleTestCaseSave(activeNode._id, nextTestCases)
+  }, [activeNode, scheduleTestCaseSave, testCases])
+
+  const handleDeleteTestCase = useCallback((testCaseId) => {
+    if (!activeNode) {
+      return
+    }
+
+    const nextTestCases = testCases.filter((testCase) => testCase.id !== testCaseId)
+
+    setTestCases(nextTestCases)
+    setTestCaseResults((currentResults) => {
+      if (!currentResults[testCaseId]) {
+        return currentResults
+      }
+
+      const nextResults = { ...currentResults }
+      delete nextResults[testCaseId]
+      return nextResults
+    })
+    scheduleTestCaseSave(activeNode._id, nextTestCases)
+  }, [activeNode, scheduleTestCaseSave, testCases])
+
+  const runTestCases = useCallback((testCasesToRun) => {
+    if (!socket || !activeNode || !testCasesToRun.length) {
+      return
+    }
+
+    setIsTestCasesCollapsed(false)
+    setTestCaseBatchError('')
+    setIsRunningTestCases(true)
+    setTestCaseResults((currentResults) => {
+      const nextResults = { ...currentResults }
+      testCasesToRun.forEach((testCase) => {
+        delete nextResults[testCase.id]
+      })
+      return nextResults
+    })
+
+    socket.emit('run-testcases', {
+      language: activeNode.language,
+      code,
+      testCases: testCasesToRun.map((testCase) => ({
+        id: testCase.id,
+        input: testCase.input,
+      })),
+    })
+  }, [activeNode, code, socket])
+
+  const handleRunAllTestCases = useCallback(() => {
+    runTestCases(testCases)
+  }, [runTestCases, testCases])
+
+  const handleRunTestCase = useCallback((testCaseId) => {
+    const testCase = testCases.find((currentTestCase) => currentTestCase.id === testCaseId)
+
+    if (testCase) {
+      runTestCases([testCase])
+    }
+  }, [runTestCases, testCases])
+
+  const handleStopTestCases = useCallback(() => {
+    if (!socket || !isRunningTestCases) {
+      return
+    }
+
+    socket.emit('stop-testcases')
+  }, [isRunningTestCases, socket])
 
   const formatActiveCode = useCallback(async () => {
     const editor = editorRef.current
@@ -1150,10 +1424,47 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   }, [isDraggingExplorer])
 
   useEffect(() => {
-    const hasActiveDrag = isDraggingHeight || isDraggingExplorer
+    if (!isDraggingTestCases) return undefined
+
+    const handleMouseMove = (event) => {
+      const containerElement = document.getElementById('ide-workspace-container')
+      if (!containerElement) {
+        return
+      }
+
+      const rect = containerElement.getBoundingClientRect()
+      const nextWidth = rect.right - event.clientX
+
+      if (nextWidth <= TESTCASES_DRAG_COLLAPSE_WIDTH) {
+        setIsTestCasesCollapsed(true)
+        setIsDraggingTestCases(false)
+        return
+      }
+
+      if (nextWidth >= TESTCASES_MIN_WIDTH && nextWidth <= TESTCASES_MAX_WIDTH) {
+        setTestCasesWidth(nextWidth)
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDraggingTestCases(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDraggingTestCases])
+
+  useEffect(() => {
+    const isDraggingWidth = isDraggingExplorer || isDraggingTestCases
+    const hasActiveDrag = isDraggingHeight || isDraggingWidth
 
     document.body.style.cursor = hasActiveDrag
-      ? (isDraggingExplorer ? 'col-resize' : 'row-resize')
+      ? (isDraggingWidth ? 'col-resize' : 'row-resize')
       : ''
     document.body.style.userSelect = hasActiveDrag ? 'none' : ''
 
@@ -1161,7 +1472,7 @@ const UserIdePage = ({ accessRole = 'user' }) => {
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
-  }, [isDraggingExplorer, isDraggingHeight])
+  }, [isDraggingExplorer, isDraggingHeight, isDraggingTestCases])
 
   useEffect(() => {
     localStorage.setItem(storageKeys.terminalHeight, String(terminalHeight))
@@ -1174,6 +1485,14 @@ const UserIdePage = ({ accessRole = 'user' }) => {
   useEffect(() => {
     localStorage.setItem(storageKeys.explorerCollapsed, String(isExplorerCollapsed))
   }, [isExplorerCollapsed, storageKeys.explorerCollapsed])
+
+  useEffect(() => {
+    localStorage.setItem(storageKeys.testCasesWidth, String(testCasesWidth))
+  }, [storageKeys.testCasesWidth, testCasesWidth])
+
+  useEffect(() => {
+    localStorage.setItem(storageKeys.testCasesCollapsed, String(isTestCasesCollapsed))
+  }, [isTestCasesCollapsed, storageKeys.testCasesCollapsed])
 
   const handleIncreaseFont = () => {
     setFontSize((prev) => {
@@ -2494,6 +2813,34 @@ const UserIdePage = ({ accessRole = 'user' }) => {
             </div>
           </main>
           )}
+
+          {isEditorActivity ? (
+            <IDETestCases
+              batchError={testCaseBatchError}
+              hasActiveFile={Boolean(activeNode)}
+              isCollapsed={isTestCasesLayoutCollapsed}
+              isCompiling={isCompilingTestCases}
+              isDraggingWidth={isDraggingTestCases}
+              isRunning={isRunningTestCases}
+              maxTestCases={MAX_TEST_CASES_PER_FILE}
+              onAddTestCase={handleAddTestCase}
+              onClearBatchError={() => setTestCaseBatchError('')}
+              onDeleteTestCase={handleDeleteTestCase}
+              onRunAllTestCases={handleRunAllTestCases}
+              onRunTestCase={handleRunTestCase}
+              onStartResize={(event) => {
+                event.preventDefault()
+                setIsDraggingTestCases(true)
+              }}
+              onStopTestCases={handleStopTestCases}
+              onUpdateTestCase={handleUpdateTestCase}
+              results={testCaseResults}
+              saveError={testCaseSaveError}
+              setIsCollapsed={setIsTestCasesCollapsed}
+              testCases={testCases}
+              width={testCasesWidth}
+            />
+          ) : null}
         </div>
 
         {isQueryActivity || isWorkspaceActivity ? null : (
