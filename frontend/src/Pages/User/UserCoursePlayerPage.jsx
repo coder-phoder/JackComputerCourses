@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
+import CourseExpiryNotice from '../../Components/Common/CourseExpiryNotice'
 import ThemeToggle from '../../Components/Common/ThemeToggle'
 import PageTour from '../../Components/Tour/PageTour'
 import UserCodePlayground from '../../Components/User/UserCodePlayground'
@@ -9,6 +10,7 @@ import UserVideoPlayer from '../../Components/User/UserVideoPlayer'
 import getUserCoursePlayerPageTour from '../Tour/User/UserCoursePlayerPageTour'
 import { useAuth } from '../../Context/AuthContext'
 import { resolveInitialVideoKey, saveLastWatchedVideo } from '../../utils/courseProgress'
+import { formatAccessDate, getCourseExpiryWarning } from '../../utils/courseAccess'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -27,22 +29,6 @@ const getPlayableVideos = (chapters) => (
     }))
   ))
 )
-
-const formatAccessDate = (value) => {
-  const dateValue = String(value || '').slice(0, 10)
-  const [year, month, day] = dateValue.split('-').map(Number)
-
-  if (!year || !month || !day) {
-    return ''
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(year, month - 1, day)))
-}
 
 const getAccessText = (course) => {
   if (!course) {
@@ -126,6 +112,7 @@ const UserCoursePlayerPage = () => {
     playableVideos.find((videoItem) => videoItem.key === selectedVideoKey) || null
   ), [playableVideos, selectedVideoKey])
   const accessText = getAccessText(course)
+  const expiryWarning = useMemo(() => getCourseExpiryWarning(course), [course])
 
   const handleSelectVideo = useCallback((videoKey) => {
     setShouldAutoplay(false)
@@ -304,6 +291,11 @@ const UserCoursePlayerPage = () => {
             </Link>
           </div>
         </div>
+
+        {/* Said once, above the player: someone part-way through a course is the person
+            with the most to lose from access closing and the least reason to be reading
+            the date under the title. */}
+        <CourseExpiryNotice warning={expiryWarning} className="mb-4 shrink-0" />
 
         {error ? (
           <section className="min-h-0 flex-1 rounded-lg border border-red-200 bg-red-50 px-6 py-10 text-center shadow-sm dark:border-red-900/60 dark:bg-red-950/40">

@@ -11,7 +11,7 @@ import UserNavbar from '../../Components/User/UserNavbar'
 import UserProfilePrompt from '../../Components/User/Profile/UserProfilePrompt'
 import userHomePageTour from '../Tour/User/UserHomePageTour'
 import { useAuth } from '../../Context/AuthContext'
-import { getCourseAccessDisplay } from '../../utils/courseAccess'
+import { getCourseAccessDisplay, getCourseExpiryWarning } from '../../utils/courseAccess'
 import {
   STATUS_META,
   getMonthLabel,
@@ -244,10 +244,18 @@ const UserHomePage = () => {
             accent="blue"
             browseHref="/user/courses"
             getHref={(course) => `/user/courses/${course._id}/player`}
-            getChip={(course) => ({
-              label: getCourseAccessDisplay(course).value,
-              className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-            })}
+            getChip={(course) => {
+              // A row that is about to close says so in the badge it already had, so the
+              // deadline is spotted from the home list without opening the course.
+              const expiryWarning = getCourseExpiryWarning(course)
+
+              return expiryWarning
+                ? { label: expiryWarning.chipLabel, className: expiryWarning.chipClassName }
+                : {
+                  label: getCourseAccessDisplay(course).value,
+                  className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+                }
+            }}
             openInNewTab
             emptyHint="Courses appear here as soon as they are published or assigned to your number."
           />
