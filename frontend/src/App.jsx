@@ -4,6 +4,9 @@ import AuthLoadingScreen from './Components/Common/AuthLoadingScreen'
 import { AuthProvider, ROLE_HOME_PATHS, fetchRoleProfile, useAuth } from './Context/AuthContext'
 import { ConfirmProvider } from './Context/ConfirmContext'
 import { ThemeProvider } from './Context/ThemeContext'
+import AboutPage from './Pages/Common/AboutPage'
+import ContactPage from './Pages/Common/ContactPage'
+import CoursesPage from './Pages/Common/CoursesPage'
 import LandingPage from './Pages/Common/LandingPage'
 import LoginPage from './Pages/Common/LoginPage'
 import NotFoundPage from './Pages/Common/NotFoundPage'
@@ -129,6 +132,9 @@ const App = () => {
           <Router>
             <Routes>
               <Route path="/" element={<LandingPage />} />
+              <Route path="/courses" element={<CoursesPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/contact" element={<ContactPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route
                 path="/register"
