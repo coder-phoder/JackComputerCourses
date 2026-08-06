@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const User = require('../models/user.model');
 const Course = require('../models/course.model');
 const Bug = require('../models/bug.model');
+const Review = require('../models/review.model');
 const PasswordRequest = require('../models/passwordRequest.model');
 const LoginHistory = require('../models/loginHistory.model');
 const { getActiveUserPhones, isUserPhoneActive } = require('./course.controller');
@@ -595,6 +596,9 @@ const deleteUserByAdmin = async (req, res) => {
             { $pull: { accessGrants: { phone: user.phone } } }
         );
         await LoginHistory.clearAccountHistory('user', user._id);
+        // Their reviews go with the account: a showcased one is on a page the whole
+        // internet can read, and nobody is left to stand behind it.
+        await Review.deleteMany({ userId: user._id });
 
         return res.status(200).json({
             success: true,

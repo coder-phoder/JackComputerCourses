@@ -35,7 +35,7 @@ test('going through the form is what stops the account being asked', () => {
 });
 
 test('asking for later holds the prompt off until the days are up', () => {
-    const waiting = buildUser({ profileRemindAfter: User.getProfileRemindAfter() });
+    const waiting = buildUser({ profileRemindAfter: User.getPromptRemindAfter('profile') });
     const elapsed = buildUser({ profileRemindAfter: new Date(Date.now() - 1000) });
 
     assert.equal(formatUserData(waiting).requiresProfile, false);
@@ -44,9 +44,9 @@ test('asking for later holds the prompt off until the days are up', () => {
 
 test('later is counted from the moment it was asked, not from the next login', () => {
     const asked = new Date('2026-01-01T10:00:00.000Z');
-    const remindAfter = User.getProfileRemindAfter(asked);
+    const remindAfter = User.getPromptRemindAfter('profile', asked);
 
-    assert.equal(remindAfter.getTime() - asked.getTime(), User.PROFILE_REMINDER_DAYS * DAY_MS);
+    assert.equal(remindAfter.getTime() - asked.getTime(), User.PROMPTS.profile.days * DAY_MS);
 });
 
 test('an account that already filled the form in is not asked again by a stale reminder', () => {

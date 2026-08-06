@@ -25,6 +25,7 @@ const { staffAttendanceRoutes } = require('./attendance.routes');
 const courseRoutes = require('./course.routes');
 const { adminTopicNoteRoutes } = require('./topicNote.routes');
 const { adminBugRoutes } = require('./bug.routes');
+const { adminReviewRoutes } = require('./review.routes');
 const { adminPasswordRequestRoutes } = require('./passwordRequest.routes');
 
 const router = express.Router();
@@ -51,5 +52,6 @@ router.get('/notes', authAdmin, getAllNotesByAdmin);
 router.use('/password-requests', authAdmin, adminPasswordRequestRoutes);
 router.use('/topic-notes', authAdmin, adminTopicNoteRoutes);
 router.use('/bugs', authAdmin, adminBugRoutes);
+router.use('/reviews', authAdmin, adminReviewRoutes);
 
 module.exports = router;

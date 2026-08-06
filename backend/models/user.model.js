@@ -17,9 +17,26 @@ const hasFullName = (value) => formatName(value).split(' ').filter(Boolean).leng
 // them together, the account may leave all of them empty, and nothing gates on them.
 const PROFILE_TEXT_FIELDS = ['email', 'alternatePhone', 'occupation', 'address', 'city', 'state', 'pincode'];
 
-// "Remind me later" is answered by the calendar rather than by the next login, so the
-// prompt stays out of the way for three days however often the account signs in.
-const PROFILE_REMINDER_DAYS = 3;
+// The account is asked for two optional things — the rest of its profile, and a review
+// of the institute — and both asks work the same way: they are put once a login lands
+// on the dashboard, going through the form answers them for good, and "remind me later"
+// is answered by the calendar rather than by the next login, so the prompt stays out of
+// the way for its own number of days however often the account signs in. Only the wait
+// and the pair of dates differ, so every prompt reads its behaviour off this one table.
+const PROMPTS = {
+    profile: {
+        days: 3,
+        answeredField: 'profileUpdatedAt',
+        remindField: 'profileRemindAfter'
+    },
+    review: {
+        days: 7,
+        answeredField: 'reviewSubmittedAt',
+        remindField: 'reviewRemindAfter'
+    }
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -107,13 +124,24 @@ const userSchema = new mongoose.Schema({
             }
         }
     },
-    // Going through the form once answers the prompt for good; asking for later only
-    // moves it down the calendar, which is why the two are kept apart.
+    // Going through a form once answers its prompt for good; asking for later only
+    // moves it down the calendar, which is why the two are kept apart. Both prompts
+    // carry the same pair of dates — see PROMPTS for what reads them.
     profileUpdatedAt: {
         type: Date,
         default: null
     },
     profileRemindAfter: {
+        type: Date,
+        default: null
+    },
+    // Written the first time the account reviews the institute. The reviews themselves
+    // live in their own collection; this only retires the ask.
+    reviewSubmittedAt: {
+        type: Date,
+        default: null
+    },
+    reviewRemindAfter: {
         type: Date,
         default: null
     }
@@ -147,22 +175,38 @@ const applyProfileInput = (user, input = {}) => {
 
 // An account that has been through the form is never asked again. Until then it is
 // asked on login, or once the days it asked to be left alone have passed.
-const needsProfilePrompt = (user, now = new Date()) => (
-    !user.profileUpdatedAt && (!user.profileRemindAfter || user.profileRemindAfter <= now)
+const needsPrompt = (user, kind, now = new Date()) => {
+    const { answeredField, remindField } = PROMPTS[kind];
+
+    return !user[answeredField] && (!user[remindField] || user[remindField] <= now);
+};
+
+const getPromptRemindAfter = (kind, now = new Date()) => (
+    new Date(now.getTime() + PROMPTS[kind].days * DAY_MS)
 );
 
-const getProfileRemindAfter = (now = new Date()) => (
-    new Date(now.getTime() + PROFILE_REMINDER_DAYS * 24 * 60 * 60 * 1000)
-);
+// The two answers a prompt can get, written the same way wherever they are given: from
+// a document being saved (user.set) or straight from an update. Answering clears the
+// reminder with it, so a date that has since passed can never put the prompt back.
+const answerPrompt = (kind, now = new Date()) => ({
+    [PROMPTS[kind].answeredField]: now,
+    [PROMPTS[kind].remindField]: null
+});
+
+const remindPromptLater = (kind, now = new Date()) => ({
+    [PROMPTS[kind].remindField]: getPromptRemindAfter(kind, now)
+});
 
 const User = mongoose.model('User', userSchema);
 
 User.formatName = formatName;
 User.hasFullName = hasFullName;
-User.PROFILE_REMINDER_DAYS = PROFILE_REMINDER_DAYS;
+User.PROMPTS = PROMPTS;
 User.formatProfile = formatProfile;
 User.applyProfileInput = applyProfileInput;
-User.needsProfilePrompt = needsProfilePrompt;
-User.getProfileRemindAfter = getProfileRemindAfter;
+User.needsPrompt = needsPrompt;
+User.getPromptRemindAfter = getPromptRemindAfter;
+User.answerPrompt = answerPrompt;
+User.remindPromptLater = remindPromptLater;
 
 module.exports = User;

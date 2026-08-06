@@ -6,7 +6,7 @@ const {
     updateUserName,
     completeUserTour,
     updateUserProfile,
-    remindUserProfileLater,
+    remindUserPromptLater,
     getUserProfile
 } = require('../controllers/user.controller');
 const {
@@ -21,6 +21,7 @@ const workspaceRoutes = require('./workspace.routes');
 const ideShareRoutes = require('./ideShare.routes');
 const { userQueryRoutes } = require('./query.routes');
 const { reporterBugRoutes } = require('./bug.routes');
+const { userReviewRoutes } = require('./review.routes');
 const { publicPasswordRequestRoutes } = require('./passwordRequest.routes');
 
 const router = express.Router();
@@ -32,7 +33,8 @@ router.post('/logout', logoutUser);
 // route that requires a signed in user.
 router.use('/password-requests', publicPasswordRequestRoutes);
 router.get('/profile', authUser, getUserProfile);
-router.patch('/profile/remind-later', authUser, remindUserProfileLater);
+// Every optional ask is put off the same way, so one route answers all of them.
+router.patch('/prompts/:prompt/remind-later', authUser, remindUserPromptLater);
 router.patch('/profile', authUser, updateUserProfile);
 router.patch('/name', authUser, updateUserName);
 router.patch('/tour', authUser, completeUserTour);
@@ -40,6 +42,7 @@ router.use('/attendance', authUser, userAttendanceRoutes);
 router.use('/workspace', authUser, workspaceRoutes);
 router.use('/ide-share', authUser, ideShareRoutes);
 router.use('/bugs', authUser, reporterBugRoutes);
+router.use('/reviews', authUser, userReviewRoutes);
 router.use('/', authUser, userQueryRoutes);
 router.get('/courses', authUser, getCoursesByUser);
 router.get(

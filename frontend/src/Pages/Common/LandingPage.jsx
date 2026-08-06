@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import Navbar from '../../Components/Common/Navbar';
+import ReviewShowcase from '../../Components/Common/ReviewShowcase';
 
 const LandingPage = () => {
   return (
@@ -75,6 +76,10 @@ const LandingPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Written by students, picked by the institute. Absent until there is
+            something picked to show. */}
+        <ReviewShowcase />
       </main>
     </div>
   );

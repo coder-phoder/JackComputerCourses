@@ -7,6 +7,7 @@ import {
   FileText,
   GraduationCap,
   Search,
+  Star,
   Users,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -27,6 +28,7 @@ const DESTINATIONS = [
   { to: '/admin/courses', label: 'Courses', hint: 'Catalogue, chapters and access', Icon: BookOpen },
   { to: '/admin/topic-notes', label: 'Notes', hint: 'Topic notes pulled from Drive', Icon: FileText },
   { to: '/admin/bugs', label: 'Bugs', hint: 'Open reports and decided history', Icon: Bug, badgeKey: 'bugs' },
+  { to: '/admin/reviews', label: 'Reviews', hint: 'Student reviews and the landing page showcase', Icon: Star },
 ]
 
 const matches = (query, ...fields) => (

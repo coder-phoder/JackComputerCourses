@@ -9,6 +9,7 @@ import {
   Phone,
   Search,
   ShieldCheck,
+  Star,
   TriangleAlert,
   Users,
 } from 'lucide-react'
@@ -28,6 +29,7 @@ const DECK_LINKS = [
   { to: '/admin/courses', label: 'Courses', Icon: BookOpen },
   { to: '/admin/topic-notes', label: 'Notes', Icon: FileText },
   { to: '/admin/bugs', label: 'Bugs', Icon: Bug, badgeKey: 'bugs' },
+  { to: '/admin/reviews', label: 'Reviews', Icon: Star },
 ]
 
 const clockFormat = new Intl.DateTimeFormat(undefined, {

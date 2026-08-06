@@ -26,6 +26,7 @@ import CourseAccessPage from './Pages/Admin/CourseAccessPage'
 import AdminNotes from './Pages/Admin/AdminNotes'
 import AdminTopicNotes from './Pages/Admin/AdminTopicNotes'
 import AdminBugs from './Pages/Admin/AdminBugs'
+import AdminReviews from './Pages/Admin/AdminReviews'
 import FacultyHomePage from './Pages/Faculty/FacultyHomePage'
 import FacultyAttendance from './Pages/Faculty/FacultyAttendance'
 import FacultyCoursesPage from './Pages/Faculty/FacultyCoursesPage'
@@ -158,6 +159,7 @@ const App = () => {
               <Route path="/admin/courses" element={protect('admin', <AdminCourses />)} />
               <Route path="/admin/topic-notes" element={protect('admin', <AdminTopicNotes />)} />
               <Route path="/admin/bugs" element={protect('admin', <AdminBugs />)} />
+              <Route path="/admin/reviews" element={protect('admin', <AdminReviews />)} />
               <Route path="/admin/courses/:courseId/access" element={protect('admin', <CourseAccessPage />)} />
               <Route path="/admin/courses/:courseId/notes" element={protect('admin', <AdminNotes />)} />
               <Route path="/admin/courses/:courseId" element={protect('admin', <Course />)} />

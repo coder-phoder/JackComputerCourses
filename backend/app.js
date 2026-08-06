@@ -10,6 +10,7 @@ const adminRoutes = require('./routes/admin.routes');
 const userRoutes = require('./routes/user.routes');
 const facultyRoutes = require('./routes/faculty.routes');
 const ideShareRoutes = require('./routes/ideShare.routes');
+const { publicReviewRoutes } = require('./routes/review.routes');
 const { streamDriveFile } = require('./controllers/drive.controller');
 
 app.use(cors({
@@ -47,6 +48,9 @@ app.use('/admin', adminRoutes);
 app.use('/user', userRoutes);
 app.use('/faculty', facultyRoutes);
 app.use('/ide-share', ideShareRoutes);
+// The landing page is read by visitors who have not signed in, so the reviews it
+// showcases are served without a session.
+app.use('/reviews', publicReviewRoutes);
 app.get('/drive-files/:fileId', streamDriveFile);
 
 app.use((req, res) => {
