@@ -3,6 +3,8 @@ const Workspace = require('../models/workspace.model');
 const WorkspaceNode = require('../models/workspaceNode.model');
 const {
     MAX_FILE_SIZE_BYTES,
+    MAX_TEST_CASES_PER_NODE,
+    MAX_TEST_CASE_FIELD_LENGTH,
     getLanguageFromFileName
 } = require('../models/workspaceNode.model');
 
@@ -19,6 +21,11 @@ const sendError = (res, statusCode, message) => res.status(statusCode).json({
     data: {}
 });
 
+const formatTestCases = (testCases) => (Array.isArray(testCases) ? testCases : []).map((testCase) => ({
+    input: String(testCase?.input || ''),
+    expectedOutput: String(testCase?.expectedOutput || '')
+}));
+
 const formatWorkspaceNode = (node) => ({
     _id: node._id.toString(),
     workspaceId: node.workspaceId.toString(),
@@ -28,6 +35,7 @@ const formatWorkspaceNode = (node) => ({
     language: node.language || null,
     content: node.type === 'file' ? node.content : '',
     size: node.size || 0,
+    testCases: node.type === 'file' ? formatTestCases(node.testCases) : [],
     createdAt: node.createdAt,
     updatedAt: node.updatedAt
 });
@@ -1265,7 +1273,8 @@ const copyWorkspaceNodes = async (req, res) => {
                 name: nextName,
                 parentId: copiedParentId || null,
                 language: sourceNode.type === 'file' ? sourceNode.language : null,
-                content: sourceNode.type === 'file' ? sourceNode.content || '' : ''
+                content: sourceNode.type === 'file' ? sourceNode.content || '' : '',
+                testCases: sourceNode.type === 'file' ? formatTestCases(sourceNode.testCases) : []
             });
 
             createdNodeIds.push(copiedNode._id);
@@ -1388,6 +1397,90 @@ const updateWorkspaceNode = async (req, res) => {
     }
 };
 
+const normalizeTestCasesPayload = (rawTestCases) => {
+    if (!Array.isArray(rawTestCases)) {
+        return { error: 'Test cases must be sent as an array' };
+    }
+
+    if (rawTestCases.length > MAX_TEST_CASES_PER_NODE) {
+        return { error: `A file cannot hold more than ${MAX_TEST_CASES_PER_NODE} test cases` };
+    }
+
+    const testCases = [];
+
+    for (const rawTestCase of rawTestCases) {
+        if (!rawTestCase || typeof rawTestCase !== 'object') {
+            return { error: 'Every test case must be an object' };
+        }
+
+        const input = String(rawTestCase.input || '');
+        const expectedOutput = String(rawTestCase.expectedOutput || '');
+
+        if (input.length > MAX_TEST_CASE_FIELD_LENGTH || expectedOutput.length > MAX_TEST_CASE_FIELD_LENGTH) {
+            return { error: `Test case input and expected output must stay under ${MAX_TEST_CASE_FIELD_LENGTH / 1024}KB` };
+        }
+
+        testCases.push({ input, expectedOutput });
+    }
+
+    return { testCases };
+};
+
+const updateWorkspaceNodeTestCases = async (req, res) => {
+    try {
+        const owner = getWorkspaceOwner(req);
+        const { workspaceId, nodeId } = req.params;
+
+        if (!owner) {
+            return sendError(res, 401, 'Workspace authentication is required');
+        }
+
+        const workspace = await getWorkspaceById(owner, workspaceId);
+
+        if (!workspace) {
+            return sendError(res, 404, 'Workspace not found');
+        }
+
+        if (!isValidObjectId(nodeId)) {
+            return sendError(res, 400, 'Invalid workspace node id');
+        }
+
+        const node = await WorkspaceNode.findOne({
+            ...getNodeQuery(owner, workspace._id),
+            _id: nodeId
+        });
+
+        if (!node) {
+            return sendError(res, 404, 'Workspace node not found');
+        }
+
+        if (node.type !== 'file') {
+            return sendError(res, 400, 'Only files can hold test cases');
+        }
+
+        const normalizedPayload = normalizeTestCasesPayload(req.body?.testCases);
+
+        if (normalizedPayload.error) {
+            return sendError(res, 400, normalizedPayload.error);
+        }
+
+        node.testCases = normalizedPayload.testCases;
+        await node.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Test cases updated successfully',
+            data: { node: formatWorkspaceNode(node) }
+        });
+    } catch (error) {
+        if (error.name === 'ValidationError') {
+            return sendError(res, 400, error.message);
+        }
+
+        return sendError(res, 500, 'Something went wrong while updating test cases');
+    }
+};
+
 const deleteWorkspaceNode = async (req, res) => {
     try {
         const owner = getWorkspaceOwner(req);
@@ -1450,8 +1543,10 @@ module.exports = {
     copyWorkspaceNodes,
     moveWorkspaceNodes,
     updateWorkspaceNode,
+    updateWorkspaceNodeTestCases,
     deleteWorkspaceNode,
     formatWorkspaceNode,
+    normalizeTestCasesPayload,
     formatWorkspace,
     getWorkspaceOwner,
     buildZipArchive,

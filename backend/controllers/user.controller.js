@@ -24,7 +24,10 @@ const formatUserData = (user) => ({
     requiresTour: !user.tourCompletedAt,
     // The optional details, and whether this login is due to be asked for them.
     profile: User.formatProfile(user.profile),
-    requiresProfile: User.needsProfilePrompt(user),
+    requiresProfile: User.needsPrompt(user, 'profile'),
+    // The other optional ask: what the account makes of the institute. Asked for the
+    // same way, and owed until it is either answered or put off.
+    requiresReview: User.needsPrompt(user, 'review'),
     role: 'user'
 });
 
@@ -337,8 +340,7 @@ const updateUserProfile = async (req, res) => {
         }
 
         User.applyProfileInput(user, req.body || {});
-        user.profileUpdatedAt = new Date();
-        user.profileRemindAfter = null;
+        user.set(User.answerPrompt('profile'));
         await user.save();
 
         return res.status(200).json({
@@ -365,29 +367,42 @@ const updateUserProfile = async (req, res) => {
     }
 };
 
-// Asking for later buys a fixed number of days, counted from the moment it was asked.
-// An account that has already filled the form in is never put back on the clock.
-const remindUserProfileLater = async (req, res) => {
+// Asking for later buys that prompt's own number of days, counted from the moment it
+// was asked. An account that has already answered is never put back on the clock, so
+// the filter carries the answer the same way for whichever prompt was put off.
+const remindUserPromptLater = async (req, res) => {
+    const { prompt } = req.params;
+
     try {
-        const remindAfter = User.getProfileRemindAfter();
+        const promptSettings = User.PROMPTS[prompt];
+
+        if (!promptSettings) {
+            return res.status(404).json({
+                success: false,
+                message: 'Unknown prompt',
+                data: {}
+            });
+        }
+
+        const reminder = User.remindPromptLater(prompt);
 
         await User.updateOne(
             {
                 _id: req.user._id,
-                profileUpdatedAt: null
+                [promptSettings.answeredField]: null
             },
-            { $set: { profileRemindAfter: remindAfter } }
+            { $set: reminder }
         );
 
         return res.status(200).json({
             success: true,
-            message: 'Profile reminder scheduled',
-            data: { remindAfter }
+            message: 'Reminder scheduled',
+            data: { remindAfter: reminder[promptSettings.remindField] }
         });
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: 'Something went wrong while scheduling the profile reminder',
+            message: 'Something went wrong while scheduling the reminder',
             data: {}
         });
     }
@@ -416,7 +431,7 @@ module.exports = {
     updateUserName,
     completeUserTour,
     updateUserProfile,
-    remindUserProfileLater,
+    remindUserPromptLater,
     formatUserData,
     getUserProfile
 };

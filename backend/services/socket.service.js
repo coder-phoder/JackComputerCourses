@@ -5,6 +5,10 @@ const path = require('path');
 const { languageConfigs } = require('../controllers/code.controller');
 
 const RUN_TIMEOUT_MS = 30000; // 30s timeout
+const TEST_CASE_TIMEOUT_MS = 10000; // 10s per test case
+const MAX_TEST_CASES_PER_RUN = 20;
+const MAX_TEST_CASE_INPUT_LENGTH = 8 * 1024;
+const MAX_TEST_CASE_OUTPUT_LENGTH = 32 * 1024;
 const C_STDOUT_SETUP_HEADER = 'jack_stdout_setup.h';
 const JS_PROMPT_RUNTIME_FILE = 'jack_prompt_runtime.cjs';
 const C_STDOUT_SETUP_SOURCE = [
@@ -79,11 +83,172 @@ function getRunConfig(config, dir, language) {
     return runConfig;
 }
 
+async function createRunDirectory(prefix, language, code, config) {
+    const runDirectory = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+
+    await fs.writeFile(path.join(runDirectory, config.fileName), code, 'utf8');
+    await writeRuntimeSupportFiles(language, runDirectory);
+
+    return runDirectory;
+}
+
+function compileInDirectory(config, dir, language) {
+    return new Promise((resolve) => {
+        const compileSetup = getCompileConfig(config, dir, language);
+        let settled = false;
+        let output = '';
+
+        const settle = (success) => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            resolve({ success, output });
+        };
+
+        let compileProcess = null;
+
+        try {
+            compileProcess = spawn(compileSetup.command, compileSetup.args, {
+                cwd: dir,
+                shell: false,
+                windowsHide: true
+            });
+        } catch (spawnError) {
+            output += `${spawnError.message}\n`;
+            settle(false);
+            return;
+        }
+
+        const appendOutput = (data) => {
+            output += data.toString();
+        };
+
+        compileProcess.stdout.on('data', appendOutput);
+        compileProcess.stderr.on('data', appendOutput);
+        compileProcess.on('error', (compileError) => {
+            output += `${compileError.message}\n`;
+            settle(false);
+        });
+        compileProcess.on('close', (exitCode) => settle(exitCode === 0));
+    });
+}
+
+function runProcessWithInput({ command, args, cwd, input, timeoutMs, onSpawn }) {
+    return new Promise((resolve) => {
+        const startedAt = Date.now();
+        let runProcess = null;
+
+        try {
+            runProcess = spawn(command, args, {
+                cwd,
+                shell: false,
+                windowsHide: true
+            });
+        } catch (spawnError) {
+            resolve({
+                stdout: '',
+                stderr: `Execution error: ${spawnError.message}\n`,
+                exitCode: 1,
+                timedOut: false,
+                truncated: false,
+                durationMs: 0
+            });
+            return;
+        }
+
+        let stdout = '';
+        let stderr = '';
+        let truncated = false;
+        let timedOut = false;
+        let settled = false;
+
+        const appendChunk = (current, chunk) => {
+            const remaining = MAX_TEST_CASE_OUTPUT_LENGTH - current.length;
+
+            if (remaining <= 0) {
+                truncated = true;
+                return current;
+            }
+
+            if (chunk.length > remaining) {
+                truncated = true;
+                return current + chunk.slice(0, remaining);
+            }
+
+            return current + chunk;
+        };
+
+        const timeoutId = setTimeout(() => {
+            timedOut = true;
+
+            try {
+                runProcess.kill('SIGKILL');
+            } catch (killError) {}
+        }, timeoutMs);
+
+        const settle = (exitCode) => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            clearTimeout(timeoutId);
+            resolve({
+                stdout,
+                stderr,
+                exitCode,
+                timedOut,
+                truncated,
+                durationMs: Date.now() - startedAt
+            });
+        };
+
+        if (onSpawn) {
+            onSpawn(runProcess);
+        }
+
+        runProcess.stdout.on('data', (data) => {
+            stdout = appendChunk(stdout, data.toString());
+        });
+
+        runProcess.stderr.on('data', (data) => {
+            stderr = appendChunk(stderr, data.toString());
+        });
+
+        runProcess.on('error', (runError) => {
+            stderr = appendChunk(stderr, `Execution error: ${runError.message}\n`);
+            settle(1);
+        });
+
+        runProcess.on('close', (exitCode) => settle(exitCode));
+
+        runProcess.stdin.on('error', () => {});
+        runProcess.stdin.end(input);
+    });
+}
+
+function normalizeTestCases(testCases) {
+    if (!Array.isArray(testCases)) {
+        return [];
+    }
+
+    return testCases.slice(0, MAX_TEST_CASES_PER_RUN).map((testCase, index) => ({
+        id: String(testCase?.id || index),
+        input: String(testCase?.input || '').slice(0, MAX_TEST_CASE_INPUT_LENGTH)
+    }));
+}
+
 function initSocket(io) {
     io.on('connection', (socket) => {
         let childProcess = null;
         let tempDir = null;
         let timeoutId = null;
+
+        let batchProcess = null;
+        let batchDir = null;
+        let batchToken = 0;
 
         const cleanup = async () => {
             if (timeoutId) {
@@ -104,6 +269,23 @@ function initSocket(io) {
             }
         };
 
+        const cleanupBatch = async () => {
+            batchToken += 1;
+
+            if (batchProcess) {
+                try {
+                    batchProcess.kill('SIGKILL');
+                } catch (e) {}
+                batchProcess = null;
+            }
+            if (batchDir) {
+                try {
+                    await fs.rm(batchDir, { recursive: true, force: true });
+                } catch (e) {}
+                batchDir = null;
+            }
+        };
+
         socket.on('run-code', async ({ language, code }) => {
             await cleanup();
 
@@ -121,36 +303,16 @@ function initSocket(io) {
             }
 
             try {
-                tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'jack-interactive-'));
-                const fileToCreate = path.join(tempDir, config.fileName);
-                await fs.writeFile(fileToCreate, code, 'utf8');
-                await writeRuntimeSupportFiles(language.toLowerCase(), tempDir);
+                const normalizedLanguage = language.toLowerCase();
+                tempDir = await createRunDirectory('jack-interactive-', normalizedLanguage, code, config);
 
                 if (config.compile) {
                     socket.emit('terminal-output', 'Compiling...\n');
-                    const comp = getCompileConfig(config, tempDir, language.toLowerCase());
-                    
-                    const compileProc = spawn(comp.command, comp.args, {
-                        cwd: tempDir,
-                        shell: false,
-                        windowsHide: true
-                    });
+                    const compileResult = await compileInDirectory(config, tempDir, normalizedLanguage);
 
-                    let compStderr = '';
-                    compileProc.stderr.on('data', (data) => {
-                        compStderr += data.toString();
-                    });
-                    compileProc.stdout.on('data', (data) => {
-                        compStderr += data.toString();
-                    });
-
-                    const compileExitCode = await new Promise((resolve) => {
-                        compileProc.on('close', resolve);
-                    });
-
-                    if (compileExitCode !== 0) {
-                        socket.emit('terminal-output', `Compilation Failed:\n${compStderr}\n`);
-                        socket.emit('process-exit', compileExitCode);
+                    if (!compileResult.success) {
+                        socket.emit('terminal-output', `Compilation Failed:\n${compileResult.output}\n`);
+                        socket.emit('process-exit', 1);
                         await cleanup();
                         return;
                     }
@@ -208,8 +370,119 @@ function initSocket(io) {
             await cleanup();
         });
 
+        socket.on('run-testcases', async ({ language, code, testCases }) => {
+            await cleanupBatch();
+
+            const currentToken = batchToken;
+            const isStale = () => currentToken !== batchToken;
+            const config = languageConfigs[language?.toLowerCase()];
+
+            if (!config) {
+                socket.emit('testcase-batch-done', { error: 'Unsupported language.' });
+                return;
+            }
+
+            if (!code || !code.trim()) {
+                socket.emit('testcase-batch-done', { error: 'Code is empty.' });
+                return;
+            }
+
+            const runnableTestCases = normalizeTestCases(testCases);
+
+            if (!runnableTestCases.length) {
+                socket.emit('testcase-batch-done', { error: 'Add at least one test case first.' });
+                return;
+            }
+
+            try {
+                const normalizedLanguage = language.toLowerCase();
+                const runDirectory = await createRunDirectory('jack-testcases-', normalizedLanguage, code, config);
+
+                if (isStale()) {
+                    await fs.rm(runDirectory, { recursive: true, force: true }).catch(() => {});
+                    return;
+                }
+
+                batchDir = runDirectory;
+
+                if (config.compile) {
+                    socket.emit('testcase-batch-compiling', {});
+                    const compileResult = await compileInDirectory(config, runDirectory, normalizedLanguage);
+
+                    if (isStale()) {
+                        return;
+                    }
+
+                    if (!compileResult.success) {
+                        socket.emit('testcase-batch-done', {
+                            error: 'Compilation failed.',
+                            compileOutput: compileResult.output
+                        });
+                        await cleanupBatch();
+                        return;
+                    }
+                }
+
+                const runner = getRunConfig(config, runDirectory, normalizedLanguage);
+
+                for (const testCase of runnableTestCases) {
+                    if (isStale()) {
+                        return;
+                    }
+
+                    socket.emit('testcase-started', { id: testCase.id });
+
+                    const result = await runProcessWithInput({
+                        command: runner.command,
+                        args: runner.args,
+                        cwd: runDirectory,
+                        input: testCase.input,
+                        timeoutMs: TEST_CASE_TIMEOUT_MS,
+                        onSpawn: (spawnedProcess) => {
+                            if (isStale()) {
+                                try {
+                                    spawnedProcess.kill('SIGKILL');
+                                } catch (e) {}
+                                return;
+                            }
+
+                            batchProcess = spawnedProcess;
+                        }
+                    });
+
+                    if (isStale()) {
+                        return;
+                    }
+
+                    batchProcess = null;
+
+                    socket.emit('testcase-result', {
+                        id: testCase.id,
+                        ...result,
+                        timeoutMs: TEST_CASE_TIMEOUT_MS
+                    });
+                }
+
+                socket.emit('testcase-batch-done', {});
+                await cleanupBatch();
+            } catch (batchError) {
+                if (isStale()) {
+                    return;
+                }
+
+                socket.emit('testcase-batch-done', { error: `System error: ${batchError.message}` });
+                await cleanupBatch();
+            }
+        });
+
+        socket.on('stop-testcases', async () => {
+            await cleanupBatch();
+            socket.emit('testcase-batch-done', { stopped: true });
+        });
+
         socket.on('disconnect', async () => {
             await cleanup();
+            await cleanupBatch();
         });
     });
 }

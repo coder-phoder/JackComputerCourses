@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 
 const MAX_FILE_SIZE_BYTES = 200 * 1024;
+const MAX_TEST_CASES_PER_NODE = 20;
+const MAX_TEST_CASE_FIELD_LENGTH = 8 * 1024;
 
 const LANGUAGE_BY_EXTENSION = {
     '.c': 'c',
@@ -22,6 +24,19 @@ const getFileExtension = (name) => {
 };
 
 const getLanguageFromFileName = (name) => LANGUAGE_BY_EXTENSION[getFileExtension(name)] || '';
+
+const testCaseSchema = new mongoose.Schema({
+    input: {
+        type: String,
+        default: '',
+        maxlength: MAX_TEST_CASE_FIELD_LENGTH
+    },
+    expectedOutput: {
+        type: String,
+        default: '',
+        maxlength: MAX_TEST_CASE_FIELD_LENGTH
+    }
+}, { _id: false });
 
 const workspaceNodeSchema = new mongoose.Schema({
     ownerRole: {
@@ -94,6 +109,16 @@ const workspaceNodeSchema = new mongoose.Schema({
         min: 0,
         max: MAX_FILE_SIZE_BYTES,
         default: 0
+    },
+    testCases: {
+        type: [testCaseSchema],
+        default: [],
+        validate: {
+            validator(value) {
+                return !Array.isArray(value) || value.length <= MAX_TEST_CASES_PER_NODE;
+            },
+            message: `A file cannot hold more than ${MAX_TEST_CASES_PER_NODE} test cases`
+        }
     }
 }, {
     timestamps: true
@@ -104,6 +129,7 @@ workspaceNodeSchema.pre('validate', function setWorkspaceNodeDerivedFields() {
         this.language = null;
         this.content = '';
         this.size = 0;
+        this.testCases = [];
         return;
     }
 
@@ -119,4 +145,6 @@ workspaceNodeSchema.index({ ownerRole: 1, ownerId: 1, workspaceId: 1, parentId: 
 module.exports = mongoose.model('WorkspaceNode', workspaceNodeSchema);
 module.exports.LANGUAGE_BY_EXTENSION = LANGUAGE_BY_EXTENSION;
 module.exports.MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_BYTES;
+module.exports.MAX_TEST_CASES_PER_NODE = MAX_TEST_CASES_PER_NODE;
+module.exports.MAX_TEST_CASE_FIELD_LENGTH = MAX_TEST_CASE_FIELD_LENGTH;
 module.exports.getLanguageFromFileName = getLanguageFromFileName;

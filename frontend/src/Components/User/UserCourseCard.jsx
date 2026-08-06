@@ -1,11 +1,14 @@
+import { AlertTriangle } from 'lucide-react'
 import CourseCardFooter from '../Common/CourseCardFooter'
 import CourseMetaList from '../Common/CourseMetaList'
 import CourseThumbnail from '../Common/CourseThumbnail'
 import { accessEndsMeta, chapterMeta, videoMeta } from '../../utils/courseMeta'
+import { getCourseExpiryWarning } from '../../utils/courseAccess'
 
 const UserCourseCard = ({ course, playerUrl, dataTour }) => {
   const description = course.shortDescription || course.description || 'Course details are not available.'
   const courseTags = [course.category, course.level, course.language].filter(Boolean)
+  const expiryWarning = getCourseExpiryWarning(course)
 
   return (
     <a
@@ -36,8 +39,16 @@ const UserCourseCard = ({ course, playerUrl, dataTour }) => {
         ) : null}
 
         {/* A student has already paid to be here, so the deadline is what they need off a
-            card — it closes on its own line rather than queueing behind the chapter count. */}
+            card — it closes on its own line rather than queueing behind the chapter count.
+            A date only says when access ends; the badge is what says it is nearly here, so
+            a course about to close is spotted without reading every card's date. */}
         <div className="mt-auto pt-4">
+          {expiryWarning ? (
+            <span className={`mb-3 inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${expiryWarning.chipClassName}`}>
+              <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+              {expiryWarning.chipLabel}
+            </span>
+          ) : null}
           <CourseMetaList items={[chapterMeta(course), videoMeta(course)]} />
           <CourseCardFooter primary={accessEndsMeta(course)} />
         </div>

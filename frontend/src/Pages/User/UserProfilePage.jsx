@@ -11,6 +11,7 @@ import UserProfileLockedRow from '../../Components/User/Profile/UserProfileLocke
 import UserProfileRow from '../../Components/User/Profile/UserProfileRow'
 import UserProfileSaveBar from '../../Components/User/Profile/UserProfileSaveBar'
 import UserProfileSidebar from '../../Components/User/Profile/UserProfileSidebar'
+import UserReviewsPanel from '../../Components/User/Review/UserReviewsPanel'
 import userProfilePageTour from '../Tour/User/UserProfilePageTour'
 import { useAuth } from '../../Context/AuthContext'
 import { fadeUp, staggerParent } from '../../utils/motion'
@@ -32,6 +33,10 @@ const API_BASE_URL = import.meta.env.VITE_BASE_URL
 const SAVED_MESSAGE_MS = 3500
 
 const ACCOUNT_SECTION_ID = 'account'
+
+// The two stops on the rail that are not a group of profile fields: what the institute
+// holds and cannot be edited here, and what the account has said about the institute.
+const REVIEWS_SECTION_ID = 'reviews'
 
 const UserProfilePage = () => {
   const { auth, clearAuth, setAuth } = useAuth()
@@ -107,6 +112,13 @@ const UserProfilePage = () => {
     }
   }, [clearAuth, setAuth])
 
+  // A session that has run out is the same answer wherever the page notices it: on the
+  // first load, on a save, or under the reviews the panel loads for itself.
+  const handleAuthError = useCallback(() => {
+    clearAuth()
+    setIsAuthorized(false)
+  }, [clearAuth])
+
   const errors = useMemo(() => validateProfile(form), [form])
   const invalidCount = Object.keys(errors).length
 
@@ -140,6 +152,9 @@ const UserProfilePage = () => {
         hasError: section.fields.some((field) => showsError(field.name)),
       }
     }),
+    // Reviews are not a form the page saves, so this stop carries no count and nothing
+    // in it can hold the save bar up.
+    { id: REVIEWS_SECTION_ID, label: 'My reviews', count: '' },
   ], [form, showsError])
 
   // A stop that describes a group cannot light it while another one is showing, so the
@@ -263,8 +278,7 @@ const UserProfilePage = () => {
       setSaved(true)
     } catch (saveError) {
       if ([401, 403].includes(saveError?.response?.status)) {
-        clearAuth()
-        setIsAuthorized(false)
+        handleAuthError()
         return
       }
 
@@ -272,7 +286,7 @@ const UserProfilePage = () => {
     } finally {
       setSaving(false)
     }
-  }, [clearAuth, form])
+  }, [form, handleAuthError])
 
   // A long form is a page people save from the keyboard, and the browser's own answer
   // to that key is to write the page to disk, which is never what was meant here.
@@ -307,6 +321,7 @@ const UserProfilePage = () => {
   }
 
   const activeGroup = PROFILE_SECTIONS.find((section) => section.id === activeSection)
+  const isReviewsSection = activeSection === REVIEWS_SECTION_ID
 
   const accountValues = {
     name: account?.name || 'Student',
@@ -378,6 +393,14 @@ const UserProfilePage = () => {
                         />
                       ))}
                     </UserProfileGroup>
+                  ) : isReviewsSection ? (
+                    <UserProfileGroup
+                      tourId="profile-reviews"
+                      title="My reviews"
+                      description="What you have said about the institute. Yours to edit or delete whenever you like."
+                    >
+                      <UserReviewsPanel onAuthError={handleAuthError} />
+                    </UserProfileGroup>
                   ) : (
                     <UserProfileGroup
                       tourId="profile-account"
@@ -412,16 +435,21 @@ const UserProfilePage = () => {
               ) : null}
             </AnimatePresence>
 
-            <UserProfileSaveBar
-              filled={filledCount}
-              total={PROFILE_FIELDS.length}
-              percent={percent}
-              isDirty={isDirty}
-              saving={saving}
-              saved={saved}
-              invalidCount={(saveAttempted || Object.keys(touched).length) ? invalidCount : 0}
-              onDiscard={handleDiscard}
-            />
+            {/* The bar saves the profile form, and a review is saved as it is written,
+                so the reviews stop stands on its own without it. Anything typed into a
+                group is still held while it is away from the screen. */}
+            {isReviewsSection ? null : (
+              <UserProfileSaveBar
+                filled={filledCount}
+                total={PROFILE_FIELDS.length}
+                percent={percent}
+                isDirty={isDirty}
+                saving={saving}
+                saved={saved}
+                invalidCount={(saveAttempted || Object.keys(touched).length) ? invalidCount : 0}
+                onDiscard={handleDiscard}
+              />
+            )}
           </motion.form>
         </motion.div>
       </MotionConfig>

@@ -11,6 +11,7 @@ const {
     copyWorkspaceNodes,
     moveWorkspaceNodes,
     updateWorkspaceNode,
+    updateWorkspaceNodeTestCases,
     deleteWorkspaceNode
 } = require('../controllers/workspace.controller');
 
@@ -28,6 +29,7 @@ router.post('/workspaces/:workspaceId/nodes', createWorkspaceNode);
 router.post('/workspaces/:workspaceId/nodes/copy', copyWorkspaceNodes);
 router.post('/workspaces/:workspaceId/nodes/move', moveWorkspaceNodes);
 router.patch('/workspaces/:workspaceId/nodes/:nodeId', updateWorkspaceNode);
+router.patch('/workspaces/:workspaceId/nodes/:nodeId/testcases', updateWorkspaceNodeTestCases);
 router.delete('/workspaces/:workspaceId/nodes/:nodeId', deleteWorkspaceNode);
 
 module.exports = router;

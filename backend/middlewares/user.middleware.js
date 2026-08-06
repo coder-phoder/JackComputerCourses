@@ -32,7 +32,7 @@ const authUser = async (req, res, next) => {
         }
 
         const user = await User.findById(decoded.id)
-            .select('name phone tourCompletedAt profile profileUpdatedAt profileRemindAfter +activeSessionId');
+            .select('name phone tourCompletedAt profile profileUpdatedAt profileRemindAfter reviewSubmittedAt reviewRemindAfter +activeSessionId');
 
         if (
             !user
@@ -57,7 +57,10 @@ const authUser = async (req, res, next) => {
             // Optional details, sent with every profile read so the page it fills can
             // start from what is already stored.
             profile: User.formatProfile(user.profile),
-            requiresProfile: User.needsProfilePrompt(user),
+            requiresProfile: User.needsPrompt(user, 'profile'),
+            // The other optional ask, owed until the account has either reviewed the
+            // institute or asked to be left alone about it.
+            requiresReview: User.needsPrompt(user, 'review'),
             role: 'user'
         };
 

@@ -17,6 +17,7 @@ const NAV_LINKS = [
   { to: '/admin/courses', label: 'Courses' },
   { to: '/admin/topic-notes', label: 'Notes' },
   { to: '/admin/bugs', label: 'Bugs', alertKey: 'bugs' },
+  { to: '/admin/reviews', label: 'Reviews' },
 ]
 
 const getNavLinkClass = ({ isActive }) => `relative rounded-lg px-3 py-2 text-sm font-semibold transition ${

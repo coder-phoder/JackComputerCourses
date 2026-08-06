@@ -1,4 +1,4 @@
-import { Gauge, Lock, MapPin, Save, UserRound } from 'lucide-react'
+import { Gauge, Lock, MapPin, Save, Star, UserRound } from 'lucide-react'
 
 // Only one group is mounted at a time, so a stop that points at one names it here and
 // the page opens it on the way in.
@@ -64,6 +64,21 @@ const userProfilePageTour = [
       'Nothing is stored until you save',
       'One save keeps every group at once',
       'Discard puts back what was last saved',
+    ],
+  },
+  // Last, because the reviews stop has no save bar under it: the walkthrough leaves
+  // the page on this group rather than passing back through it.
+  {
+    id: 'profile-reviews',
+    target: '[data-tour="profile-reviews"]',
+    section: 'reviews',
+    icon: Star,
+    eyebrow: 'Stop 6',
+    title: 'What you think',
+    points: [
+      'Rate the institute and say why',
+      'Saved the moment you send it',
+      'Yours to edit or delete any time',
     ],
   },
 ]

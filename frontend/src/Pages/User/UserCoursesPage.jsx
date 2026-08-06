@@ -2,6 +2,7 @@ import axios from 'axios'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import CourseCatalogControls from '../../Components/Common/CourseCatalogControls'
+import CourseExpiryNotice from '../../Components/Common/CourseExpiryNotice'
 import PageTour from '../../Components/Tour/PageTour'
 import {
   defaultCourseCatalogFilters,
@@ -11,6 +12,7 @@ import UserCourseCard from '../../Components/User/UserCourseCard'
 import UserNavbar from '../../Components/User/UserNavbar'
 import userCoursesPageTour from '../Tour/User/UserCoursesPageTour'
 import { useAuth } from '../../Context/AuthContext'
+import { getCourseExpiryWarning } from '../../utils/courseAccess'
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -33,6 +35,36 @@ const UserCoursesPage = () => {
     () => getFilteredSortedCourses(courses, courseFilters),
     [courses, courseFilters],
   )
+
+  // Read off every course rather than the filtered grid: a deadline does not stop
+  // mattering because a search is narrowing the page, and the soonest one is the one
+  // worth leading with.
+  const expirySummary = useMemo(() => {
+    const expiringCourses = courses
+      .map((course) => ({ course, warning: getCourseExpiryWarning(course) }))
+      .filter((entry) => entry.warning)
+      .sort((first, second) => first.warning.daysRemaining - second.warning.daysRemaining)
+
+    if (!expiringCourses.length) {
+      return null
+    }
+
+    const [mostUrgent] = expiringCourses
+
+    if (expiringCourses.length === 1) {
+      return {
+        warning: mostUrgent.warning,
+        title: `${mostUrgent.course.title}: ${mostUrgent.warning.chipLabel.toLowerCase()}`,
+        detail: mostUrgent.warning.detail,
+      }
+    }
+
+    return {
+      warning: mostUrgent.warning,
+      title: `${expiringCourses.length} of your courses are ending soon`,
+      detail: `${mostUrgent.course.title} is the first to close (${mostUrgent.warning.chipLabel.toLowerCase()}).`,
+    }
+  }, [courses])
 
   const fetchCourses = useCallback(async (options = {}) => {
     const shouldUpdate = options.shouldUpdate || (() => true)
@@ -177,6 +209,15 @@ const UserCoursesPage = () => {
               Retry
             </button>
           </div>
+        ) : null}
+
+        {!loadingCourses && expirySummary ? (
+          <CourseExpiryNotice
+            warning={expirySummary.warning}
+            title={expirySummary.title}
+            detail={expirySummary.detail}
+            className="mb-6"
+          />
         ) : null}
 
         {!loadingCourses && courses.length ? (

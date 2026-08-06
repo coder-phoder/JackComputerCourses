@@ -9,9 +9,10 @@ import UserHomeQuickLinks from '../../Components/User/UserHomeQuickLinks'
 import UserHomeStats from '../../Components/User/UserHomeStats'
 import UserNavbar from '../../Components/User/UserNavbar'
 import UserProfilePrompt from '../../Components/User/Profile/UserProfilePrompt'
+import UserReviewPrompt from '../../Components/User/Review/UserReviewPrompt'
 import userHomePageTour from '../Tour/User/UserHomePageTour'
 import { useAuth } from '../../Context/AuthContext'
-import { getCourseAccessDisplay } from '../../utils/courseAccess'
+import { getCourseAccessDisplay, getCourseExpiryWarning } from '../../utils/courseAccess'
 import {
   STATUS_META,
   getMonthLabel,
@@ -40,6 +41,10 @@ const UserHomePage = () => {
   // The optional details are asked for on the login that lands here, and only until
   // the account has either filled them in or asked to be left alone for a few days.
   const [askForProfile, setAskForProfile] = useState(false)
+  // The other optional ask. A login is worth one interruption, so a visit that owes
+  // both the profile and a review is asked for the profile and left alone about the
+  // review until the next one — the server is still counting the week either way.
+  const [askForReview, setAskForReview] = useState(false)
   const [courses, setCourses] = useState([])
   const [records, setRecords] = useState([])
   const [loadingData, setLoadingData] = useState(true)
@@ -133,6 +138,7 @@ const UserHomePage = () => {
         setUserProfile(user)
         setFirstRun(Boolean(user.requiresTour))
         setAskForProfile(Boolean(user.requiresProfile))
+        setAskForReview(Boolean(user.requiresReview) && !user.requiresProfile)
         setIsAuthorized(true)
         setCheckingAuth(false)
         await loadDashboard({ shouldUpdate: () => isActive })
@@ -244,21 +250,37 @@ const UserHomePage = () => {
             accent="blue"
             browseHref="/user/courses"
             getHref={(course) => `/user/courses/${course._id}/player`}
-            getChip={(course) => ({
-              label: getCourseAccessDisplay(course).value,
-              className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-            })}
+            getChip={(course) => {
+              // A row that is about to close says so in the badge it already had, so the
+              // deadline is spotted from the home list without opening the course.
+              const expiryWarning = getCourseExpiryWarning(course)
+
+              return expiryWarning
+                ? { label: expiryWarning.chipLabel, className: expiryWarning.chipClassName }
+                : {
+                  label: getCourseAccessDisplay(course).value,
+                  className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+                }
+            }}
             openInNewTab
             emptyHint="Courses appear here as soon as they are published or assigned to your number."
           />
         </motion.main>
       </MotionConfig>
 
-      {/* The walkthrough owns the first screen an account ever sees, so the profile is
-          asked for once it is done rather than over the top of it. */}
-      {askForProfile && !firstRun ? (
-        <UserProfilePrompt onDismiss={() => setAskForProfile(false)} />
-      ) : null}
+      {/* The walkthrough owns the first screen an account ever sees, so anything else
+          worth asking waits until it is done rather than opening over the top of it. */}
+      {firstRun ? null : (
+        <>
+          {askForProfile ? (
+            <UserProfilePrompt onDismiss={() => setAskForProfile(false)} />
+          ) : null}
+
+          {askForReview ? (
+            <UserReviewPrompt onDismiss={() => setAskForReview(false)} />
+          ) : null}
+        </>
+      )}
     </div>
   )
 }

@@ -476,6 +476,20 @@ const getGrantEndsAt = (startsAt, durationDays) => (
     startsAt && durationDays ? addDays(startsAt, durationDays) : null
 );
 
+// A grant runs up to the start of endsAt, so the days left on it are counted from the
+// start of today: a window ending tomorrow still has today to be used and reads as one
+// day, and one ending today has already run out. Counting whole UTC days is what lets
+// this answer the same number all day instead of sliding with the clock.
+const getAccessDaysRemaining = (endsAt, now) => {
+    const startOfToday = getUtcStartOfDay(now);
+
+    if (!endsAt || !startOfToday) {
+        return null;
+    }
+
+    return Math.max(0, Math.round((endsAt.getTime() - startOfToday.getTime()) / MILLISECONDS_PER_DAY));
+};
+
 const formatDateOnly = (value) => {
     const date = parseDateValue(value);
 
@@ -598,6 +612,7 @@ const getCourseAccessWindow = (course, userPhone, now = new Date()) => {
             endsOn: '',
             durationMonths: null,
             durationDays: null,
+            daysRemaining: null,
             isExpired: false
         };
     }
@@ -627,6 +642,7 @@ const getCourseAccessWindow = (course, userPhone, now = new Date()) => {
         endsOn: formatDateOnly(endsAt),
         durationMonths,
         durationDays,
+        daysRemaining: getAccessDaysRemaining(endsAt, currentTime),
         isExpired: currentTime.getTime() >= endsAt.getTime()
     };
 };
@@ -696,6 +712,7 @@ const formatAccessWindowData = (accessWindow) => ({
     accessEndsOn: accessWindow?.endsOn || '',
     accessDurationMonths: accessWindow?.durationMonths || null,
     accessDurationDays: accessWindow?.durationDays || null,
+    accessDaysRemaining: accessWindow?.daysRemaining ?? null,
     isAccessExpired: Boolean(accessWindow?.isExpired)
 });
 
