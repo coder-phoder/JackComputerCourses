@@ -1,6 +1,93 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* The public site (landing, courses, about, contact) is one continuous piece of
+   motion: a marquee that never stops, a caret that blinks in the hero terminal,
+   badges that drift, an aurora that breathes behind the glass and a sheen that
+   crosses a card when it is hovered. They are named here as Tailwind animations
+   so a component asks for `animate-marquee` and never carries its own keyframes. */
+@theme {
+  /* Two faces the public site owns: a display face for every headline and a code face
+     for anything that quotes the machine — course codes, the hero terminal, section
+     numbers. The signed-in app is untouched by both. */
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-code: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --animate-marquee: marquee 38s linear infinite;
+  --animate-caret: caret 1.05s steps(1) infinite;
+  --animate-float: float 6.5s ease-in-out infinite;
+  --animate-float-slow: float 8.5s ease-in-out infinite;
+  --animate-breathe: breathe 2.6s ease-in-out infinite;
+  --animate-scanline: scanline 7s linear infinite;
+  --animate-aurora: aurora 18s ease-in-out infinite;
+  --animate-sheen: sheen 1.1s ease-out;
+  --animate-orbit: orbit 14s linear infinite;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes caret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes scanline {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(900%); }
+}
+
+@keyframes aurora {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.85; }
+  33% { transform: translate3d(4%, -3%, 0) scale(1.08); opacity: 1; }
+  66% { transform: translate3d(-3%, 4%, 0) scale(0.96); opacity: 0.7; }
+}
+
+@keyframes sheen {
+  from { transform: translateX(-120%) skewX(-18deg); }
+  to { transform: translateX(220%) skewX(-18deg); }
+}
+
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(var(--orbit-radius, 120px)) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(var(--orbit-radius, 120px)) rotate(-360deg); }
+}
+
+/* A card lit by the pointer: the component writes --spot-x / --spot-y as the mouse
+   moves and the highlight follows it, so hover reads as light rather than a colour
+   swap. The layer is inert until the card is hovered. */
+.spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 400ms ease;
+  pointer-events: none;
+  background: radial-gradient(
+    260px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    color-mix(in srgb, var(--spot-color, oklch(0.62 0.19 259)) 22%, transparent),
+    transparent 72%
+  );
+}
+
+.spotlight:hover::before,
+.spotlight:focus-within::before {
+  opacity: 1;
+}
+
 /* Progress bar for the sign-in transition (LoginTransitionScreen).
    The 3D scene itself is rendered with three.js. */
 .auth-progress {
@@ -82,5 +169,21 @@
   .attendance-cell {
     animation-duration: 1ms;
     animation-delay: 0ms;
+  }
+
+  /* The public site is decorative motion from top to bottom. A reader who has asked
+     for stillness gets the finished frame of every one of them: the marquee parked,
+     the caret lit, the badges settled. Framer Motion is handed the same setting by
+     the MotionConfig the public layout wraps its pages in. */
+  .animate-marquee,
+  .animate-caret,
+  .animate-float,
+  .animate-float-slow,
+  .animate-breathe,
+  .animate-scanline,
+  .animate-aurora,
+  .animate-sheen,
+  .animate-orbit {
+    animation: none;
   }
 }

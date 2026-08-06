@@ -1,6 +1,7 @@
 import { Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
+import { createRenderer, detectWebGLSupport, disposeScene, prefersReducedMotion } from '../../utils/webgl'
 
 const DEFAULT_STAGES = [
   'Verifying your credentials',
@@ -10,33 +11,6 @@ const DEFAULT_STAGES = [
 
 const STAGE_INTERVAL_MS = 1000
 const PARTICLE_COUNT = 700
-
-const prefersReducedMotion = () => (
-  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-)
-
-let webGLSupport = null
-
-// Probed once per session so the component can pick its fallback while
-// rendering, instead of discovering the failure inside an effect.
-const detectWebGLSupport = () => {
-  if (webGLSupport !== null) {
-    return webGLSupport
-  }
-
-  try {
-    const probe = document.createElement('canvas')
-
-    webGLSupport = Boolean(
-      window.WebGLRenderingContext
-      && (probe.getContext('webgl') || probe.getContext('experimental-webgl')),
-    )
-  } catch {
-    webGLSupport = false
-  }
-
-  return webGLSupport
-}
 
 const createParticles = () => {
   const positions = new Float32Array(PARTICLE_COUNT * 3)
@@ -83,14 +57,11 @@ const LoginTransitionScreen = ({ title = 'Signing you in', stages = DEFAULT_STAG
       height: Math.max(mount.clientHeight, 1),
     })
 
-    let renderer = null
+    // The brand, progress bar and status text carry the screen on their own, so a
+    // context that cannot be created bails out quietly rather than break the sign in.
+    const renderer = createRenderer(THREE, { alpha: true, antialias: true })
 
-    try {
-      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true })
-    } catch {
-      // Context creation can still fail after a successful probe (lost GPU,
-      // exhausted contexts). The brand, progress bar and status text carry the
-      // screen on their own, so bail out quietly rather than break the sign in.
+    if (!renderer) {
       return undefined
     }
 
@@ -214,18 +185,7 @@ const LoginTransitionScreen = ({ title = 'Signing you in', stages = DEFAULT_STAG
 
       window.removeEventListener('resize', handleResize)
       timer.dispose()
-
-      scene.traverse((object) => {
-        object.geometry?.dispose()
-
-        if (Array.isArray(object.material)) {
-          object.material.forEach((material) => material.dispose())
-          return
-        }
-
-        object.material?.dispose()
-      })
-
+      disposeScene(scene)
       renderer.dispose()
       renderer.domElement.remove()
     }
